@@ -86,6 +86,8 @@ export async function getWorkerDashboardData(workerId: string) {
   const week = getWeekBounds();
 
   const [
+    { data: activeOpenEntry },
+    { data: activeOpenBreak },
     { data: timeEntries },
     { data: breaks },
     { data: unitEntries },
@@ -95,6 +97,22 @@ export async function getWorkerDashboardData(workerId: string) {
     { data: paySettings },
     { data: bonusTiers },
   ] = await Promise.all([
+    supabase
+      .from("time_entries")
+      .select("id, clock_in_at, clock_out_at")
+      .eq("worker_id", workerId)
+      .is("clock_out_at", null)
+      .order("clock_in_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("time_breaks")
+      .select("id, break_start_at, break_end_at")
+      .eq("worker_id", workerId)
+      .is("break_end_at", null)
+      .order("break_start_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
     supabase
       .from("time_entries")
       .select("id, clock_in_at, clock_out_at, notes")
@@ -152,8 +170,8 @@ export async function getWorkerDashboardData(workerId: string) {
   const entries = timeEntries ?? [];
   const breakEntries = breaks ?? [];
   const units = unitEntries ?? [];
-  const openEntry = entries.find((entry) => !entry.clock_out_at) ?? null;
-  const openBreak = breakEntries.find((entry) => !entry.break_end_at) ?? null;
+  const openEntry = activeOpenEntry ?? null;
+  const openBreak = activeOpenBreak ?? null;
   const closedTodayHours = entries.reduce(
     (total, entry) =>
       entry.clock_out_at
