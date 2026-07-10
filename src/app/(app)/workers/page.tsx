@@ -6,6 +6,7 @@ import {
 } from "@/features/admin/data";
 import {
   addBonusTier,
+  deleteBonusTier,
   updateBonusTier,
   updateWorkerPaySettings,
   updateWorkerProfile,
@@ -213,64 +214,71 @@ export default async function WorkersPage() {
           </form>
           <div className="mt-5 space-y-2">
             {operations.bonusTiers.map((tier) => (
-              <form
-                action={updateBonusTier}
-                className="grid gap-2 rounded-md border border-border bg-background p-3 text-sm"
+              <div
+                className="rounded-md border border-border bg-background p-3"
                 key={tier.id}
               >
-                <input name="id" type="hidden" value={tier.id} />
-                <select
-                  className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                  defaultValue={tier.worker_id ?? ""}
-                  name="worker_id"
-                >
-                  <option value="">All workers</option>
-                  {workers
-                    .filter((worker) => worker.role === "worker")
-                    .map((worker) => (
-                      <option key={worker.id} value={worker.id}>
-                        {getProfileLabel(worker)}
-                      </option>
-                    ))}
-                </select>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  <input
-                    className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                    defaultValue={tier.threshold_units}
-                    min="1"
-                    name="threshold_units"
-                    step="1"
-                    type="number"
-                  />
-                  <input
-                    className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                    defaultValue={Number(tier.bonus_amount)}
-                    min="0"
-                    name="bonus_amount"
-                    step="0.01"
-                    type="number"
-                  />
-                </div>
-                <input
-                  className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                  defaultValue={tier.label ?? ""}
-                  name="label"
-                  placeholder="Label"
-                />
-                <div className="flex items-center gap-2">
+                <form action={updateBonusTier} className="grid gap-2 text-sm">
+                  <input name="id" type="hidden" value={tier.id} />
                   <select
-                    className="h-10 flex-1 rounded-md border border-border bg-surface px-3 text-sm"
-                    defaultValue={String(tier.active)}
-                    name="active"
+                    className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                    defaultValue={tier.worker_id ?? ""}
+                    name="worker_id"
                   >
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
+                    <option value="">All workers</option>
+                    {workers
+                      .filter((worker) => worker.role === "worker")
+                      .map((worker) => (
+                        <option key={worker.id} value={worker.id}>
+                          {getProfileLabel(worker)}
+                        </option>
+                      ))}
                   </select>
-                  <Button className="h-10 px-3" type="submit" variant="secondary">
-                    Save
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={tier.threshold_units}
+                      min="1"
+                      name="threshold_units"
+                      step="1"
+                      type="number"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={Number(tier.bonus_amount)}
+                      min="0"
+                      name="bonus_amount"
+                      step="0.01"
+                      type="number"
+                    />
+                  </div>
+                  <input
+                    className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                    defaultValue={tier.label ?? ""}
+                    name="label"
+                    placeholder="Label"
+                  />
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="h-10 flex-1 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={String(tier.active)}
+                      name="active"
+                    >
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                    <Button className="h-10 px-3" type="submit" variant="secondary">
+                      Save
+                    </Button>
+                  </div>
+                </form>
+                <form action={deleteBonusTier} className="mt-2 flex justify-end">
+                  <input name="id" type="hidden" value={tier.id} />
+                  <Button className="h-9 px-3" type="submit" variant="secondary">
+                    Delete Bonus
                   </Button>
-                </div>
-              </form>
+                </form>
+              </div>
             ))}
           </div>
         </div>

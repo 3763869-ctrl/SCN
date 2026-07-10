@@ -146,3 +146,20 @@ export async function updateBonusTier(formData: FormData) {
   revalidatePath("/workers");
   revalidatePath("/worker");
 }
+
+export async function deleteBonusTier(formData: FormData) {
+  await requireAdminProfile();
+
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase.from("bonus_tiers").delete().eq("id", id);
+
+  revalidatePath("/workers");
+  revalidatePath("/worker");
+}
