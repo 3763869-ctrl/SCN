@@ -1,6 +1,8 @@
 export type AppRole = "admin" | "worker";
 export type PayrollSchedule = "weekly" | "semi_monthly";
 export type ProductionUnitStatus = "pending" | "approved" | "rejected";
+export type TimesheetWeekStatus = "open" | "completed" | "reopened";
+export type WorkerPayrollStatus = "due" | "partial" | "paid" | "reopened";
 
 export type Database = {
   public: {
@@ -249,6 +251,179 @@ export type Database = {
           },
         ];
       };
+      timesheet_weeks: {
+        Row: {
+          id: string;
+          worker_id: string;
+          week_start: string;
+          week_end: string;
+          status: TimesheetWeekStatus;
+          completed_at: string | null;
+          completed_by: string | null;
+          reopened_at: string | null;
+          reopened_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id: string;
+          week_start: string;
+          week_end: string;
+          status?: TimesheetWeekStatus;
+          completed_at?: string | null;
+          completed_by?: string | null;
+          reopened_at?: string | null;
+          reopened_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string;
+          week_start?: string;
+          week_end?: string;
+          status?: TimesheetWeekStatus;
+          completed_at?: string | null;
+          completed_by?: string | null;
+          reopened_at?: string | null;
+          reopened_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "timesheet_weeks_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      worker_payrolls: {
+        Row: {
+          id: string;
+          worker_id: string;
+          timesheet_week_id: string;
+          week_start: string;
+          week_end: string;
+          due_date: string;
+          total_hours: number;
+          total_units: number;
+          hourly_rate: number;
+          hourly_pay: number;
+          bonus_pay: number;
+          total_owed: number;
+          total_paid: number;
+          balance_remaining: number;
+          status: WorkerPayrollStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id: string;
+          timesheet_week_id: string;
+          week_start: string;
+          week_end: string;
+          due_date: string;
+          total_hours?: number;
+          total_units?: number;
+          hourly_rate?: number;
+          hourly_pay?: number;
+          bonus_pay?: number;
+          total_owed?: number;
+          total_paid?: number;
+          balance_remaining?: number;
+          status?: WorkerPayrollStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string;
+          timesheet_week_id?: string;
+          week_start?: string;
+          week_end?: string;
+          due_date?: string;
+          total_hours?: number;
+          total_units?: number;
+          hourly_rate?: number;
+          hourly_pay?: number;
+          bonus_pay?: number;
+          total_owed?: number;
+          total_paid?: number;
+          balance_remaining?: number;
+          status?: WorkerPayrollStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "worker_payrolls_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "worker_payrolls_timesheet_week_id_fkey";
+            columns: ["timesheet_week_id"];
+            isOneToOne: false;
+            referencedRelation: "timesheet_weeks";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      payroll_payments: {
+        Row: {
+          id: string;
+          payroll_id: string;
+          worker_id: string;
+          amount: number;
+          paid_at: string;
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          payroll_id: string;
+          worker_id: string;
+          amount: number;
+          paid_at?: string;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          payroll_id?: string;
+          worker_id?: string;
+          amount?: number;
+          paid_at?: string;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payments_payroll_id_fkey";
+            columns: ["payroll_id"];
+            isOneToOne: false;
+            referencedRelation: "worker_payrolls";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payroll_payments_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -256,6 +431,8 @@ export type Database = {
       app_role: AppRole;
       production_unit_status: ProductionUnitStatus;
       payroll_schedule: PayrollSchedule;
+      timesheet_week_status: TimesheetWeekStatus;
+      worker_payroll_status: WorkerPayrollStatus;
     };
     CompositeTypes: Record<string, never>;
   };

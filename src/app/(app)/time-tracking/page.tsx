@@ -3,6 +3,10 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { getProfileLabel } from "@/features/admin/data";
+import {
+  completeTimesheetWeek,
+  reopenTimesheetWeek,
+} from "@/features/admin/payroll-actions";
 import { updateWorkerTimesheetDay } from "@/features/admin/worker-actions";
 import { getBreakHours, getHoursBetween } from "@/features/worker/metrics";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -53,6 +57,26 @@ function getWeekLink(workerId: string, weekStart: Date, offsetDays: number) {
   return `/time-tracking?worker=${workerId}&week=${getDateKey(target)}`;
 }
 
+function getWeekStatusStyles(status: string) {
+  if (status === "paid") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+
+  if (status === "partial") {
+    return "border-yellow-200 bg-yellow-50 text-yellow-700";
+  }
+
+  if (status === "completed") {
+    return "border-orange-200 bg-orange-50 text-orange-700";
+  }
+
+  if (status === "reopened") {
+    return "border-red-200 bg-red-50 text-red-700";
+  }
+
+  return "border-border bg-surface-muted text-muted-foreground";
+}
+
 type TimeTrackingPageProps = {
   searchParams?: Promise<{ week?: string; worker?: string }>;
 };
@@ -84,6 +108,8 @@ export default async function TimeTrackingPage({
     { data: units },
     { data: paySettings },
     { data: bonusTiers },
+    { data: timesheetWeek },
+    { data: payroll },
   ] = selectedWorker
     ? await Promise.all([
         supabase
@@ -118,6 +144,18 @@ export default async function TimeTrackingPage({
           .or(`worker_id.is.null,worker_id.eq.${selectedWorker.id}`)
           .eq("active", true)
           .order("threshold_units", { ascending: true }),
+        supabase
+          .from("timesheet_weeks")
+          .select("id, status, week_start, week_end")
+          .eq("worker_id", selectedWorker.id)
+          .eq("week_start", getDateKey(weekStart))
+          .maybeSingle(),
+        supabase
+          .from("worker_payrolls")
+          .select("id, status, total_owed, total_paid, balance_remaining")
+          .eq("worker_id", selectedWorker.id)
+          .eq("week_start", getDateKey(weekStart))
+          .maybeSingle(),
       ])
     : [
         { data: [] },
@@ -125,6 +163,8 @@ export default async function TimeTrackingPage({
         { data: [] },
         { data: null },
         { data: [] },
+        { data: null },
+        { data: null },
       ];
 
   const timeList = timeEntries ?? [];
@@ -172,6 +212,19 @@ export default async function TimeTrackingPage({
     .filter((tier) => weekUnits >= tier.threshold_units)
     .reduce((total, tier) => total + Number(tier.bonus_amount), 0);
   const totalPay = hourlyPay + bonusPay;
+  const weekStatus = timesheetWeek?.status ?? "open";
+  const displayStatus =
+    weekStatus === "completed" && payroll?.status ? payroll.status : weekStatus;
+  const statusLabel =
+    displayStatus === "completed" || displayStatus === "due"
+      ? "Sent to Payroll"
+      : displayStatus === "partial"
+        ? "Partial"
+        : displayStatus === "paid"
+          ? "Paid"
+          : displayStatus === "reopened"
+        ? "Needs Review"
+        : "Open";
 
   return (
     <div className="space-y-6">
@@ -208,16 +261,31 @@ export default async function TimeTrackingPage({
           <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h2 className="text-base font-semibold">
-                  {selectedWorker ? getProfileLabel(selectedWorker) : "No worker selected"}
-                </h2>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-semibold">
+                    {selectedWorker
+                      ? getProfileLabel(selectedWorker)
+                      : "No worker selected"}
+                  </h2>
+                  <span
+                    className={`rounded-md border px-2 py-1 text-xs font-semibold ${getWeekStatusStyles(displayStatus)}`}
+                  >
+                    {statusLabel}
+                  </span>
+                </div>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {displayDateFormatter.format(weekStart)} -{" "}
                   {displayDateFormatter.format(addDays(weekStart, 5))}
                 </p>
+                {payroll ? (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Payroll: {moneyFormatter.format(Number(payroll.total_paid))} paid,{" "}
+                    {moneyFormatter.format(Number(payroll.balance_remaining))} remaining.
+                  </p>
+                ) : null}
               </div>
               {selectedWorker ? (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Link
                     className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-semibold text-foreground transition hover:bg-surface-muted"
                     href={getWeekLink(selectedWorker.id, weekStart, -7)}
@@ -230,6 +298,35 @@ export default async function TimeTrackingPage({
                   >
                     Next Week
                   </Link>
+                  {timesheetWeek?.status === "completed" ? (
+                    <form action={reopenTimesheetWeek}>
+                      <input
+                        name="timesheet_week_id"
+                        type="hidden"
+                        value={timesheetWeek.id}
+                      />
+                      <input name="payroll_id" type="hidden" value={payroll?.id ?? ""} />
+                      <Button className="h-10" type="submit" variant="secondary">
+                        Reopen Week
+                      </Button>
+                    </form>
+                  ) : (
+                    <form action={completeTimesheetWeek}>
+                      <input
+                        name="worker_id"
+                        type="hidden"
+                        value={selectedWorker.id}
+                      />
+                      <input
+                        name="week_start"
+                        type="hidden"
+                        value={getDateKey(weekStart)}
+                      />
+                      <Button className="h-10" type="submit">
+                        Complete Week
+                      </Button>
+                    </form>
+                  )}
                 </div>
               ) : null}
             </div>
@@ -243,11 +340,9 @@ export default async function TimeTrackingPage({
               </div>
               <div className="rounded-md border border-border bg-background p-3">
                 <p className="text-xs font-semibold text-muted-foreground">
-                  Hourly Pay
+                  Weekly Units
                 </p>
-                <p className="mt-2 text-xl font-semibold">
-                  {moneyFormatter.format(hourlyPay)}
-                </p>
+                <p className="mt-2 text-xl font-semibold">{weekUnits}</p>
               </div>
               <div className="rounded-md border border-border bg-background p-3">
                 <p className="text-xs font-semibold text-muted-foreground">

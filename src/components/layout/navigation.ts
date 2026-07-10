@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  BriefcaseBusiness,
   Building2,
   Clock3,
   FileChartColumn,
@@ -18,7 +17,6 @@ export const navigationItems = [
   { label: "Clients", href: "/clients", icon: Building2 },
   { label: "Workers", href: "/workers", icon: Users },
   { label: "Time Tracking", href: "/time-tracking", icon: Clock3 },
-  { label: "Production (Units)", href: "/production", icon: BriefcaseBusiness },
   { label: "Payroll", href: "/payroll", icon: HandCoins },
   { label: "Invoices", href: "/invoices", icon: FileText },
   { label: "Expenses", href: "/expenses", icon: WalletCards },
