@@ -41,6 +41,7 @@ yarn-error.log*
 .config/
 .push-git/
 .github-ssh/
+.ssh-test/
 
 # vercel
 .vercel
