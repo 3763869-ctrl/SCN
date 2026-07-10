@@ -44,6 +44,122 @@ export async function updateProductionStatus(formData: FormData) {
   revalidatePath("/workers");
 }
 
+function buildDateTime(workDate: string, value: FormDataEntryValue | null) {
+  const timeValue = String(value ?? "").trim();
+
+  if (!timeValue) {
+    return null;
+  }
+
+  return new Date(`${workDate}T${timeValue}:00`).toISOString();
+}
+
+export async function updateWorkerTimesheetDay(formData: FormData) {
+  await requireAdminProfile();
+
+  const workerId = String(formData.get("worker_id") ?? "");
+  const workDate = String(formData.get("work_date") ?? "");
+  const timeEntryId = String(formData.get("time_entry_id") ?? "");
+  const breakId = String(formData.get("break_id") ?? "");
+  const unitEntryId = String(formData.get("unit_entry_id") ?? "");
+  const clockInAt = buildDateTime(workDate, formData.get("clock_in"));
+  const clockOutAt = buildDateTime(workDate, formData.get("clock_out"));
+  const lunchMinutes = Number(formData.get("lunch_minutes") ?? 0);
+  const units = Number(formData.get("units") ?? 0);
+
+  if (
+    !workerId ||
+    !workDate ||
+    !Number.isFinite(lunchMinutes) ||
+    lunchMinutes < 0 ||
+    !Number.isFinite(units) ||
+    units < 0
+  ) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  let targetTimeEntryId = timeEntryId;
+
+  if (targetTimeEntryId && !clockInAt && !clockOutAt && lunchMinutes === 0) {
+    await supabase.from("time_breaks").delete().eq("time_entry_id", targetTimeEntryId);
+    await supabase.from("time_entries").delete().eq("id", targetTimeEntryId);
+    targetTimeEntryId = "";
+  }
+
+  if (clockInAt || clockOutAt || lunchMinutes > 0) {
+    const timePayload = {
+      worker_id: workerId,
+      clock_in_at: clockInAt ?? new Date(`${workDate}T00:00:00`).toISOString(),
+      clock_out_at: clockOutAt,
+      notes: "Admin adjusted timesheet",
+    };
+
+    if (targetTimeEntryId) {
+      await supabase
+        .from("time_entries")
+        .update(timePayload)
+        .eq("id", targetTimeEntryId);
+    } else {
+      const { data } = await supabase
+        .from("time_entries")
+        .insert(timePayload)
+        .select("id")
+        .single();
+
+      targetTimeEntryId = data?.id ?? "";
+    }
+  }
+
+  if (targetTimeEntryId) {
+    if (lunchMinutes > 0) {
+      const breakStart = clockInAt
+        ? new Date(new Date(clockInAt).getTime() + 4 * 60 * 60 * 1000)
+        : new Date(`${workDate}T12:00:00`);
+      const breakEnd = new Date(breakStart.getTime() + lunchMinutes * 60 * 1000);
+      const breakPayload = {
+        worker_id: workerId,
+        time_entry_id: targetTimeEntryId,
+        break_start_at: breakStart.toISOString(),
+        break_end_at: breakEnd.toISOString(),
+        break_type: "lunch",
+      };
+
+      if (breakId) {
+        await supabase.from("time_breaks").update(breakPayload).eq("id", breakId);
+      } else {
+        await supabase.from("time_breaks").insert(breakPayload);
+      }
+    } else if (breakId) {
+      await supabase.from("time_breaks").delete().eq("id", breakId);
+    }
+  }
+
+  if (units > 0) {
+    const unitPayload = {
+      worker_id: workerId,
+      quantity: Math.floor(units),
+      work_date: workDate,
+      status: "approved" as const,
+      notes: "Admin adjusted timesheet",
+    };
+
+    if (unitEntryId) {
+      await supabase
+        .from("production_units")
+        .update(unitPayload)
+        .eq("id", unitEntryId);
+    } else {
+      await supabase.from("production_units").insert(unitPayload);
+    }
+  } else if (unitEntryId) {
+    await supabase.from("production_units").delete().eq("id", unitEntryId);
+  }
+
+  revalidatePath("/time-tracking");
+  revalidatePath("/worker");
+}
+
 export async function updateWorkerPaySettings(formData: FormData) {
   await requireAdminProfile();
 
