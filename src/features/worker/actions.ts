@@ -8,6 +8,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export type WorkerActionState = {
   message: string | null;
+  success?: boolean;
   bonusAmount?: number;
   bonusLabel?: string;
 };
@@ -28,7 +29,7 @@ export async function clockIn(): Promise<WorkerActionState> {
     .maybeSingle();
 
   if (openEntry) {
-    return { message: "You are already clocked in." };
+    return { message: "You are already clocked in.", success: false };
   }
 
   await supabase.from("time_entries").insert({
@@ -36,7 +37,7 @@ export async function clockIn(): Promise<WorkerActionState> {
   });
 
   revalidatePath("/worker");
-  return { message: "Clocked in. Have a good shift." };
+  return { message: "Clocked in. Have a good shift.", success: true };
 }
 
 export async function startLunch(): Promise<WorkerActionState> {
@@ -53,7 +54,7 @@ export async function startLunch(): Promise<WorkerActionState> {
     .maybeSingle();
 
   if (!openEntry) {
-    return { message: "Clock in before starting lunch." };
+    return { message: "Clock in before starting lunch.", success: false };
   }
 
   const { data: openBreak } = await supabase
@@ -64,7 +65,7 @@ export async function startLunch(): Promise<WorkerActionState> {
     .maybeSingle();
 
   if (openBreak) {
-    return { message: "Lunch pause is already running." };
+    return { message: "Lunch pause is already running.", success: false };
   }
 
   await supabase.from("time_breaks").insert({
@@ -73,7 +74,7 @@ export async function startLunch(): Promise<WorkerActionState> {
   });
 
   revalidatePath("/worker");
-  return { message: "Lunch pause started." };
+  return { message: "Lunch pause started.", success: true };
 }
 
 export async function endLunch(): Promise<WorkerActionState> {
@@ -88,7 +89,7 @@ export async function endLunch(): Promise<WorkerActionState> {
     .maybeSingle();
 
   if (!openBreak) {
-    return { message: "There is no active lunch pause." };
+    return { message: "There is no active lunch pause.", success: false };
   }
 
   await supabase
@@ -97,7 +98,7 @@ export async function endLunch(): Promise<WorkerActionState> {
     .eq("id", openBreak.id);
 
   revalidatePath("/worker");
-  return { message: "Lunch pause ended." };
+  return { message: "Lunch pause ended.", success: true };
 }
 
 export async function clockOut(): Promise<WorkerActionState> {
@@ -115,10 +116,15 @@ export async function clockOut(): Promise<WorkerActionState> {
   if (!todaysUnits?.length) {
     return {
       message: "Add today's units before clocking out.",
+      success: false,
     };
   }
 
-  await endLunch();
+  await supabase
+    .from("time_breaks")
+    .update({ break_end_at: new Date().toISOString() })
+    .eq("worker_id", profile.id)
+    .is("break_end_at", null);
 
   const { data: openEntry } = await supabase
     .from("time_entries")
@@ -137,7 +143,7 @@ export async function clockOut(): Promise<WorkerActionState> {
   }
 
   revalidatePath("/worker");
-  return { message: "Clocked out for the day." };
+  return { message: "Clocked out for the day.", success: true };
 }
 
 export async function addUnits(
@@ -151,7 +157,7 @@ export async function addUnits(
   const notes = String(formData.get("notes") ?? "").trim();
 
   if (!Number.isFinite(quantity) || quantity <= 0) {
-    return { message: "Enter a valid unit quantity." };
+    return { message: "Enter a valid unit quantity.", success: false };
   }
 
   const supabase = await createSupabaseServerClient();
@@ -188,10 +194,11 @@ export async function addUnits(
   if (earnedTier) {
     return {
       message: "Bonus goal reached.",
+      success: true,
       bonusAmount: Number(earnedTier.bonus_amount),
       bonusLabel: earnedTier.label ?? `${earnedTier.threshold_units} units`,
     };
   }
 
-  return { message: "Units submitted." };
+  return { message: "Units submitted.", success: true };
 }

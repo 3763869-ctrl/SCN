@@ -96,6 +96,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
   const [activeTab, setActiveTab] = useState<"clock" | "units">("clock");
   const [message, setMessage] = useState<string | null>(null);
   const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
+  const [endDayRequiresUnits, setEndDayRequiresUnits] = useState(false);
   const [celebration, setCelebration] = useState<WorkerActionState | null>(null);
   const [isPending, startTransition] = useTransition();
   const [now, setNow] = useState(() => Date.now());
@@ -134,18 +135,14 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
 
   function continueClockOut() {
     setShowClockOutConfirm(false);
-
-    if (!data.todayUnits) {
-      setActiveTab("units");
-      setMessage("Add today's units before clocking out for the day.");
-      return;
-    }
-
-    runAction(clockOut);
+    setEndDayRequiresUnits(true);
+    setActiveTab("units");
+    setMessage("Enter today's units to finish clocking out for the day.");
   }
 
   function chooseLunchPause() {
     setShowClockOutConfirm(false);
+    setEndDayRequiresUnits(false);
 
     if (data.openBreak) {
       setMessage("Lunch pause is already running.");
@@ -163,6 +160,14 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
       if (result.bonusAmount) {
         setCelebration(result);
       }
+
+      if (endDayRequiresUnits && result.success) {
+        const clockOutResult = await clockOut();
+
+        setEndDayRequiresUnits(false);
+        setMessage(`${result.message} ${clockOutResult.message}`.trim());
+      }
+
       router.refresh();
     });
   }
@@ -402,7 +407,9 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
           >
             <h2 className="text-base font-semibold">Add Today&apos;s Units</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Submit units before clocking out for the day.
+              {endDayRequiresUnits
+                ? "This is required before your final clock out for today."
+                : "Submit units before clocking out for the day."}
             </p>
             <div className="mt-5 space-y-4">
               <div>
@@ -431,7 +438,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
               </div>
               <Button className="h-12 w-full" disabled={isPending} type="submit">
                 <PackagePlus className="mr-2 h-4 w-4" />
-                Submit Units
+                {endDayRequiresUnits ? "Submit Units and Clock Out" : "Submit Units"}
               </Button>
             </div>
           </form>
