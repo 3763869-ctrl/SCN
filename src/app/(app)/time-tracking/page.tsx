@@ -215,6 +215,7 @@ export default async function TimeTrackingPage({
   const weekStatus = timesheetWeek?.status ?? "open";
   const displayStatus =
     weekStatus === "completed" && payroll?.status ? payroll.status : weekStatus;
+  const isWeekLocked = weekStatus === "completed";
   const statusLabel =
     displayStatus === "completed" || displayStatus === "due"
       ? "Sent to Payroll"
@@ -281,6 +282,11 @@ export default async function TimeTrackingPage({
                   <p className="mt-1 text-sm text-muted-foreground">
                     Payroll: {moneyFormatter.format(Number(payroll.total_paid))} paid,{" "}
                     {moneyFormatter.format(Number(payroll.balance_remaining))} remaining.
+                  </p>
+                ) : null}
+                {isWeekLocked ? (
+                  <p className="mt-1 text-sm font-medium text-orange-700">
+                    This week is locked. Reopen it before making changes.
                   </p>
                 ) : null}
               </div>
@@ -410,28 +416,32 @@ export default async function TimeTrackingPage({
                             {displayDateFormatter.format(row.date)}
                           </span>
                           <input
-                            className="h-10 rounded-md border border-border bg-background px-3"
+                            className="h-10 rounded-md border border-border bg-background px-3 disabled:bg-surface-muted disabled:text-muted-foreground"
                             defaultValue={getTimeValue(row.firstEntry?.clock_in_at)}
+                            disabled={isWeekLocked}
                             name="clock_in"
                             type="time"
                           />
                           <input
-                            className="h-10 rounded-md border border-border bg-background px-3"
+                            className="h-10 rounded-md border border-border bg-background px-3 disabled:bg-surface-muted disabled:text-muted-foreground"
                             defaultValue={getTimeValue(row.firstEntry?.clock_out_at)}
+                            disabled={isWeekLocked}
                             name="clock_out"
                             type="time"
                           />
                           <input
-                            className="h-10 rounded-md border border-border bg-background px-3"
+                            className="h-10 rounded-md border border-border bg-background px-3 disabled:bg-surface-muted disabled:text-muted-foreground"
                             defaultValue={row.lunchMinutes}
+                            disabled={isWeekLocked}
                             min="0"
                             name="lunch_minutes"
                             step="1"
                             type="number"
                           />
                           <input
-                            className="h-10 rounded-md border border-border bg-background px-3"
+                            className="h-10 rounded-md border border-border bg-background px-3 disabled:bg-surface-muted disabled:text-muted-foreground"
                             defaultValue={row.unitTotal}
+                            disabled={isWeekLocked}
                             min="0"
                             name="units"
                             step="1"
@@ -442,11 +452,18 @@ export default async function TimeTrackingPage({
                             {moneyFormatter.format(row.totalHours * hourlyRate)}
                           </span>
                           <div className="grid grid-cols-2 gap-2">
-                            <Button className="h-10 px-3" name="action" type="submit" value="save">
+                            <Button
+                              className="h-10 px-3"
+                              disabled={isWeekLocked}
+                              name="action"
+                              type="submit"
+                              value="save"
+                            >
                               Save
                             </Button>
                             <Button
                               className="h-10 px-3"
+                              disabled={isWeekLocked}
                               name="action"
                               type="submit"
                               value="clear"

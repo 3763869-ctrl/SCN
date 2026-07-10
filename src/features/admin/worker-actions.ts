@@ -34,6 +34,13 @@ function buildDateTime(workDate: string, value: FormDataEntryValue | null) {
   return new Date(`${workDate}T${timeValue}:00`).toISOString();
 }
 
+function getWeekStartKey(workDate: string) {
+  const date = new Date(`${workDate}T00:00:00`);
+  date.setDate(date.getDate() - date.getDay());
+
+  return new Intl.DateTimeFormat("en-CA").format(date);
+}
+
 export async function updateWorkerTimesheetDay(formData: FormData) {
   await requireAdminProfile();
 
@@ -61,6 +68,17 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
 
   const supabase = await createSupabaseServerClient();
   let targetTimeEntryId = timeEntryId;
+
+  const { data: timesheetWeek } = await supabase
+    .from("timesheet_weeks")
+    .select("status")
+    .eq("worker_id", workerId)
+    .eq("week_start", getWeekStartKey(workDate))
+    .maybeSingle();
+
+  if (timesheetWeek?.status === "completed") {
+    return;
+  }
 
   if (action === "clear") {
     const dayStart = new Date(`${workDate}T00:00:00`);
