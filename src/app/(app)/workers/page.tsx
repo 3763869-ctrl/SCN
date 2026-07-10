@@ -1,29 +1,14 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import {
+  getAdminOperationsData,
+  getProfileLabel,
+} from "@/features/admin/data";
 import { updateWorkerProfile } from "@/features/admin/worker-actions";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function WorkersPage() {
-  const supabase = await createSupabaseServerClient();
-  const [{ data: profiles }, { data: timeEntries }, { data: unitEntries }] =
-    await Promise.all([
-      supabase
-        .from("profiles")
-        .select("id, full_name, email, role, active, created_at")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("time_entries")
-        .select("id, worker_id, clock_in_at, clock_out_at")
-        .order("clock_in_at", { ascending: false })
-        .limit(20),
-      supabase
-        .from("production_units")
-        .select("id, worker_id, quantity, status, created_at")
-        .order("created_at", { ascending: false })
-        .limit(20),
-    ]);
-
-  const workers = profiles ?? [];
+  const operations = await getAdminOperationsData();
+  const workers = operations.profiles;
   const activeWorkers = workers.filter((worker) => worker.active).length;
   const workerRoleCount = workers.filter((worker) => worker.role === "worker").length;
 
@@ -123,18 +108,18 @@ export default async function WorkersPage() {
         <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
           <h2 className="text-base font-semibold">Recent Time Entries</h2>
           <div className="mt-4 space-y-2">
-            {(timeEntries ?? []).map((entry) => (
+            {operations.timeEntries.slice(0, 20).map((entry) => (
               <div
                 className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm"
                 key={entry.id}
               >
-                <span className="font-mono text-xs text-muted-foreground">
-                  {entry.worker_id.slice(0, 8)}
+                <span className="font-medium">
+                  {getProfileLabel(operations.profileMap.get(entry.worker_id))}
                 </span>
                 <span>{entry.clock_out_at ? "Closed" : "Active"}</span>
               </div>
             ))}
-            {!timeEntries?.length ? (
+            {!operations.timeEntries.length ? (
               <p className="text-sm text-muted-foreground">
                 No time entries yet.
               </p>
@@ -145,18 +130,21 @@ export default async function WorkersPage() {
         <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
           <h2 className="text-base font-semibold">Recent Unit Entries</h2>
           <div className="mt-4 space-y-2">
-            {(unitEntries ?? []).map((entry) => (
+            {operations.unitEntries.slice(0, 20).map((entry) => (
               <div
                 className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm"
                 key={entry.id}
               >
-                <span>{entry.quantity} units</span>
+                <span>
+                  {entry.quantity} units by{" "}
+                  {getProfileLabel(operations.profileMap.get(entry.worker_id))}
+                </span>
                 <span className="capitalize text-muted-foreground">
                   {entry.status}
                 </span>
               </div>
             ))}
-            {!unitEntries?.length ? (
+            {!operations.unitEntries.length ? (
               <p className="text-sm text-muted-foreground">
                 No unit entries yet.
               </p>

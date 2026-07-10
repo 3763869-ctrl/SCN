@@ -1,15 +1,13 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import {
+  getAdminOperationsData,
+  getProfileLabel,
+} from "@/features/admin/data";
 import { updateProductionStatus } from "@/features/admin/worker-actions";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function ProductionPage() {
-  const supabase = await createSupabaseServerClient();
-  const { data: unitEntries } = await supabase
-    .from("production_units")
-    .select("id, worker_id, quantity, work_date, status, notes, created_at")
-    .order("created_at", { ascending: false })
-    .limit(50);
+  const operations = await getAdminOperationsData();
 
   return (
     <div className="space-y-6">
@@ -34,10 +32,10 @@ export default async function ProductionPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {(unitEntries ?? []).map((entry) => (
+              {operations.unitEntries.map((entry) => (
                 <tr key={entry.id}>
-                  <td className="px-5 py-3 font-mono text-xs text-muted-foreground">
-                    {entry.worker_id.slice(0, 8)}
+                  <td className="px-5 py-3 font-medium">
+                    {getProfileLabel(operations.profileMap.get(entry.worker_id))}
                   </td>
                   <td className="px-5 py-3">{entry.work_date}</td>
                   <td className="px-5 py-3 font-medium">{entry.quantity}</td>
@@ -62,7 +60,7 @@ export default async function ProductionPage() {
                   </td>
                 </tr>
               ))}
-              {!unitEntries?.length ? (
+              {!operations.unitEntries.length ? (
                 <tr>
                   <td className="px-5 py-6 text-muted-foreground" colSpan={5}>
                     No production units have been submitted yet.
