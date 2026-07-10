@@ -100,6 +100,7 @@ Migration order:
 0001_profiles_and_roles.sql
 0002_worker_time_and_units.sql
 0003_allow_trusted_profile_maintenance.sql
+0004_worker_pay_breaks_and_bonuses.sql
 ```
 
 ### Creating the First Users

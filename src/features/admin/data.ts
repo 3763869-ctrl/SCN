@@ -21,6 +21,8 @@ export async function getAdminOperationsData() {
     { data: profiles },
     { data: timeEntries },
     { data: unitEntries },
+    { data: paySettings },
+    { data: bonusTiers },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -36,6 +38,13 @@ export async function getAdminOperationsData() {
       .select("id, worker_id, quantity, work_date, status, notes, created_at")
       .order("created_at", { ascending: false })
       .limit(50),
+    supabase
+      .from("worker_pay_settings")
+      .select("worker_id, hourly_rate, payroll_schedule, weekly_unit_goal, active"),
+    supabase
+      .from("bonus_tiers")
+      .select("id, worker_id, threshold_units, bonus_amount, label, active")
+      .order("threshold_units", { ascending: true }),
   ]);
 
   const profileList = (profiles ?? []) as ProfileSummary[];
@@ -44,12 +53,20 @@ export async function getAdminOperationsData() {
   );
   const timeList = timeEntries ?? [];
   const unitList = unitEntries ?? [];
+  const paySettingsList = paySettings ?? [];
+  const bonusTierList = bonusTiers ?? [];
+  const paySettingsMap = new Map(
+    paySettingsList.map((setting) => [setting.worker_id, setting] as const),
+  );
 
   return {
     profiles: profileList,
     profileMap,
     timeEntries: timeList,
     unitEntries: unitList,
+    paySettings: paySettingsList,
+    paySettingsMap,
+    bonusTiers: bonusTierList,
     activeWorkers: profileList.filter(
       (profile) => profile.role === "worker" && profile.active,
     ).length,

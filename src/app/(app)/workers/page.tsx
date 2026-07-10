@@ -4,7 +4,11 @@ import {
   getAdminOperationsData,
   getProfileLabel,
 } from "@/features/admin/data";
-import { updateWorkerProfile } from "@/features/admin/worker-actions";
+import {
+  addBonusTier,
+  updateWorkerPaySettings,
+  updateWorkerProfile,
+} from "@/features/admin/worker-actions";
 
 export default async function WorkersPage() {
   const operations = await getAdminOperationsData();
@@ -101,6 +105,127 @@ export default async function WorkersPage() {
               ) : null}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+          <h2 className="text-base font-semibold">Worker Pay Settings</h2>
+          <div className="mt-4 space-y-3">
+            {workers
+              .filter((worker) => worker.role === "worker")
+              .map((worker) => {
+                const setting = operations.paySettingsMap.get(worker.id);
+
+                return (
+                  <form
+                    action={updateWorkerPaySettings}
+                    className="grid gap-3 rounded-md border border-border bg-background p-3 md:grid-cols-[1.2fr_0.8fr_1fr_0.8fr_auto]"
+                    key={worker.id}
+                  >
+                    <input name="worker_id" type="hidden" value={worker.id} />
+                    <div>
+                      <p className="text-sm font-semibold">
+                        {getProfileLabel(worker)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {worker.email}
+                      </p>
+                    </div>
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={Number(setting?.hourly_rate ?? 0)}
+                      min="0"
+                      name="hourly_rate"
+                      placeholder="Hourly rate"
+                      step="0.01"
+                      type="number"
+                    />
+                    <select
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={setting?.payroll_schedule ?? "weekly"}
+                      name="payroll_schedule"
+                    >
+                      <option value="weekly">Weekly</option>
+                      <option value="semi_monthly">Semi-monthly</option>
+                    </select>
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={setting?.weekly_unit_goal ?? 100}
+                      min="1"
+                      name="weekly_unit_goal"
+                      placeholder="Weekly goal"
+                      step="1"
+                      type="number"
+                    />
+                    <Button className="h-10 px-3" type="submit">
+                      Save
+                    </Button>
+                  </form>
+                );
+              })}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+          <h2 className="text-base font-semibold">Bonus Tiers</h2>
+          <form action={addBonusTier} className="mt-4 space-y-3">
+            <select
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              name="worker_id"
+            >
+              <option value="">All workers</option>
+              {workers
+                .filter((worker) => worker.role === "worker")
+                .map((worker) => (
+                  <option key={worker.id} value={worker.id}>
+                    {getProfileLabel(worker)}
+                  </option>
+                ))}
+            </select>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input
+                className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                min="1"
+                name="threshold_units"
+                placeholder="Unit threshold"
+                required
+                step="1"
+                type="number"
+              />
+              <input
+                className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                min="0"
+                name="bonus_amount"
+                placeholder="Bonus amount"
+                required
+                step="0.01"
+                type="number"
+              />
+            </div>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              name="label"
+              placeholder="Label"
+            />
+            <Button type="submit">Add Bonus</Button>
+          </form>
+          <div className="mt-5 space-y-2">
+            {operations.bonusTiers.map((tier) => (
+              <div
+                className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm"
+                key={tier.id}
+              >
+                <span>
+                  {tier.label || `${tier.threshold_units} units`}{" "}
+                  <span className="text-muted-foreground">
+                    ({tier.threshold_units})
+                  </span>
+                </span>
+                <span>${Number(tier.bonus_amount).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 

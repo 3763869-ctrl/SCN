@@ -6,7 +6,17 @@ import { requireProfile } from "@/features/auth/session";
 import { getTodayBounds } from "@/features/worker/metrics";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-export async function clockIn() {
+export type WorkerActionState = {
+  message: string | null;
+  bonusAmount?: number;
+  bonusLabel?: string;
+};
+
+const initialState: WorkerActionState = {
+  message: null,
+};
+
+export async function clockIn(): Promise<WorkerActionState> {
   const profile = await requireProfile();
   const supabase = await createSupabaseServerClient();
 
@@ -17,18 +27,98 @@ export async function clockIn() {
     .is("clock_out_at", null)
     .maybeSingle();
 
-  if (!openEntry) {
-    await supabase.from("time_entries").insert({
-      worker_id: profile.id,
-    });
+  if (openEntry) {
+    return { message: "You are already clocked in." };
   }
 
+  await supabase.from("time_entries").insert({
+    worker_id: profile.id,
+  });
+
   revalidatePath("/worker");
+  return { message: "Clocked in. Have a good shift." };
 }
 
-export async function clockOut() {
+export async function startLunch(): Promise<WorkerActionState> {
   const profile = await requireProfile();
   const supabase = await createSupabaseServerClient();
+
+  const { data: openEntry } = await supabase
+    .from("time_entries")
+    .select("id")
+    .eq("worker_id", profile.id)
+    .is("clock_out_at", null)
+    .order("clock_in_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!openEntry) {
+    return { message: "Clock in before starting lunch." };
+  }
+
+  const { data: openBreak } = await supabase
+    .from("time_breaks")
+    .select("id")
+    .eq("worker_id", profile.id)
+    .is("break_end_at", null)
+    .maybeSingle();
+
+  if (openBreak) {
+    return { message: "Lunch pause is already running." };
+  }
+
+  await supabase.from("time_breaks").insert({
+    worker_id: profile.id,
+    time_entry_id: openEntry.id,
+  });
+
+  revalidatePath("/worker");
+  return { message: "Lunch pause started." };
+}
+
+export async function endLunch(): Promise<WorkerActionState> {
+  const profile = await requireProfile();
+  const supabase = await createSupabaseServerClient();
+
+  const { data: openBreak } = await supabase
+    .from("time_breaks")
+    .select("id")
+    .eq("worker_id", profile.id)
+    .is("break_end_at", null)
+    .maybeSingle();
+
+  if (!openBreak) {
+    return { message: "There is no active lunch pause." };
+  }
+
+  await supabase
+    .from("time_breaks")
+    .update({ break_end_at: new Date().toISOString() })
+    .eq("id", openBreak.id);
+
+  revalidatePath("/worker");
+  return { message: "Lunch pause ended." };
+}
+
+export async function clockOut(): Promise<WorkerActionState> {
+  const profile = await requireProfile();
+  const supabase = await createSupabaseServerClient();
+  const { workDate } = getTodayBounds();
+
+  const { data: todaysUnits } = await supabase
+    .from("production_units")
+    .select("id")
+    .eq("worker_id", profile.id)
+    .eq("work_date", workDate)
+    .limit(1);
+
+  if (!todaysUnits?.length) {
+    return {
+      message: "Add today's units before clocking out.",
+    };
+  }
+
+  await endLunch();
 
   const { data: openEntry } = await supabase
     .from("time_entries")
@@ -47,19 +137,33 @@ export async function clockOut() {
   }
 
   revalidatePath("/worker");
+  return { message: "Clocked out for the day." };
 }
 
-export async function addUnits(formData: FormData) {
+export async function addUnits(
+  _previousState: WorkerActionState = initialState,
+  formData: FormData,
+): Promise<WorkerActionState> {
+  void _previousState;
+
   const profile = await requireProfile();
   const quantity = Number(formData.get("quantity"));
   const notes = String(formData.get("notes") ?? "").trim();
 
   if (!Number.isFinite(quantity) || quantity <= 0) {
-    return;
+    return { message: "Enter a valid unit quantity." };
   }
 
   const supabase = await createSupabaseServerClient();
   const { workDate } = getTodayBounds();
+  const { data: existingUnits } = await supabase
+    .from("production_units")
+    .select("quantity")
+    .eq("worker_id", profile.id)
+    .eq("work_date", workDate);
+  const previousUnits =
+    existingUnits?.reduce((total, entry) => total + entry.quantity, 0) ?? 0;
+  const nextUnits = previousUnits + Math.floor(quantity);
 
   await supabase.from("production_units").insert({
     worker_id: profile.id,
@@ -68,5 +172,26 @@ export async function addUnits(formData: FormData) {
     notes: notes || null,
   });
 
+  const { data: tiers } = await supabase
+    .from("bonus_tiers")
+    .select("threshold_units, bonus_amount, label")
+    .or(`worker_id.is.null,worker_id.eq.${profile.id}`)
+    .eq("active", true)
+    .order("threshold_units", { ascending: true });
+  const earnedTier = tiers?.find(
+    (tier) =>
+      previousUnits < tier.threshold_units && nextUnits >= tier.threshold_units,
+  );
+
   revalidatePath("/worker");
+
+  if (earnedTier) {
+    return {
+      message: "Bonus goal reached.",
+      bonusAmount: Number(earnedTier.bonus_amount),
+      bonusLabel: earnedTier.label ?? `${earnedTier.threshold_units} units`,
+    };
+  }
+
+  return { message: "Units submitted." };
 }

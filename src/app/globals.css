@@ -33,3 +33,19 @@ body {
 * {
   box-sizing: border-box;
 }
+
+@keyframes float-up {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.9);
+  }
+
+  15% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(-115vh) scale(1.15);
+  }
+}
