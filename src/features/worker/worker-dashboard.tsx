@@ -429,7 +429,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
                 <h2 className="text-base font-semibold">Hours Calendar</h2>
                 <CalendarDays className="h-5 w-5 text-accent" />
               </div>
-              <div className="mt-4 grid grid-cols-7 gap-2">
+              <div className="mt-4 grid grid-cols-6 gap-2">
                 {data.calendarDays.map((day) => (
                   <div
                     className="rounded-md border border-border bg-background p-2 text-center"

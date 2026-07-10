@@ -215,7 +215,7 @@ export async function getWorkerDashboardData(workerId: string) {
   const payrollEstimate = hourlyPayEstimate + bonusPayEstimate;
   const nextBonus =
     tiers.find((tier) => weekUnitTotal < tier.threshold_units) ?? null;
-  const calendarDays = Array.from({ length: 7 }, (_, index) => {
+  const calendarDays = Array.from({ length: 6 }, (_, index) => {
     const date = new Date(week.start);
     date.setDate(week.start.getDate() + index);
     const dayStart = getStartOfDay(date);
