@@ -401,47 +401,69 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
         </section>
       ) : (
         <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-          <form
-            action={submitUnits}
-            className="rounded-lg border border-border bg-surface p-6 shadow-sm"
-          >
-            <h2 className="text-base font-semibold">Add Today&apos;s Units</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {endDayRequiresUnits
-                ? "This is required before your final clock out for today."
-                : "Submit units before clocking out for the day."}
-            </p>
-            <div className="mt-5 space-y-4">
-              <div>
-                <label className="text-sm font-medium" htmlFor="quantity">
-                  Units
-                </label>
-                <input
-                  className="mt-2 h-12 w-full rounded-md border border-border bg-background px-3 text-lg font-semibold outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-                  id="quantity"
-                  min="1"
-                  name="quantity"
-                  required
-                  step="1"
-                  type="number"
-                />
+          {endDayRequiresUnits ? (
+            <form
+              action={submitUnits}
+              className="rounded-lg border border-border bg-surface p-6 shadow-sm"
+            >
+              <h2 className="text-base font-semibold">Add Today&apos;s Units</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                This is required before your final clock out for today.
+              </p>
+              <div className="mt-5 space-y-4">
+                <div>
+                  <label className="text-sm font-medium" htmlFor="quantity">
+                    Units
+                  </label>
+                  <input
+                    className="mt-2 h-12 w-full rounded-md border border-border bg-background px-3 text-lg font-semibold outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    id="quantity"
+                    min="1"
+                    name="quantity"
+                    required
+                    step="1"
+                    type="number"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium" htmlFor="notes">
+                    Notes
+                  </label>
+                  <textarea
+                    className="mt-2 min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    id="notes"
+                    name="notes"
+                  />
+                </div>
+                <Button className="h-12 w-full" disabled={isPending} type="submit">
+                  <PackagePlus className="mr-2 h-4 w-4" />
+                  Submit Units and Clock Out
+                </Button>
               </div>
-              <div>
-                <label className="text-sm font-medium" htmlFor="notes">
-                  Notes
-                </label>
-                <textarea
-                  className="mt-2 min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-                  id="notes"
-                  name="notes"
-                />
-              </div>
-              <Button className="h-12 w-full" disabled={isPending} type="submit">
-                <PackagePlus className="mr-2 h-4 w-4" />
-                {endDayRequiresUnits ? "Submit Units and Clock Out" : "Submit Units"}
+            </form>
+          ) : (
+            <div className="rounded-lg border border-border bg-surface p-6 shadow-sm">
+              <span className="grid h-12 w-12 place-items-center rounded-md bg-surface-muted text-accent">
+                <PackagePlus className="h-6 w-6" />
+              </span>
+              <h2 className="mt-5 text-base font-semibold">
+                Units are entered at clock-out
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                Keep working from the Clock tab. When you are finished for the
+                day, press Clock Out and choose End Day. The units form will open
+                as the final required step.
+              </p>
+              <Button
+                className="mt-5 h-12 w-full"
+                onClick={() => setActiveTab("clock")}
+                type="button"
+                variant="secondary"
+              >
+                Back to Clock
               </Button>
             </div>
-          </form>
+          )}
 
           <div className="space-y-4">
             <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
