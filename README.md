@@ -92,7 +92,14 @@ The app includes typed browser and server Supabase client factories under `src/l
 
 The `src/features/auth` area owns private sign-in, sign-out, role-based route protection, and auth UI.
 
-Run the migration in `supabase/migrations/0001_profiles_and_roles.sql` before creating production users. Public self-registration is not exposed in the app.
+Run the migrations in `supabase/migrations` before creating production users and testing worker activity. Public self-registration is not exposed in the app.
+
+Migration order:
+
+```text
+0001_profiles_and_roles.sql
+0002_worker_time_and_units.sql
+```
 
 ### Creating the First Users
 
