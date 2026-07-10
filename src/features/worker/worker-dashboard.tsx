@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   BadgeDollarSign,
   CalendarDays,
+  CheckCircle2,
   Clock3,
   Gift,
   LogOut,
@@ -97,6 +98,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
   const [message, setMessage] = useState<string | null>(null);
   const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
   const [endDayRequiresUnits, setEndDayRequiresUnits] = useState(false);
+  const [clockOutComplete, setClockOutComplete] = useState(false);
   const [celebration, setCelebration] = useState<WorkerActionState | null>(null);
   const [isPending, startTransition] = useTransition();
   const [now, setNow] = useState(() => Date.now());
@@ -164,8 +166,14 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
       if (endDayRequiresUnits && result.success) {
         const clockOutResult = await clockOut();
 
-        setEndDayRequiresUnits(false);
-        setMessage(`${result.message} ${clockOutResult.message}`.trim());
+        if (clockOutResult.success) {
+          setEndDayRequiresUnits(false);
+          setActiveTab("clock");
+          setClockOutComplete(true);
+          setMessage(null);
+        } else {
+          setMessage(clockOutResult.message);
+        }
       }
 
       router.refresh();
@@ -224,10 +232,9 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
                   Are you done working today?
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  If you are leaving for lunch or a short break, press Lunch
-                  Pause so the same shift continues when you come back. If you
-                  are finished for today, continue to clock out and add today&apos;s
-                  units.
+                  If you are only going for lunch, press Lunch Pause. If you are
+                  finished working today, press End Day. You will enter today&apos;s
+                  units next, and then you will be clocked out.
                 </p>
               </div>
             </div>
@@ -253,6 +260,28 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
                 End Day
               </Button>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {clockOutComplete ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/75 px-4">
+          <div className="w-full max-w-md rounded-lg border border-border bg-surface p-8 text-center shadow-2xl">
+            <CheckCircle2 className="mx-auto h-14 w-14 text-accent" />
+            <h2 className="mt-5 text-2xl font-semibold">
+              You are clocked out
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Your units were entered and your shift is closed for today. Have a
+              nice day.
+            </p>
+            <Button
+              className="mt-6 h-12 w-full"
+              onClick={() => setClockOutComplete(false)}
+              type="button"
+            >
+              Done
+            </Button>
           </div>
         </div>
       ) : null}
@@ -447,12 +476,12 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
                 <PackagePlus className="h-6 w-6" />
               </span>
               <h2 className="mt-5 text-base font-semibold">
-                Units are entered at clock-out
+                Units open after End Day
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                Keep working from the Clock tab. When you are finished for the
-                day, press Clock Out and choose End Day. The units form will open
-                as the final required step.
+                To finish your shift, go to the Clock tab, press Clock Out, and
+                choose End Day. The units form will open there as the required
+                final step.
               </p>
               <Button
                 className="mt-5 h-12 w-full"
