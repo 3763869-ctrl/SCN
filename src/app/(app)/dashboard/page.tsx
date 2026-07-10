@@ -40,7 +40,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Dashboard"
+        title="Admin Dashboard"
         description="Operational overview for clients, workers, time, production, and financial workflows."
         actionLabel="New Entry"
       />

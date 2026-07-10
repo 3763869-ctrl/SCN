@@ -90,7 +90,49 @@ npm run format:check
 
 The app includes typed browser and server Supabase client factories under `src/lib/supabase`. They intentionally throw when environment variables are missing, which keeps accidental unauthenticated integration work obvious during future development.
 
-The `src/features/auth` area is reserved for sign-in, sign-out, session protection, roles, permissions, and auth UI when business logic begins.
+The `src/features/auth` area owns private sign-in, sign-out, role-based route protection, and auth UI.
+
+Run the migration in `supabase/migrations/0001_profiles_and_roles.sql` before creating production users. Public self-registration is not exposed in the app.
+
+### Creating the First Users
+
+Create the first admin user in Supabase Authentication, then run this SQL in the Supabase SQL editor with that user's real auth user id and email:
+
+```sql
+insert into public.profiles (id, full_name, email, role, active)
+values (
+  'USER_UUID_HERE',
+  'Admin Name',
+  'admin@example.com',
+  'admin',
+  true
+)
+on conflict (id) do update
+set
+  full_name = excluded.full_name,
+  email = excluded.email,
+  role = 'admin',
+  active = true;
+```
+
+Create worker users in Supabase Authentication, then run:
+
+```sql
+insert into public.profiles (id, full_name, email, role, active)
+values (
+  'USER_UUID_HERE',
+  'Worker Name',
+  'worker@example.com',
+  'worker',
+  true
+)
+on conflict (id) do update
+set
+  full_name = excluded.full_name,
+  email = excluded.email,
+  role = 'worker',
+  active = true;
+```
 
 ## Version Control
 

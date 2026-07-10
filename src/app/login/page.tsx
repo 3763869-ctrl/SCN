@@ -1,16 +1,13 @@
 import { redirect } from "next/navigation";
 
 import { AuthForm } from "@/features/auth/auth-form";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getCurrentProfile, getRoleHome } from "@/features/auth/session";
 
 export default async function LoginPage() {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const profile = await getCurrentProfile();
 
-  if (user) {
-    redirect("/dashboard");
+  if (profile) {
+    redirect(getRoleHome(profile.role));
   }
 
   return (
@@ -35,8 +32,7 @@ export default async function LoginPage() {
           <div className="mb-6">
             <h2 className="text-xl font-semibold">Access Workspace</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Sign in with a Supabase user account or create the first account
-              for this project.
+              Sign in with the email and password provided by an administrator.
             </p>
           </div>
           <AuthForm />

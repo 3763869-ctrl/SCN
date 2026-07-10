@@ -7,13 +7,11 @@ import { LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-type AuthMode = "sign-in" | "sign-up";
-
 export function AuthForm() {
   const router = useRouter();
-  const [mode, setMode] = useState<AuthMode>("sign-in");
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,10 +23,10 @@ export function AuthForm() {
     const password = String(formData.get("password") ?? "");
     const supabase = createSupabaseBrowserClient();
 
-    const { error } =
-      mode === "sign-in"
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
     if (error) {
       setMessage(error.message);
@@ -36,40 +34,53 @@ export function AuthForm() {
       return;
     }
 
-    if (mode === "sign-up") {
-      setMessage("Account created. Check your email if confirmation is enabled.");
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("role, active")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    if (profileError || !profile || !profile.active) {
+      await supabase.auth.signOut();
+      setMessage("Your account is not active. Contact an administrator.");
       setIsSubmitting(false);
       return;
     }
 
-    router.replace("/dashboard");
+    router.replace(profile.role === "admin" ? "/dashboard" : "/worker");
     router.refresh();
+  }
+
+  async function handleForgotPassword() {
+    const emailInput = document.querySelector<HTMLInputElement>("#email");
+    const email = emailInput?.value ?? "";
+
+    if (!email) {
+      setMessage("Enter your email first, then choose Forgot Password.");
+      return;
+    }
+
+    setMessage(null);
+    setIsResettingPassword(true);
+
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+
+    setIsResettingPassword(false);
+
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+
+    setMessage("If this email is active, a password reset link has been sent.");
   }
 
   return (
     <div className="rounded-lg border border-border bg-surface p-6 shadow-sm">
-      <div className="grid grid-cols-2 rounded-md bg-surface-muted p-1">
-        <button
-          type="button"
-          className={`rounded px-3 py-2 text-sm font-semibold ${
-            mode === "sign-in" ? "bg-surface shadow-sm" : "text-muted-foreground"
-          }`}
-          onClick={() => setMode("sign-in")}
-        >
-          Sign In
-        </button>
-        <button
-          type="button"
-          className={`rounded px-3 py-2 text-sm font-semibold ${
-            mode === "sign-up" ? "bg-surface shadow-sm" : "text-muted-foreground"
-          }`}
-          onClick={() => setMode("sign-up")}
-        >
-          Sign Up
-        </button>
-      </div>
-
-      <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+      <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
           <label className="text-sm font-medium" htmlFor="email">
             Email
@@ -92,9 +103,7 @@ export function AuthForm() {
             id="password"
             name="password"
             type="password"
-            autoComplete={
-              mode === "sign-in" ? "current-password" : "new-password"
-            }
+            autoComplete="current-password"
             required
             minLength={6}
             className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
@@ -111,9 +120,18 @@ export function AuthForm() {
           {isSubmitting ? (
             <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
           ) : null}
-          {mode === "sign-in" ? "Sign In" : "Create Account"}
+          Sign In
         </Button>
       </form>
+
+      <button
+        type="button"
+        className="mt-4 text-sm font-medium text-accent transition hover:text-teal-800 disabled:opacity-50"
+        onClick={handleForgotPassword}
+        disabled={isResettingPassword}
+      >
+        {isResettingPassword ? "Sending reset link..." : "Forgot Password"}
+      </button>
     </div>
   );
 }

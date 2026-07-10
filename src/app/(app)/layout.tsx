@@ -1,20 +1,12 @@
 import { AppShell } from "@/components/layout/app-shell";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import { requireAdminProfile } from "@/features/auth/session";
 
 export default async function ApplicationLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const supabase = await createSupabaseServerClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  await requireAdminProfile();
 
   return <AppShell>{children}</AppShell>;
 }
