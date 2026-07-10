@@ -94,9 +94,19 @@ function getShortDateLabel(date: string) {
   return `${Number(month)}/${Number(day)}`;
 }
 
+function getTimeLabel(value: number, mode: "12" | "24") {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    hour12: mode === "12",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(value);
+}
+
 export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"clock" | "units">("clock");
+  const [timeDisplayMode, setTimeDisplayMode] = useState<"12" | "24">("12");
   const [message, setMessage] = useState<string | null>(null);
   const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
   const [endDayRequiresUnits, setEndDayRequiresUnits] = useState(false);
@@ -124,6 +134,11 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
 
     return Math.max(0, data.todayHours + activeHours - activeBreakHours);
   }, [data.openBreak, data.openEntry, data.todayHours, now]);
+
+  const currentTimeLabel = useMemo(
+    () => getTimeLabel(now, timeDisplayMode),
+    [now, timeDisplayMode],
+  );
 
   function runAction(action: () => Promise<WorkerActionState>) {
     startTransition(async () => {
@@ -336,10 +351,38 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
                 <p className="mt-4 font-mono text-5xl font-semibold">
                   {getDurationLabel(liveTodayHours)}
                 </p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Current time: {currentTimeLabel}
+                </p>
               </div>
               <span className="grid h-12 w-12 place-items-center rounded-md bg-surface-muted text-accent">
                 <Clock3 className="h-6 w-6" />
               </span>
+            </div>
+
+            <div className="mt-5 inline-grid grid-cols-2 rounded-md border border-border bg-background p-1">
+              <button
+                className={`rounded px-4 py-2 text-sm font-semibold ${
+                  timeDisplayMode === "12"
+                    ? "bg-surface-muted"
+                    : "text-muted-foreground"
+                }`}
+                onClick={() => setTimeDisplayMode("12")}
+                type="button"
+              >
+                12 hr
+              </button>
+              <button
+                className={`rounded px-4 py-2 text-sm font-semibold ${
+                  timeDisplayMode === "24"
+                    ? "bg-surface-muted"
+                    : "text-muted-foreground"
+                }`}
+                onClick={() => setTimeDisplayMode("24")}
+                type="button"
+              >
+                24 hr
+              </button>
             </div>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2">

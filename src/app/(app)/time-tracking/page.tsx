@@ -270,95 +270,101 @@ export default async function TimeTrackingPage({
 
           <section className="rounded-lg border border-border bg-surface shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-sm">
-                <thead className="border-b border-border text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Date</th>
-                    <th className="px-4 py-3 font-medium">Start</th>
-                    <th className="px-4 py-3 font-medium">End</th>
-                    <th className="px-4 py-3 font-medium">Lunch Min</th>
-                    <th className="px-4 py-3 font-medium">Units</th>
-                    <th className="px-4 py-3 font-medium">Total Hours</th>
-                    <th className="px-4 py-3 font-medium">Pay</th>
-                    <th className="px-4 py-3 font-medium">Manage</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
+              <div className="min-w-[1120px] text-sm">
+                <div className="grid grid-cols-[120px_132px_132px_110px_110px_110px_120px_220px] items-center gap-3 border-b border-border px-4 py-3 font-medium text-muted-foreground">
+                  <span>Date</span>
+                  <span>Start</span>
+                  <span>End</span>
+                  <span>Lunch Min</span>
+                  <span>Units</span>
+                  <span>Total Hours</span>
+                  <span>Day Pay</span>
+                  <span>Manage</span>
+                </div>
+                <div className="divide-y divide-border">
                   {selectedWorker
                     ? rows.map((row) => (
-                        <tr key={row.dateKey}>
-                          <td className="px-4 py-3 font-semibold">
+                        <form
+                          action={updateWorkerTimesheetDay}
+                          className="grid grid-cols-[120px_132px_132px_110px_110px_110px_120px_220px] items-center gap-3 px-4 py-2"
+                          key={row.dateKey}
+                        >
+                          <input
+                            name="worker_id"
+                            type="hidden"
+                            value={selectedWorker.id}
+                          />
+                          <input name="work_date" type="hidden" value={row.dateKey} />
+                          <input
+                            name="time_entry_id"
+                            type="hidden"
+                            value={row.firstEntry?.id ?? ""}
+                          />
+                          <input
+                            name="break_id"
+                            type="hidden"
+                            value={row.firstBreak?.id ?? ""}
+                          />
+                          <input
+                            name="unit_entry_id"
+                            type="hidden"
+                            value={row.firstUnits?.id ?? ""}
+                          />
+                          <span className="font-semibold">
                             {weekdayFormatter.format(row.date)}{" "}
                             {displayDateFormatter.format(row.date)}
-                          </td>
-                          <td colSpan={7} className="px-0 py-0">
-                            <form
-                              action={updateWorkerTimesheetDay}
-                              className="grid grid-cols-[120px_120px_110px_100px_110px_110px_auto] items-center gap-3 px-4 py-2"
+                          </span>
+                          <input
+                            className="h-10 rounded-md border border-border bg-background px-3"
+                            defaultValue={getTimeValue(row.firstEntry?.clock_in_at)}
+                            name="clock_in"
+                            type="time"
+                          />
+                          <input
+                            className="h-10 rounded-md border border-border bg-background px-3"
+                            defaultValue={getTimeValue(row.firstEntry?.clock_out_at)}
+                            name="clock_out"
+                            type="time"
+                          />
+                          <input
+                            className="h-10 rounded-md border border-border bg-background px-3"
+                            defaultValue={row.lunchMinutes}
+                            min="0"
+                            name="lunch_minutes"
+                            step="1"
+                            type="number"
+                          />
+                          <input
+                            className="h-10 rounded-md border border-border bg-background px-3"
+                            defaultValue={row.unitTotal}
+                            min="0"
+                            name="units"
+                            step="1"
+                            type="number"
+                          />
+                          <span className="font-medium">{row.totalHours.toFixed(2)}</span>
+                          <span className="font-medium">
+                            {moneyFormatter.format(row.totalHours * hourlyRate)}
+                          </span>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button className="h-10 px-3" name="action" type="submit" value="save">
+                              Save
+                            </Button>
+                            <Button
+                              className="h-10 px-3"
+                              name="action"
+                              type="submit"
+                              value="clear"
+                              variant="secondary"
                             >
-                              <input
-                                name="worker_id"
-                                type="hidden"
-                                value={selectedWorker.id}
-                              />
-                              <input name="work_date" type="hidden" value={row.dateKey} />
-                              <input
-                                name="time_entry_id"
-                                type="hidden"
-                                value={row.firstEntry?.id ?? ""}
-                              />
-                              <input
-                                name="break_id"
-                                type="hidden"
-                                value={row.firstBreak?.id ?? ""}
-                              />
-                              <input
-                                name="unit_entry_id"
-                                type="hidden"
-                                value={row.firstUnits?.id ?? ""}
-                              />
-                              <input
-                                className="h-10 rounded-md border border-border bg-background px-3"
-                                defaultValue={getTimeValue(row.firstEntry?.clock_in_at)}
-                                name="clock_in"
-                                type="time"
-                              />
-                              <input
-                                className="h-10 rounded-md border border-border bg-background px-3"
-                                defaultValue={getTimeValue(row.firstEntry?.clock_out_at)}
-                                name="clock_out"
-                                type="time"
-                              />
-                              <input
-                                className="h-10 rounded-md border border-border bg-background px-3"
-                                defaultValue={row.lunchMinutes}
-                                min="0"
-                                name="lunch_minutes"
-                                step="1"
-                                type="number"
-                              />
-                              <input
-                                className="h-10 rounded-md border border-border bg-background px-3"
-                                defaultValue={row.unitTotal}
-                                min="0"
-                                name="units"
-                                step="1"
-                                type="number"
-                              />
-                              <span>{row.totalHours.toFixed(2)}</span>
-                              <span>
-                                {moneyFormatter.format(row.totalHours * hourlyRate)}
-                              </span>
-                              <Button className="h-10 px-3" type="submit">
-                                Save
-                              </Button>
-                            </form>
-                          </td>
-                        </tr>
+                              Clear
+                            </Button>
+                          </div>
+                        </form>
                       ))
                     : null}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
           </section>
         </div>

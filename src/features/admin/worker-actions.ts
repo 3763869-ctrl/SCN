@@ -62,6 +62,7 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
   const timeEntryId = String(formData.get("time_entry_id") ?? "");
   const breakId = String(formData.get("break_id") ?? "");
   const unitEntryId = String(formData.get("unit_entry_id") ?? "");
+  const action = String(formData.get("action") ?? "save");
   const clockInAt = buildDateTime(workDate, formData.get("clock_in"));
   const clockOutAt = buildDateTime(workDate, formData.get("clock_out"));
   const lunchMinutes = Number(formData.get("lunch_minutes") ?? 0);
@@ -80,6 +81,42 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
 
   const supabase = await createSupabaseServerClient();
   let targetTimeEntryId = timeEntryId;
+
+  if (action === "clear") {
+    const dayStart = new Date(`${workDate}T00:00:00`);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayStart.getDate() + 1);
+
+    const { data: entriesToClear } = await supabase
+      .from("time_entries")
+      .select("id")
+      .eq("worker_id", workerId)
+      .gte("clock_in_at", dayStart.toISOString())
+      .lt("clock_in_at", dayEnd.toISOString());
+
+    const entryIds = (entriesToClear ?? []).map((entry) => entry.id);
+
+    await supabase
+      .from("time_breaks")
+      .delete()
+      .eq("worker_id", workerId)
+      .gte("break_start_at", dayStart.toISOString())
+      .lt("break_start_at", dayEnd.toISOString());
+
+    if (entryIds.length) {
+      await supabase.from("time_entries").delete().in("id", entryIds);
+    }
+
+    await supabase
+      .from("production_units")
+      .delete()
+      .eq("worker_id", workerId)
+      .eq("work_date", workDate);
+
+    revalidatePath("/time-tracking");
+    revalidatePath("/worker");
+    return;
+  }
 
   if (targetTimeEntryId && !clockInAt && !clockOutAt && lunchMinutes === 0) {
     await supabase.from("time_breaks").delete().eq("time_entry_id", targetTimeEntryId);
