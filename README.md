@@ -103,6 +103,11 @@ Migration order:
 0004_worker_pay_breaks_and_bonuses.sql
 ```
 
+GitHub Actions can apply future migrations automatically with
+`.github/workflows/supabase-migrations.yml`. Add the pooled Supabase database
+URI as a repository secret named `SUPABASE_DB_URL`; do not commit database
+passwords or service-role keys.
+
 ### Creating the First Users
 
 Create the first admin user in Supabase Authentication, then run this SQL in the Supabase SQL editor with that user's real auth user id and email:
