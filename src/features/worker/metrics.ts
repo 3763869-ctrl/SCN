@@ -154,12 +154,22 @@ export async function getWorkerDashboardData(workerId: string) {
   const units = unitEntries ?? [];
   const openEntry = entries.find((entry) => !entry.clock_out_at) ?? null;
   const openBreak = breakEntries.find((entry) => !entry.break_end_at) ?? null;
-  const grossTodayHours = entries.reduce(
-    (total, entry) => total + getHoursBetween(entry.clock_in_at, entry.clock_out_at),
+  const closedTodayHours = entries.reduce(
+    (total, entry) =>
+      entry.clock_out_at
+        ? total + getHoursBetween(entry.clock_in_at, entry.clock_out_at)
+        : total,
+    0,
+  );
+  const closedTodayBreakHours = breakEntries.reduce(
+    (total, entry) =>
+      entry.break_end_at
+        ? total + getHoursBetween(entry.break_start_at, entry.break_end_at)
+        : total,
     0,
   );
   const todayBreakHours = getBreakHours(breakEntries);
-  const todayHours = Math.max(0, grossTodayHours - todayBreakHours);
+  const todayHours = Math.max(0, closedTodayHours - closedTodayBreakHours);
   const todayUnits = units.reduce((total, entry) => total + entry.quantity, 0);
   const weekEntries = weekTimeEntries ?? [];
   const weekBreakEntries = weekBreaks ?? [];

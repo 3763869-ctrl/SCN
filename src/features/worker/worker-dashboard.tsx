@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   BadgeDollarSign,
   CalendarDays,
@@ -84,7 +85,14 @@ function getDurationLabel(hours: number) {
     .join(":");
 }
 
+function getShortDateLabel(date: string) {
+  const [, month, day] = date.split("-");
+
+  return `${Number(month)}/${Number(day)}`;
+}
+
 export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"clock" | "units">("clock");
   const [message, setMessage] = useState<string | null>(null);
   const [celebration, setCelebration] = useState<WorkerActionState | null>(null);
@@ -119,6 +127,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
       if (result.bonusAmount) {
         setCelebration(result);
       }
+      router.refresh();
     });
   }
 
@@ -130,6 +139,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
       if (result.bonusAmount) {
         setCelebration(result);
       }
+      router.refresh();
     });
   }
 
@@ -308,6 +318,9 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
                   >
                     <p className="text-xs font-semibold text-muted-foreground">
                       {day.dayLabel}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {getShortDateLabel(day.date)}
                     </p>
                     <p className="mt-2 text-sm font-semibold">
                       {day.hours.toFixed(1)}
