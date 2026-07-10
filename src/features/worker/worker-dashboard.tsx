@@ -550,11 +550,11 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
                     <span className="grid h-10 w-10 place-items-center rounded-md bg-surface-muted text-accent">
                       <Gift className="h-5 w-5" />
                     </span>
-                    <p className="mt-3 text-sm font-semibold">
-                      {tier.label || `${tier.threshold_units} units`}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-4 text-lg font-semibold leading-6">
                       Reach {tier.threshold_units} units this week
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Unlock this bonus when you hit the goal.
                     </p>
                     <p className="mt-3 text-xl font-semibold text-accent">
                       {moneyFormatter.format(tier.bonus_amount)}
