@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Menu, Search, ShieldCheck } from "lucide-react";
 
 import { navigationItems } from "@/components/layout/navigation";
+import { SignOutButton } from "@/features/auth/sign-out-button";
 
 export function TopNav() {
   return (
@@ -37,8 +38,9 @@ export function TopNav() {
         <div className="ml-auto flex items-center gap-3">
           <div className="hidden items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-muted-foreground md:flex">
             <ShieldCheck className="h-4 w-4 text-accent" aria-hidden="true" />
-            Supabase ready
+            Protected
           </div>
+          <SignOutButton />
           <div className="grid h-10 w-10 place-items-center rounded-md bg-foreground text-sm font-semibold text-white">
             ZW
           </div>

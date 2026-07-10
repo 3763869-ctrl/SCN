@@ -18,7 +18,11 @@ export async function createSupabaseServerClient() {
       },
       setAll(cookiesToSet) {
         cookiesToSet.forEach(({ name, value, options }) => {
-          cookieStore.set(name, value, options);
+          try {
+            cookieStore.set(name, value, options);
+          } catch {
+            // Middleware refreshes auth cookies for Server Components.
+          }
         });
       },
     },

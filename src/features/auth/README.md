@@ -1,12 +1,17 @@
 # Authentication
 
-Supabase authentication is prepared here for future implementation.
+Supabase authentication owns the sign-in, sign-up, sign-out, and protected route entry points for the application shell.
 
-Planned ownership:
+Current scope:
 
-- Client sign-in and sign-out flows
-- Session-aware route protection
+- `/login` renders the first Supabase email/password form.
+- `src/app/(app)/layout.tsx` protects all application routes.
+- `middleware.ts` refreshes Supabase sessions.
+- `SignOutButton` clears the browser session and returns users to `/login`.
+
+Future scope:
+
+- Password reset
+- Email confirmation callback handling
 - Role and permission helpers
-- Auth forms and validation
-
-No business logic is implemented yet.
+- Organization membership
