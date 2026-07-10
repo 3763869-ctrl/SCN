@@ -231,6 +231,93 @@ function PayrollCard({
   );
 }
 
+function PaidHistoryRow({
+  payments,
+  payroll,
+  workerName,
+}: {
+  payments: PaymentRecord[];
+  payroll: PayrollRecord;
+  workerName: string;
+}) {
+  return (
+    <details className="group rounded-lg border border-border bg-surface p-4 shadow-sm">
+      <summary className="grid cursor-pointer list-none gap-3 sm:grid-cols-[1.2fr_1fr_auto] sm:items-center">
+        <div>
+          <p className="font-semibold">{workerName}</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Week {getDateLabel(payroll.week_start)} - {getDateLabel(payroll.week_end)}
+          </p>
+        </div>
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">Total Paid</p>
+          <p className="mt-1 text-xl font-semibold text-emerald-700">
+            {moneyFormatter.format(Number(payroll.total_paid))}
+          </p>
+        </div>
+        <span className="text-sm font-semibold text-accent group-open:hidden">
+          View Details
+        </span>
+        <span className="hidden text-sm font-semibold text-muted-foreground group-open:inline">
+          Hide Details
+        </span>
+      </summary>
+
+      <div className="mt-4 grid gap-4 border-t border-border pt-4 lg:grid-cols-[1fr_1fr]">
+        <div className="rounded-md border border-border bg-background p-4">
+          <h4 className="text-sm font-semibold">Week Total</h4>
+          <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+            <div className="flex justify-between gap-3">
+              <span>Hours</span>
+              <span>{Number(payroll.total_hours).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Units</span>
+              <span>{payroll.total_units}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Hourly pay</span>
+              <span>{moneyFormatter.format(Number(payroll.hourly_pay))}</span>
+            </div>
+            <div className="flex justify-between gap-3">
+              <span>Bonus pay</span>
+              <span>{moneyFormatter.format(Number(payroll.bonus_pay))}</span>
+            </div>
+            <div className="flex justify-between gap-3 font-semibold text-foreground">
+              <span>Total owed</span>
+              <span>{moneyFormatter.format(Number(payroll.total_owed))}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-md border border-border bg-background p-4">
+          <h4 className="text-sm font-semibold">Payments</h4>
+          <div className="mt-3 space-y-2 text-sm text-muted-foreground">
+            {payments.length ? (
+              payments.map((payment) => (
+                <div
+                  className="flex justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0"
+                  key={payment.id}
+                >
+                  <span>
+                    {getDateLabel(payment.paid_at)}
+                    {payment.notes ? ` - ${payment.notes}` : ""}
+                  </span>
+                  <span className="font-semibold text-foreground">
+                    {moneyFormatter.format(Number(payment.amount))}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p>No payment details found.</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </details>
+  );
+}
+
 export default async function PayrollPage() {
   const supabase = await createSupabaseServerClient();
 
@@ -287,6 +374,28 @@ export default async function PayrollPage() {
     </section>
   );
 
+  const renderPaidHistory = () => (
+    <section className="space-y-3">
+      <h2 className="text-base font-semibold">Paid History</h2>
+      {paidRecords.length ? (
+        <div className="space-y-3">
+          {paidRecords.map((payroll) => (
+            <PaidHistoryRow
+              key={payroll.id}
+              payments={paymentMap.get(payroll.id) ?? []}
+              payroll={payroll}
+              workerName={getProfileLabel(profileMap.get(payroll.worker_id))}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-surface p-6 text-sm text-muted-foreground shadow-sm">
+          No paid payroll history yet.
+        </div>
+      )}
+    </section>
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -322,7 +431,7 @@ export default async function PayrollPage() {
 
       {renderGroup("Due and Needs Review", dueRecords, "No payroll is due right now.")}
       {renderGroup("Partial Payments", partialRecords, "No partial payments right now.")}
-      {renderGroup("Paid History", paidRecords, "No paid payroll history yet.")}
+      {renderPaidHistory()}
     </div>
   );
 }
