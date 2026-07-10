@@ -95,6 +95,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"clock" | "units">("clock");
   const [message, setMessage] = useState<string | null>(null);
+  const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
   const [celebration, setCelebration] = useState<WorkerActionState | null>(null);
   const [isPending, startTransition] = useTransition();
   const [now, setNow] = useState(() => Date.now());
@@ -129,6 +130,29 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
       }
       router.refresh();
     });
+  }
+
+  function continueClockOut() {
+    setShowClockOutConfirm(false);
+
+    if (!data.todayUnits) {
+      setActiveTab("units");
+      setMessage("Add today's units before clocking out for the day.");
+      return;
+    }
+
+    runAction(clockOut);
+  }
+
+  function chooseLunchPause() {
+    setShowClockOutConfirm(false);
+
+    if (data.openBreak) {
+      setMessage("Lunch pause is already running.");
+      return;
+    }
+
+    runAction(startLunch);
   }
 
   function submitUnits(formData: FormData) {
@@ -179,6 +203,51 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
             <Button className="mt-6" onClick={() => setCelebration(null)}>
               Nice
             </Button>
+          </div>
+        </div>
+      ) : null}
+
+      {showClockOutConfirm ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-foreground/70 px-4">
+          <div className="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-surface-muted text-accent">
+                <LogOut className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-lg font-semibold">
+                  Are you done working today?
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  If you are leaving for lunch or a short break, press Lunch
+                  Pause so the same shift continues when you come back. If you
+                  are finished for today, continue to clock out and add today&apos;s
+                  units.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <Button
+                disabled={!data.openEntry || Boolean(data.openBreak) || isPending}
+                onClick={chooseLunchPause}
+                type="button"
+                variant="secondary"
+              >
+                <Pause className="mr-2 h-4 w-4" />
+                Lunch Pause
+              </Button>
+              <Button
+                disabled={isPending}
+                onClick={() => setShowClockOutConfirm(false)}
+                type="button"
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+              <Button disabled={isPending} onClick={continueClockOut} type="button">
+                End Day
+              </Button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -249,14 +318,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
               <Button
                 className="h-12"
                 disabled={!data.openEntry || isPending}
-                onClick={() => {
-                  if (!data.todayUnits) {
-                    setActiveTab("units");
-                    setMessage("Add today's units before clocking out.");
-                    return;
-                  }
-                  runAction(clockOut);
-                }}
+                onClick={() => setShowClockOutConfirm(true)}
                 variant="secondary"
               >
                 <LogOut className="mr-2 h-4 w-4" />
