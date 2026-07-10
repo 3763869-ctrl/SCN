@@ -205,9 +205,14 @@ export async function getWorkerDashboardData(workerId: string) {
   };
   const payrollPeriod = getPayrollPeriodBounds(settings.payroll_schedule);
   const payrollHours = weekHours;
-  const payrollEstimate = payrollHours * Number(settings.hourly_rate);
   const tiers = bonusTiers ?? [];
   const earnedBonuses = tiers.filter((tier) => weekUnitTotal >= tier.threshold_units);
+  const hourlyPayEstimate = payrollHours * Number(settings.hourly_rate);
+  const bonusPayEstimate = earnedBonuses.reduce(
+    (total, tier) => total + Number(tier.bonus_amount),
+    0,
+  );
+  const payrollEstimate = hourlyPayEstimate + bonusPayEstimate;
   const nextBonus =
     tiers.find((tier) => weekUnitTotal < tier.threshold_units) ?? null;
   const calendarDays = Array.from({ length: 7 }, (_, index) => {
@@ -265,6 +270,8 @@ export async function getWorkerDashboardData(workerId: string) {
     nextBonus,
     payrollSchedule: settings.payroll_schedule,
     hourlyRate: Number(settings.hourly_rate),
+    hourlyPayEstimate,
+    bonusPayEstimate,
     payrollEstimate,
     payrollPeriod: {
       start: dayFormatter.format(payrollPeriod.start),

@@ -109,3 +109,40 @@ export async function addBonusTier(formData: FormData) {
   revalidatePath("/workers");
   revalidatePath("/worker");
 }
+
+export async function updateBonusTier(formData: FormData) {
+  await requireAdminProfile();
+
+  const id = String(formData.get("id") ?? "");
+  const workerId = String(formData.get("worker_id") ?? "") || null;
+  const thresholdUnits = Number(formData.get("threshold_units"));
+  const bonusAmount = Number(formData.get("bonus_amount"));
+  const label = String(formData.get("label") ?? "").trim();
+  const active = formData.get("active") === "true";
+
+  if (
+    !id ||
+    !Number.isFinite(thresholdUnits) ||
+    thresholdUnits <= 0 ||
+    !Number.isFinite(bonusAmount) ||
+    bonusAmount < 0
+  ) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase
+    .from("bonus_tiers")
+    .update({
+      worker_id: workerId,
+      threshold_units: Math.floor(thresholdUnits),
+      bonus_amount: bonusAmount,
+      label: label || null,
+      active,
+    })
+    .eq("id", id);
+
+  revalidatePath("/workers");
+  revalidatePath("/worker");
+}

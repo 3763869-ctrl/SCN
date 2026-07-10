@@ -37,6 +37,8 @@ type WorkerDashboardData = {
   bonusProgress: number;
   payrollSchedule: "weekly" | "semi_monthly";
   hourlyRate: number;
+  hourlyPayEstimate: number;
+  bonusPayEstimate: number;
   payrollEstimate: number;
   payrollPeriod: { start: string; end: string };
   calendarDays: Array<{
@@ -389,9 +391,30 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
                 <h2 className="text-base font-semibold">Payroll Estimate</h2>
                 <BadgeDollarSign className="h-5 w-5 text-accent" />
               </div>
-              <p className="mt-4 text-3xl font-semibold">
+              <p className="mt-4 text-sm font-medium text-muted-foreground">
+                Estimated total
+              </p>
+              <p className="mt-1 text-3xl font-semibold">
                 {moneyFormatter.format(data.payrollEstimate)}
               </p>
+              <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-md border border-border bg-background p-3">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    Hourly Pay
+                  </p>
+                  <p className="mt-2 text-lg font-semibold">
+                    {moneyFormatter.format(data.hourlyPayEstimate)}
+                  </p>
+                </div>
+                <div className="rounded-md border border-border bg-background p-3">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    Bonus Pay
+                  </p>
+                  <p className="mt-2 text-lg font-semibold">
+                    {moneyFormatter.format(data.bonusPayEstimate)}
+                  </p>
+                </div>
+              </div>
               <p className="mt-2 text-sm text-muted-foreground">
                 {data.payrollSchedule === "weekly" ? "Weekly" : "Semi-monthly"}{" "}
                 period: {data.payrollPeriod.start} to {data.payrollPeriod.end}
@@ -517,29 +540,27 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
             </div>
 
             <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-              <h2 className="text-base font-semibold">Bonus Tiers</h2>
-              <div className="mt-4 space-y-2">
-                {data.bonusTiers.map((tier) => {
-                  const earned = data.weekUnits >= tier.threshold_units;
-
-                  return (
-                    <div
-                      className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2 text-sm"
-                      key={tier.id}
-                    >
-                      <span>
-                        {tier.label || `${tier.threshold_units} units`}{" "}
-                        <span className="text-muted-foreground">
-                          ({tier.threshold_units})
-                        </span>
-                      </span>
-                      <span className={earned ? "font-semibold text-accent" : ""}>
-                        {earned ? "Earned " : ""}
-                        {moneyFormatter.format(tier.bonus_amount)}
-                      </span>
-                    </div>
-                  );
-                })}
+              <h2 className="text-base font-semibold">Bonuses You Can Earn</h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {data.bonusTiers.map((tier) => (
+                  <div
+                    className="rounded-md border border-border bg-background p-4"
+                    key={tier.id}
+                  >
+                    <span className="grid h-10 w-10 place-items-center rounded-md bg-surface-muted text-accent">
+                      <Gift className="h-5 w-5" />
+                    </span>
+                    <p className="mt-3 text-sm font-semibold">
+                      {tier.label || `${tier.threshold_units} units`}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Reach {tier.threshold_units} units this week
+                    </p>
+                    <p className="mt-3 text-xl font-semibold text-accent">
+                      {moneyFormatter.format(tier.bonus_amount)}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
