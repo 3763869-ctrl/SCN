@@ -55,7 +55,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if public.is_admin(auth.uid()) then
+  if auth.uid() is null or public.is_admin(auth.uid()) then
     return new;
   end if;
 

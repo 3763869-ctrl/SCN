@@ -99,6 +99,7 @@ Migration order:
 ```text
 0001_profiles_and_roles.sql
 0002_worker_time_and_units.sql
+0003_allow_trusted_profile_maintenance.sql
 ```
 
 ### Creating the First Users
