@@ -214,7 +214,8 @@ export type Database = {
         Row: {
           worker_id: string;
           phone_number: string | null;
-          age: number | null;
+          date_of_birth: string | null;
+          birthday_last_shown_year: number | null;
           address_line1: string | null;
           city: string | null;
           state: string | null;
@@ -231,7 +232,8 @@ export type Database = {
         Insert: {
           worker_id: string;
           phone_number?: string | null;
-          age?: number | null;
+          date_of_birth?: string | null;
+          birthday_last_shown_year?: number | null;
           address_line1?: string | null;
           city?: string | null;
           state?: string | null;
@@ -248,7 +250,8 @@ export type Database = {
         Update: {
           worker_id?: string;
           phone_number?: string | null;
-          age?: number | null;
+          date_of_birth?: string | null;
+          birthday_last_shown_year?: number | null;
           address_line1?: string | null;
           city?: string | null;
           state?: string | null;
@@ -267,6 +270,47 @@ export type Database = {
             foreignKeyName: "worker_details_worker_id_fkey";
             columns: ["worker_id"];
             isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      worker_onboarding_links: {
+        Row: {
+          id: string;
+          worker_id: string;
+          token: string;
+          expires_at: string | null;
+          completed_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id: string;
+          token: string;
+          expires_at?: string | null;
+          completed_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string;
+          token?: string;
+          expires_at?: string | null;
+          completed_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "worker_onboarding_links_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
           },

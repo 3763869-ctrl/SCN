@@ -1,10 +1,33 @@
 import { SignOutButton } from "@/features/auth/sign-out-button";
 import { requireProfile } from "@/features/auth/session";
+import { BirthdayCard } from "@/features/worker/birthday-card";
 import { WorkerDashboard } from "@/features/worker/worker-dashboard";
 import { getWorkerDashboardData } from "@/features/worker/metrics";
+import { getBirthdayDue } from "@/lib/dates/birthday";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function WorkerPage() {
   const profile = await requireProfile();
+  const supabase = await createSupabaseServerClient();
+  const { data: details } = await supabase
+    .from("worker_details")
+    .select("date_of_birth, birthday_last_shown_year")
+    .eq("worker_id", profile.id)
+    .maybeSingle();
+  const birthday = getBirthdayDue(
+    details?.date_of_birth,
+    details?.birthday_last_shown_year,
+  );
+
+  if (profile.role === "worker" && birthday.due) {
+    return (
+      <BirthdayCard
+        age={birthday.age}
+        workerName={profile.full_name ?? profile.email}
+      />
+    );
+  }
+
   const dashboard = await getWorkerDashboardData(profile.id);
 
   return (

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { getProfileLabel } from "@/features/admin/data";
 import {
   addBonusTier,
   archiveWorker,
+  createWorkerOnboardingLink,
   createWorker,
   deleteBonusTier,
   deleteWorker,
@@ -20,6 +22,7 @@ import {
   uploadWorkerFile,
 } from "@/features/admin/worker-actions";
 import { getHoursBetween } from "@/features/worker/metrics";
+import { getAgeFromDateOfBirth } from "@/lib/dates/birthday";
 import { EASTERN_TIME_ZONE } from "@/lib/dates/eastern-time";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -68,6 +71,10 @@ function getTabLink(workerId: string, tab: WorkerTab, query: string) {
 
 export default async function WorkersPage({ searchParams }: WorkersPageProps) {
   const params = await searchParams;
+  const headerStore = await headers();
+  const host = headerStore.get("host") ?? "localhost:3000";
+  const protocol = headerStore.get("x-forwarded-proto") ?? "http";
+  const appOrigin = `${protocol}://${host}`;
   const query = String(params?.q ?? "").trim();
   const activeTab = ["bonuses", "files"].includes(String(params?.tab))
     ? (params?.tab as WorkerTab)
@@ -79,6 +86,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
     { data: profiles },
     { data: paySettings },
     { data: workerDetails },
+    { data: onboardingLinks },
     { data: bonusTiers },
     { data: timeEntries },
     { data: unitEntries },
@@ -97,8 +105,12 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
     supabase
       .from("worker_details")
       .select(
-        "worker_id, phone_number, age, address_line1, city, state, country, zip_code, secondary_contact_name, secondary_contact_phone, start_date, hiring_source, referral_name",
+        "worker_id, phone_number, date_of_birth, birthday_last_shown_year, address_line1, city, state, country, zip_code, secondary_contact_name, secondary_contact_phone, start_date, hiring_source, referral_name",
       ),
+    supabase
+      .from("worker_onboarding_links")
+      .select("id, worker_id, token, expires_at, completed_at, created_at")
+      .order("created_at", { ascending: false }),
     supabase
       .from("bonus_tiers")
       .select("id, worker_id, threshold_units, bonus_amount, label, active")
@@ -150,6 +162,14 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
     (setting) => setting.worker_id === selectedWorkerId,
   );
   const selectedDetails = detailsMap.get(selectedWorkerId);
+  const selectedOnboardingLinks = (onboardingLinks ?? []).filter(
+    (link) => link.worker_id === selectedWorkerId,
+  );
+  const latestOnboardingLink = selectedOnboardingLinks[0] ?? null;
+  const latestOnboardingUrl = latestOnboardingLink
+    ? `${appOrigin}/worker-onboarding/${latestOnboardingLink.token}`
+    : null;
+  const selectedAge = getAgeFromDateOfBirth(selectedDetails?.date_of_birth);
   const selectedBonusTiers = (bonusTiers ?? []).filter(
     (tier) => !tier.worker_id || tier.worker_id === selectedWorkerId,
   );
@@ -279,11 +299,8 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                     <div className="grid gap-2 sm:grid-cols-2">
                       <input
                         className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
-                        max="120"
-                        min="0"
-                        name="age"
-                        placeholder="Age"
-                        type="number"
+                        name="date_of_birth"
+                        type="date"
                       />
                       <input
                         className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
@@ -545,15 +562,16 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                       />
                     </label>
                     <label className="text-sm font-medium">
-                      Age
+                      Date of Birth
                       <input
                         className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                        defaultValue={selectedDetails?.age ?? ""}
-                        max="120"
-                        min="0"
-                        name="age"
-                        type="number"
+                        defaultValue={selectedDetails?.date_of_birth ?? ""}
+                        name="date_of_birth"
+                        type="date"
                       />
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        Age: {selectedAge ?? "Not recorded"}
+                      </span>
                     </label>
                     <label className="text-sm font-medium md:col-span-2">
                       Address
@@ -741,6 +759,64 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                       </p>
                     )}
                   </form>
+
+                  <div className="mt-5 rounded-md border border-border bg-background p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <h4 className="text-sm font-semibold">
+                          Worker Info Link
+                        </h4>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                          Share a private link so the worker can fill in contact,
+                          address, date of birth, hiring source, and referral info.
+                          Start date stays admin-only.
+                        </p>
+                      </div>
+                      <form action={createWorkerOnboardingLink}>
+                        <input
+                          name="worker_id"
+                          type="hidden"
+                          value={selectedWorker.id}
+                        />
+                        <Button className="h-10" type="submit" variant="secondary">
+                          Create Link
+                        </Button>
+                      </form>
+                    </div>
+                    {latestOnboardingUrl ? (
+                      <div className="mt-4 rounded-md border border-border bg-surface-muted p-3">
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          Latest Link
+                        </p>
+                        <p className="mt-2 break-all font-mono text-xs">
+                          {latestOnboardingUrl}
+                        </p>
+                        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span>
+                            {latestOnboardingLink.completed_at
+                              ? `Completed ${getDateLabel(latestOnboardingLink.completed_at)}`
+                              : "Not completed yet"}
+                          </span>
+                          {latestOnboardingLink.expires_at ? (
+                            <span>
+                              Expires {getDateLabel(latestOnboardingLink.expires_at)}
+                            </span>
+                          ) : null}
+                          <Link
+                            className="font-semibold text-accent"
+                            href={latestOnboardingUrl}
+                            target="_blank"
+                          >
+                            Open
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        No private link has been created yet.
+                      </p>
+                    )}
+                  </div>
 
                   <div className="mt-5 rounded-md border border-border bg-background p-4">
                     <h4 className="text-sm font-semibold">

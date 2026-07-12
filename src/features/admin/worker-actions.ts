@@ -1,10 +1,13 @@
 "use server";
 
+import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
-import { requireAdminProfile } from "@/features/auth/session";
+import { requireAdminProfile, requireProfile } from "@/features/auth/session";
 import {
   addDaysToDateKey,
+  getEasternDateKey,
   getUtcDateFromEasternDateTime,
 } from "@/lib/dates/eastern-time";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -22,21 +25,11 @@ function getOptionalText(formData: FormData, name: string) {
 }
 
 function getWorkerDetailsPayload(formData: FormData, workerId: string) {
-  const ageValue = String(formData.get("age") ?? "").trim();
-  const ageNumber = ageValue ? Number(ageValue) : null;
-  const age =
-    ageNumber !== null &&
-    Number.isFinite(ageNumber) &&
-    ageNumber >= 0 &&
-    ageNumber <= 120
-      ? Math.floor(ageNumber)
-      : null;
-
   return {
     address_line1: getOptionalText(formData, "address_line1"),
-    age,
     city: getOptionalText(formData, "city"),
     country: getOptionalText(formData, "country"),
+    date_of_birth: getOptionalText(formData, "date_of_birth"),
     hiring_source: getOptionalText(formData, "hiring_source"),
     phone_number: getOptionalText(formData, "phone_number"),
     referral_name: getOptionalText(formData, "referral_name"),
@@ -81,6 +74,74 @@ export async function updateWorkerDetails(formData: FormData) {
   await supabase.from("worker_details").upsert(getWorkerDetailsPayload(formData, workerId));
 
   revalidatePath("/workers");
+}
+
+export async function createWorkerOnboardingLink(formData: FormData) {
+  const admin = await requireAdminProfile();
+  const workerId = String(formData.get("worker_id") ?? "");
+
+  if (!workerId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const token = randomBytes(32).toString("base64url");
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 14);
+
+  await supabase.from("worker_onboarding_links").insert({
+    created_by: admin.id,
+    expires_at: expiresAt.toISOString(),
+    token,
+    worker_id: workerId,
+  });
+
+  revalidatePath("/workers");
+}
+
+export async function submitWorkerOnboarding(formData: FormData) {
+  const token = String(formData.get("token") ?? "");
+
+  if (!token) {
+    redirect("/login");
+  }
+
+  const adminSupabase = createSupabaseAdminClient();
+  const { data: link } = await adminSupabase
+    .from("worker_onboarding_links")
+    .select("id, worker_id, expires_at, completed_at")
+    .eq("token", token)
+    .maybeSingle();
+
+  if (
+    !link ||
+    link.completed_at ||
+    (link.expires_at && new Date(link.expires_at).getTime() < Date.now())
+  ) {
+    redirect(`/worker-onboarding/${token}?status=expired`);
+  }
+
+  await adminSupabase
+    .from("worker_details")
+    .upsert(getWorkerDetailsPayload(formData, link.worker_id));
+  await adminSupabase
+    .from("worker_onboarding_links")
+    .update({ completed_at: new Date().toISOString() })
+    .eq("id", link.id);
+
+  redirect(`/worker-onboarding/${token}?status=complete`);
+}
+
+export async function markBirthdaySeen() {
+  const profile = await requireProfile();
+  const supabase = await createSupabaseServerClient();
+  const year = Number(getEasternDateKey().slice(0, 4));
+
+  await supabase
+    .from("worker_details")
+    .upsert({ birthday_last_shown_year: year, worker_id: profile.id });
+
+  revalidatePath("/worker");
 }
 
 export async function archiveWorker(formData: FormData) {
