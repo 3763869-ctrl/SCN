@@ -5,15 +5,18 @@ import { Button } from "@/components/ui/button";
 import { getProfileLabel } from "@/features/admin/data";
 import {
   addBonusTier,
+  createWorker,
   deleteBonusTier,
   deleteWorkerFile,
   updateBonusTier,
   updateWorkerFile,
+  updateWorkerPassword,
   updateWorkerPaySettings,
   updateWorkerProfile,
   uploadWorkerFile,
 } from "@/features/admin/worker-actions";
 import { getHoursBetween } from "@/features/worker/metrics";
+import { hasSupabaseAdminConfig } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
@@ -62,6 +65,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
   const activeTab = ["bonuses", "files"].includes(String(params?.tab))
     ? (params?.tab as WorkerTab)
     : "profile";
+  const canCreateWorkers = hasSupabaseAdminConfig();
   const supabase = await createSupabaseServerClient();
 
   const [
@@ -206,6 +210,53 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
 
       <section className="grid gap-4 xl:grid-cols-[320px_1fr]">
         <aside className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+          <details className="mb-5 rounded-md border border-border bg-background p-3">
+            <summary className="cursor-pointer text-sm font-semibold">
+              Add New Worker
+            </summary>
+            {canCreateWorkers ? (
+              <form action={createWorker} className="mt-4 space-y-3">
+                <input
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                  name="full_name"
+                  placeholder="Full name"
+                  type="text"
+                />
+                <input
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                  name="email"
+                  placeholder="Email"
+                  required
+                  type="email"
+                />
+                <input
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                  minLength={6}
+                  name="password"
+                  placeholder="Temporary password"
+                  required
+                  type="password"
+                />
+                <select
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                  defaultValue="true"
+                  name="active"
+                >
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
+                </select>
+                <Button className="h-10 w-full" type="submit">
+                  Create Worker
+                </Button>
+              </form>
+            ) : (
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                Add `SUPABASE_SERVICE_ROLE_KEY` to the server environment to create
+                workers from here.
+              </p>
+            )}
+          </details>
+
           <form action="/workers" className="space-y-3">
             <label className="text-sm font-semibold" htmlFor="worker-search">
               Search Workers
@@ -397,6 +448,38 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                         Save Settings
                       </Button>
                     </div>
+                  </form>
+
+                  <form
+                    action={updateWorkerPassword}
+                    className="mt-5 rounded-md border border-border bg-background p-4"
+                  >
+                    <input
+                      name="worker_id"
+                      type="hidden"
+                      value={selectedWorker.id}
+                    />
+                    <h4 className="text-sm font-semibold">Set Password</h4>
+                    {canCreateWorkers ? (
+                      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+                        <input
+                          className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                          minLength={6}
+                          name="password"
+                          placeholder="New temporary password"
+                          required
+                          type="password"
+                        />
+                        <Button className="h-10 px-4" type="submit" variant="secondary">
+                          Update Password
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                        Password changes require the server-only Supabase service role
+                        key.
+                      </p>
+                    )}
                   </form>
 
                   <div className="mt-6">

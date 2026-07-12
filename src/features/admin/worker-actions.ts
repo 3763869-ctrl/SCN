@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminProfile } from "@/features/auth/session";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppRole, PayrollSchedule } from "@/types/database";
 
@@ -24,6 +25,71 @@ export async function updateWorkerProfile(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   await supabase.from("profiles").update({ role, active }).eq("id", id);
+
+  revalidatePath("/workers");
+}
+
+export async function createWorker(formData: FormData) {
+  await requireAdminProfile();
+
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const password = String(formData.get("password") ?? "");
+  const active = formData.get("active") !== "false";
+
+  if (!email || password.length < 6) {
+    return;
+  }
+
+  const adminSupabase = createSupabaseAdminClient();
+
+  const { data, error } = await adminSupabase.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    password,
+    user_metadata: {
+      full_name: fullName || email,
+    },
+  });
+
+  if (error || !data.user) {
+    return;
+  }
+
+  await adminSupabase.from("profiles").upsert({
+    active,
+    email,
+    full_name: fullName || null,
+    id: data.user.id,
+    role: "worker",
+  });
+
+  await adminSupabase.from("worker_pay_settings").upsert({
+    active: true,
+    hourly_rate: 0,
+    payroll_schedule: "weekly",
+    weekly_unit_goal: 100,
+    worker_id: data.user.id,
+  });
+
+  revalidatePath("/workers");
+}
+
+export async function updateWorkerPassword(formData: FormData) {
+  await requireAdminProfile();
+
+  const workerId = String(formData.get("worker_id") ?? "");
+  const password = String(formData.get("password") ?? "");
+
+  if (!workerId || password.length < 6) {
+    return;
+  }
+
+  const adminSupabase = createSupabaseAdminClient();
+
+  await adminSupabase.auth.admin.updateUserById(workerId, {
+    password,
+  });
 
   revalidatePath("/workers");
 }
