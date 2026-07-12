@@ -4,31 +4,26 @@ import { revalidatePath } from "next/cache";
 
 import { requireAdminProfile } from "@/features/auth/session";
 import { getBreakHours, getHoursBetween } from "@/features/worker/metrics";
+import {
+  addDaysToDateKey,
+  getUtcDateFromEasternDateTime,
+} from "@/lib/dates/eastern-time";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { WorkerPayrollStatus } from "@/types/database";
 
-const dayFormatter = new Intl.DateTimeFormat("en-CA");
-
-function addDays(date: Date, days: number) {
-  const next = new Date(date);
-  next.setDate(date.getDate() + days);
-
-  return next;
-}
-
-function getDateKey(date: Date) {
-  return dayFormatter.format(date);
-}
-
 function getWeekDates(value: string) {
-  const weekStart = new Date(`${value}T00:00:00`);
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const date = new Date(`${value}T00:00:00Z`);
+  const weekStartKey = addDaysToDateKey(value, -date.getUTCDay());
+  const weekEndKey = addDaysToDateKey(weekStartKey, 5);
+  const weekQueryEndKey = addDaysToDateKey(weekStartKey, 7);
 
   return {
-    dueDate: addDays(weekStart, 12),
-    weekEnd: addDays(weekStart, 5),
-    weekQueryEnd: addDays(weekStart, 7),
-    weekStart,
+    dueDateKey: addDaysToDateKey(weekStartKey, 12),
+    weekEndKey,
+    weekQueryEnd: getUtcDateFromEasternDateTime(weekQueryEndKey),
+    weekQueryEndKey,
+    weekStart: getUtcDateFromEasternDateTime(weekStartKey),
+    weekStartKey,
   };
 }
 
@@ -46,7 +41,14 @@ function getPayrollStatus(totalOwed: number, totalPaid: number): WorkerPayrollSt
 
 async function calculateWeeklyPayroll(workerId: string, weekStartValue: string) {
   const supabase = await createSupabaseServerClient();
-  const { dueDate, weekEnd, weekQueryEnd, weekStart } = getWeekDates(weekStartValue);
+  const {
+    dueDateKey,
+    weekEndKey,
+    weekQueryEnd,
+    weekQueryEndKey,
+    weekStart,
+    weekStartKey,
+  } = getWeekDates(weekStartValue);
 
   const [
     { data: timeEntries },
@@ -71,8 +73,8 @@ async function calculateWeeklyPayroll(workerId: string, weekStartValue: string) 
       .from("production_units")
       .select("id, quantity, work_date")
       .eq("worker_id", workerId)
-      .gte("work_date", getDateKey(weekStart))
-      .lt("work_date", getDateKey(weekQueryEnd)),
+      .gte("work_date", weekStartKey)
+      .lt("work_date", weekQueryEndKey),
     supabase
       .from("worker_pay_settings")
       .select("hourly_rate")
@@ -105,14 +107,14 @@ async function calculateWeeklyPayroll(workerId: string, weekStartValue: string) 
 
   return {
     bonusPay,
-    dueDate: getDateKey(dueDate),
+    dueDate: dueDateKey,
     hourlyPay,
     hourlyRate,
     totalHours,
     totalOwed,
     totalUnits,
-    weekEnd: getDateKey(weekEnd),
-    weekStart: getDateKey(weekStart),
+    weekEnd: weekEndKey,
+    weekStart: weekStartKey,
   };
 }
 

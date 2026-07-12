@@ -1,46 +1,23 @@
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import {
+  addDaysToDateKey,
+  getEasternDateKey,
+  getEasternDayBounds,
+  getEasternWeekBounds,
+  getUtcDateFromEasternDateTime,
+} from "@/lib/dates/eastern-time";
 
 const weekDayFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
   weekday: "short",
 });
 
-const dayFormatter = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "America/New_York",
-});
-
-function getStartOfDay(date: Date) {
-  const start = new Date(date);
-
-  start.setHours(0, 0, 0, 0);
-
-  return start;
-}
-
 export function getTodayBounds() {
-  const now = new Date();
-  const start = getStartOfDay(now);
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 1);
-
-  return {
-    start,
-    end,
-    workDate: dayFormatter.format(now),
-  };
+  return getEasternDayBounds();
 }
 
 export function getWeekBounds() {
-  const now = new Date();
-  const start = getStartOfDay(now);
-  const day = start.getDay();
-
-  start.setDate(start.getDate() - day);
-
-  const end = new Date(start);
-  end.setDate(start.getDate() + 7);
-
-  return { start, end };
+  return getEasternWeekBounds();
 }
 
 export function getPayrollPeriodBounds(schedule: "weekly" | "semi_monthly") {
@@ -50,18 +27,20 @@ export function getPayrollPeriodBounds(schedule: "weekly" | "semi_monthly") {
     return getWeekBounds();
   }
 
-  const start = new Date(now);
-  start.setHours(0, 0, 0, 0);
-  start.setDate(now.getDate() <= 15 ? 1 : 16);
+  const todayKey = getEasternDateKey(now);
+  const [year, month, day] = todayKey.split("-").map(Number);
+  const startKey = `${year}-${String(month).padStart(2, "0")}-${
+    day <= 15 ? "01" : "16"
+  }`;
+  const endKey =
+    day <= 15
+      ? `${year}-${String(month).padStart(2, "0")}-16`
+      : new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
 
-  const end = new Date(start);
-  if (start.getDate() === 1) {
-    end.setDate(16);
-  } else {
-    end.setMonth(end.getMonth() + 1, 1);
-  }
-
-  return { start, end };
+  return {
+    end: getUtcDateFromEasternDateTime(endKey),
+    start: getUtcDateFromEasternDateTime(startKey),
+  };
 }
 
 export function getHoursBetween(start: string, end: string | null) {
@@ -151,8 +130,8 @@ export async function getWorkerDashboardData(workerId: string) {
       .from("production_units")
       .select("id, quantity, work_date, status, created_at")
       .eq("worker_id", workerId)
-      .gte("work_date", dayFormatter.format(week.start))
-      .lt("work_date", dayFormatter.format(week.end))
+      .gte("work_date", week.weekStartKey)
+      .lt("work_date", addDaysToDateKey(week.weekStartKey, 7))
       .order("work_date", { ascending: true }),
     supabase
       .from("worker_pay_settings")
@@ -216,19 +195,12 @@ export async function getWorkerDashboardData(workerId: string) {
   const nextBonus =
     tiers.find((tier) => weekUnitTotal < tier.threshold_units) ?? null;
   const calendarDays = Array.from({ length: 6 }, (_, index) => {
-    const date = new Date(week.start);
-    date.setDate(week.start.getDate() + index);
-    const dayStart = getStartOfDay(date);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayStart.getDate() + 1);
-    const dayKey = dayFormatter.format(date);
+    const dayKey = addDaysToDateKey(week.weekStartKey, index);
     const dayTimeEntries = weekEntries.filter((entry) => {
-      const value = new Date(entry.clock_in_at);
-      return value >= dayStart && value < dayEnd;
+      return getEasternDateKey(new Date(entry.clock_in_at)) === dayKey;
     });
     const dayBreakEntries = weekBreakEntries.filter((entry) => {
-      const value = new Date(entry.break_start_at);
-      return value >= dayStart && value < dayEnd;
+      return getEasternDateKey(new Date(entry.break_start_at)) === dayKey;
     });
     const hours = Math.max(
       0,
@@ -243,7 +215,7 @@ export async function getWorkerDashboardData(workerId: string) {
 
     return {
       date: dayKey,
-      dayLabel: weekDayFormatter.format(date),
+      dayLabel: weekDayFormatter.format(new Date(`${dayKey}T00:00:00Z`)),
       hours,
       units: unitTotal,
     };
@@ -274,8 +246,8 @@ export async function getWorkerDashboardData(workerId: string) {
     bonusPayEstimate,
     payrollEstimate,
     payrollPeriod: {
-      start: dayFormatter.format(payrollPeriod.start),
-      end: dayFormatter.format(payrollPeriod.end),
+      start: getEasternDateKey(payrollPeriod.start),
+      end: getEasternDateKey(payrollPeriod.end),
     },
     calendarDays,
   };

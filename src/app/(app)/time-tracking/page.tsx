@@ -10,14 +10,21 @@ import {
 } from "@/features/admin/payroll-actions";
 import { updateWorkerTimesheetDay } from "@/features/admin/worker-actions";
 import { getBreakHours, getHoursBetween } from "@/features/worker/metrics";
+import {
+  addDaysToDateKey,
+  EASTERN_TIME_ZONE,
+  getEasternDateKey,
+  getUtcDateFromEasternDateTime,
+} from "@/lib/dates/eastern-time";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
-const dayFormatter = new Intl.DateTimeFormat("en-CA");
 const displayDateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
+  timeZone: "UTC",
 });
 const weekdayFormatter = new Intl.DateTimeFormat("en-US", {
+  timeZone: "UTC",
   weekday: "short",
 });
 const moneyFormatter = new Intl.NumberFormat("en-US", {
@@ -26,22 +33,22 @@ const moneyFormatter = new Intl.NumberFormat("en-US", {
 });
 
 function getStartOfWeek(value?: string) {
-  const date = value ? new Date(`${value}T00:00:00`) : new Date();
-  date.setHours(0, 0, 0, 0);
-  date.setDate(date.getDate() - date.getDay());
+  const dateKey = value || getEasternDateKey();
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - date.getUTCDay());
 
   return date;
 }
 
 function addDays(date: Date, days: number) {
   const next = new Date(date);
-  next.setDate(date.getDate() + days);
+  next.setUTCDate(date.getUTCDate() + days);
 
   return next;
 }
 
 function getDateKey(date: Date) {
-  return dayFormatter.format(date);
+  return date.toISOString().slice(0, 10);
 }
 
 function getTimeValue(value: string | null | undefined) {
@@ -49,7 +56,14 @@ function getTimeValue(value: string | null | undefined) {
     return "";
   }
 
-  return new Date(value).toTimeString().slice(0, 5);
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    timeZone: EASTERN_TIME_ZONE,
+  })
+    .format(new Date(value))
+    .replace("24:", "00:");
 }
 
 function getWeekLink(workerId: string, weekStart: Date, offsetDays: number) {
@@ -89,6 +103,10 @@ export default async function TimeTrackingPage({
   const supabase = await createSupabaseServerClient();
   const weekStart = getStartOfWeek(params?.week);
   const weekEnd = addDays(weekStart, 7);
+  const weekStartKey = getDateKey(weekStart);
+  const weekEndKey = getDateKey(weekEnd);
+  const weekQueryStart = getUtcDateFromEasternDateTime(weekStartKey);
+  const weekQueryEnd = getUtcDateFromEasternDateTime(weekEndKey);
   const workDays = Array.from({ length: 6 }, (_, index) =>
     addDays(weekStart, index),
   );
@@ -117,22 +135,22 @@ export default async function TimeTrackingPage({
           .from("time_entries")
           .select("id, worker_id, clock_in_at, clock_out_at, notes")
           .eq("worker_id", selectedWorker.id)
-          .gte("clock_in_at", weekStart.toISOString())
-          .lt("clock_in_at", weekEnd.toISOString())
+          .gte("clock_in_at", weekQueryStart.toISOString())
+          .lt("clock_in_at", weekQueryEnd.toISOString())
           .order("clock_in_at", { ascending: true }),
         supabase
           .from("time_breaks")
           .select("id, time_entry_id, worker_id, break_start_at, break_end_at")
           .eq("worker_id", selectedWorker.id)
-          .gte("break_start_at", weekStart.toISOString())
-          .lt("break_start_at", weekEnd.toISOString())
+          .gte("break_start_at", weekQueryStart.toISOString())
+          .lt("break_start_at", weekQueryEnd.toISOString())
           .order("break_start_at", { ascending: true }),
         supabase
           .from("production_units")
           .select("id, worker_id, quantity, work_date, status")
           .eq("worker_id", selectedWorker.id)
           .gte("work_date", getDateKey(weekStart))
-          .lt("work_date", getDateKey(weekEnd))
+          .lt("work_date", addDaysToDateKey(getDateKey(weekStart), 7))
           .order("work_date", { ascending: true }),
         supabase
           .from("worker_pay_settings")
@@ -177,10 +195,10 @@ export default async function TimeTrackingPage({
   const rows = workDays.map((date) => {
     const dateKey = getDateKey(date);
     const dayEntries = timeList.filter(
-      (entry) => getDateKey(new Date(entry.clock_in_at)) === dateKey,
+      (entry) => getEasternDateKey(new Date(entry.clock_in_at)) === dateKey,
     );
     const dayBreaks = breakList.filter(
-      (entry) => getDateKey(new Date(entry.break_start_at)) === dateKey,
+      (entry) => getEasternDateKey(new Date(entry.break_start_at)) === dateKey,
     );
     const dayUnits = unitList.filter((entry) => entry.work_date === dateKey);
     const firstEntry = dayEntries[0] ?? null;

@@ -24,6 +24,7 @@ import {
   startLunch,
   type WorkerActionState,
 } from "@/features/worker/actions";
+import { EASTERN_TIME_ZONE } from "@/lib/dates/eastern-time";
 
 type WorkerDashboardData = {
   openEntry: { id: string; clock_in_at: string; clock_out_at: string | null } | null;
@@ -100,6 +101,8 @@ function getTimeLabel(value: number, mode: "12" | "24") {
     hour12: mode === "12",
     minute: "2-digit",
     second: "2-digit",
+    timeZone: EASTERN_TIME_ZONE,
+    timeZoneName: "short",
   }).format(value);
 }
 

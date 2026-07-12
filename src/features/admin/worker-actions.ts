@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 
 import { requireAdminProfile } from "@/features/auth/session";
+import {
+  addDaysToDateKey,
+  getUtcDateFromEasternDateTime,
+} from "@/lib/dates/eastern-time";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppRole, PayrollSchedule } from "@/types/database";
@@ -238,14 +242,13 @@ function buildDateTime(workDate: string, value: FormDataEntryValue | null) {
     return null;
   }
 
-  return new Date(`${workDate}T${timeValue}:00`).toISOString();
+  return getUtcDateFromEasternDateTime(workDate, `${timeValue}:00`).toISOString();
 }
 
 function getWeekStartKey(workDate: string) {
-  const date = new Date(`${workDate}T00:00:00`);
-  date.setDate(date.getDate() - date.getDay());
+  const date = new Date(`${workDate}T00:00:00Z`);
 
-  return new Intl.DateTimeFormat("en-CA").format(date);
+  return addDaysToDateKey(workDate, -date.getUTCDay());
 }
 
 export async function updateWorkerTimesheetDay(formData: FormData) {
@@ -288,9 +291,8 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
   }
 
   if (action === "clear") {
-    const dayStart = new Date(`${workDate}T00:00:00`);
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayStart.getDate() + 1);
+    const dayStart = getUtcDateFromEasternDateTime(workDate);
+    const dayEnd = getUtcDateFromEasternDateTime(addDaysToDateKey(workDate, 1));
 
     const { data: entriesToClear } = await supabase
       .from("time_entries")
@@ -332,7 +334,8 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
   if (clockInAt || clockOutAt || lunchMinutes > 0) {
     const timePayload = {
       worker_id: workerId,
-      clock_in_at: clockInAt ?? new Date(`${workDate}T00:00:00`).toISOString(),
+      clock_in_at:
+        clockInAt ?? getUtcDateFromEasternDateTime(workDate).toISOString(),
       clock_out_at: clockOutAt,
       notes: "Admin adjusted timesheet",
     };
@@ -357,7 +360,7 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
     if (lunchMinutes > 0) {
       const breakStart = clockInAt
         ? new Date(new Date(clockInAt).getTime() + 4 * 60 * 60 * 1000)
-        : new Date(`${workDate}T12:00:00`);
+        : getUtcDateFromEasternDateTime(workDate, "12:00:00");
       const breakEnd = new Date(breakStart.getTime() + lunchMinutes * 60 * 1000);
       const breakPayload = {
         worker_id: workerId,

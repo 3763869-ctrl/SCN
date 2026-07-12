@@ -19,6 +19,7 @@ import {
   uploadWorkerFile,
 } from "@/features/admin/worker-actions";
 import { getHoursBetween } from "@/features/worker/metrics";
+import { EASTERN_TIME_ZONE } from "@/lib/dates/eastern-time";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -30,11 +31,13 @@ const moneyFormatter = new Intl.NumberFormat("en-US", {
 const displayDateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
+  timeZone: EASTERN_TIME_ZONE,
   year: "numeric",
 });
 
 const timeFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
+  timeZone: EASTERN_TIME_ZONE,
   timeStyle: "short",
 });
 
