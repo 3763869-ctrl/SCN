@@ -176,9 +176,6 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
       const result = await addUnits({ message: null }, formData);
 
       setMessage(result.message);
-      if (result.bonusAmount) {
-        setCelebration(result);
-      }
 
       if (endDayRequiresUnits && result.success) {
         const clockOutResult = await clockOut();
@@ -186,11 +183,20 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
         if (clockOutResult.success) {
           setEndDayRequiresUnits(false);
           setActiveTab("clock");
-          setClockOutComplete(true);
           setMessage(null);
+          if (result.bonusAmount) {
+            setCelebration({
+              ...result,
+              bonusLabel: `${result.bonusLabel}. You are clocked out for the day.`,
+            });
+          } else {
+            setClockOutComplete(true);
+          }
         } else {
           setMessage(clockOutResult.message);
         }
+      } else if (result.bonusAmount) {
+        setCelebration(result);
       }
 
       router.refresh();
@@ -231,7 +237,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
               {celebration.bonusLabel}
             </p>
             <Button className="mt-6" onClick={() => setCelebration(null)}>
-              Nice
+              Done
             </Button>
           </div>
         </div>

@@ -184,19 +184,26 @@ export async function addUnits(
     .or(`worker_id.is.null,worker_id.eq.${profile.id}`)
     .eq("active", true)
     .order("threshold_units", { ascending: true });
-  const earnedTier = tiers?.find(
+  const earnedTiers = (tiers ?? []).filter(
     (tier) =>
       previousUnits < tier.threshold_units && nextUnits >= tier.threshold_units,
+  );
+  const bonusAmount = earnedTiers.reduce(
+    (total, tier) => total + Number(tier.bonus_amount),
+    0,
   );
 
   revalidatePath("/worker");
 
-  if (earnedTier) {
+  if (earnedTiers.length) {
     return {
       message: "Bonus goal reached.",
       success: true,
-      bonusAmount: Number(earnedTier.bonus_amount),
-      bonusLabel: earnedTier.label ?? `${earnedTier.threshold_units} units`,
+      bonusAmount,
+      bonusLabel:
+        earnedTiers.length === 1
+          ? (earnedTiers[0].label ?? `${earnedTiers[0].threshold_units} units`)
+          : `${earnedTiers.length} bonus goals reached`,
     };
   }
 
