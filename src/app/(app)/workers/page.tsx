@@ -2,11 +2,14 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { getProfileLabel } from "@/features/admin/data";
 import {
   addBonusTier,
+  archiveWorker,
   createWorker,
   deleteBonusTier,
+  deleteWorker,
   deleteWorkerFile,
   updateBonusTier,
   updateWorkerFile,
@@ -481,6 +484,47 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                       </p>
                     )}
                   </form>
+
+                  <div className="mt-5 rounded-md border border-border bg-background p-4">
+                    <h4 className="text-sm font-semibold">
+                      Archive or Delete Worker
+                    </h4>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                      Archive keeps all history and files but deactivates the worker.
+                      Delete permanently removes this worker and their history.
+                    </p>
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                      <form action={archiveWorker}>
+                        <input name="id" type="hidden" value={selectedWorker.id} />
+                        <ConfirmSubmitButton
+                          confirmLabel="Archive Worker"
+                          description="This will deactivate the worker login and keep their time, units, payroll, files, and history."
+                          title="Archive this worker?"
+                          variant="secondary"
+                        >
+                          Archive Worker
+                        </ConfirmSubmitButton>
+                      </form>
+                      {canCreateWorkers ? (
+                        <form action={deleteWorker}>
+                          <input name="id" type="hidden" value={selectedWorker.id} />
+                          <ConfirmSubmitButton
+                            confirmLabel="Delete Worker"
+                            description="This permanently deletes this worker, their login, time entries, units, payroll records, payments, files, and history. This cannot be undone."
+                            title="Delete worker and all history?"
+                            variant="secondary"
+                          >
+                            Delete Worker
+                          </ConfirmSubmitButton>
+                        </form>
+                      ) : (
+                        <p className="text-sm leading-6 text-muted-foreground">
+                          Deleting a worker requires the server-only Supabase service
+                          role key.
+                        </p>
+                      )}
+                    </div>
+                  </div>
 
                   <div className="mt-6">
                     <h4 className="text-sm font-semibold">Payroll Summary</h4>

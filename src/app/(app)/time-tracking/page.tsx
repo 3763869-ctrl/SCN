@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { getProfileLabel } from "@/features/admin/data";
 import {
   completeTimesheetWeek,
@@ -461,16 +462,18 @@ export default async function TimeTrackingPage({
                             >
                               Save
                             </Button>
-                            <Button
+                            <ConfirmSubmitButton
                               className="h-10 px-3"
+                              confirmLabel="Clear Day"
+                              description="This will delete this day's clock times, lunch break, and units for this worker. This cannot be undone."
                               disabled={isWeekLocked}
                               name="action"
-                              type="submit"
+                              title="Clear this day?"
                               value="clear"
                               variant="secondary"
                             >
                               Clear
-                            </Button>
+                            </ConfirmSubmitButton>
                           </div>
                         </form>
                       ))

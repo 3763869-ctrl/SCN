@@ -29,6 +29,58 @@ export async function updateWorkerProfile(formData: FormData) {
   revalidatePath("/workers");
 }
 
+export async function archiveWorker(formData: FormData) {
+  await requireAdminProfile();
+
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase
+    .from("profiles")
+    .update({ active: false })
+    .eq("id", id)
+    .eq("role", "worker");
+
+  revalidatePath("/workers");
+  revalidatePath("/time-tracking");
+}
+
+export async function deleteWorker(formData: FormData) {
+  await requireAdminProfile();
+
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) {
+    return;
+  }
+
+  const adminSupabase = createSupabaseAdminClient();
+  const { data: files } = await adminSupabase
+    .from("worker_files")
+    .select("storage_path")
+    .eq("worker_id", id);
+  const storagePaths = (files ?? [])
+    .map((file) => file.storage_path)
+    .filter(Boolean);
+
+  if (storagePaths.length) {
+    await adminSupabase.storage.from("worker-files").remove(storagePaths);
+  }
+
+  await adminSupabase.auth.admin.deleteUser(id);
+  await adminSupabase.from("profiles").delete().eq("id", id).eq("role", "worker");
+
+  revalidatePath("/workers");
+  revalidatePath("/time-tracking");
+  revalidatePath("/payroll");
+  revalidatePath("/worker");
+}
+
 export async function createWorker(formData: FormData) {
   await requireAdminProfile();
 
