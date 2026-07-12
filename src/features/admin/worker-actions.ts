@@ -134,10 +134,10 @@ export async function submitWorkerOnboarding(formData: FormData) {
 
 export async function markBirthdaySeen() {
   const profile = await requireProfile();
-  const supabase = await createSupabaseServerClient();
+  const adminSupabase = createSupabaseAdminClient();
   const year = Number(getEasternDateKey().slice(0, 4));
 
-  await supabase
+  await adminSupabase
     .from("worker_details")
     .upsert({ birthday_last_shown_year: year, worker_id: profile.id });
 
