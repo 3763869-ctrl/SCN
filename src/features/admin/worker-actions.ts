@@ -6,6 +6,10 @@ import { requireAdminProfile } from "@/features/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppRole, PayrollSchedule } from "@/types/database";
 
+function sanitizeStorageName(value: string) {
+  return value.replace(/[^a-zA-Z0-9._-]/g, "-");
+}
+
 export async function updateWorkerProfile(formData: FormData) {
   await requireAdminProfile();
 
@@ -20,6 +24,91 @@ export async function updateWorkerProfile(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   await supabase.from("profiles").update({ role, active }).eq("id", id);
+
+  revalidatePath("/workers");
+}
+
+export async function uploadWorkerFile(formData: FormData) {
+  const admin = await requireAdminProfile();
+
+  const workerId = String(formData.get("worker_id") ?? "");
+  const documentType = String(formData.get("document_type") ?? "").trim();
+  const signed = formData.get("signed") === "true";
+  const notes = String(formData.get("notes") ?? "").trim();
+  const file = formData.get("file");
+
+  if (!workerId || !(file instanceof File) || file.size === 0) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const safeName = sanitizeStorageName(file.name);
+  const storagePath = `${workerId}/${Date.now()}-${safeName}`;
+
+  const { error } = await supabase.storage
+    .from("worker-files")
+    .upload(storagePath, file, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false,
+    });
+
+  if (error) {
+    return;
+  }
+
+  await supabase.from("worker_files").insert({
+    document_type: documentType || null,
+    file_name: file.name,
+    notes: notes || null,
+    signed,
+    storage_path: storagePath,
+    uploaded_by: admin.id,
+    worker_id: workerId,
+  });
+
+  revalidatePath("/workers");
+}
+
+export async function updateWorkerFile(formData: FormData) {
+  await requireAdminProfile();
+
+  const id = String(formData.get("id") ?? "");
+  const documentType = String(formData.get("document_type") ?? "").trim();
+  const signed = formData.get("signed") === "true";
+  const notes = String(formData.get("notes") ?? "").trim();
+
+  if (!id) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase
+    .from("worker_files")
+    .update({
+      document_type: documentType || null,
+      notes: notes || null,
+      signed,
+    })
+    .eq("id", id);
+
+  revalidatePath("/workers");
+}
+
+export async function deleteWorkerFile(formData: FormData) {
+  await requireAdminProfile();
+
+  const id = String(formData.get("id") ?? "");
+  const storagePath = String(formData.get("storage_path") ?? "");
+
+  if (!id || !storagePath) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase.storage.from("worker-files").remove([storagePath]);
+  await supabase.from("worker_files").delete().eq("id", id);
 
   revalidatePath("/workers");
 }

@@ -424,6 +424,53 @@ export type Database = {
           },
         ];
       };
+      worker_files: {
+        Row: {
+          id: string;
+          worker_id: string;
+          file_name: string;
+          storage_path: string;
+          document_type: string | null;
+          signed: boolean;
+          notes: string | null;
+          uploaded_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id: string;
+          file_name: string;
+          storage_path: string;
+          document_type?: string | null;
+          signed?: boolean;
+          notes?: string | null;
+          uploaded_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string;
+          file_name?: string;
+          storage_path?: string;
+          document_type?: string | null;
+          signed?: boolean;
+          notes?: string | null;
+          uploaded_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "worker_files_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
