@@ -2,12 +2,14 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import {
   assignPartnerWorker,
   createPartner,
   createPartnerInvoice,
   createPartnerSettlement,
   recordPartnerInvoicePayment,
+  removePartnerWorkerAssignment,
   updatePartner,
   uploadPartnerDocument,
 } from "@/features/admin/partner-actions";
@@ -343,14 +345,38 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
             {activeTab === "worker" ? (
               <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
                 <h3 className="text-base font-semibold">Assigned Worker</h3>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Current worker:{" "}
-                  <span className="font-semibold text-foreground">
-                    {selectedSummary.worker
-                      ? selectedSummary.worker.full_name ?? selectedSummary.worker.email
-                      : "None assigned"}
-                  </span>
-                </p>
+                <div className="mt-3 flex flex-col gap-3 rounded-md border border-border bg-background p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Current worker</p>
+                    <p className="mt-1 font-semibold">
+                      {selectedSummary.worker
+                        ? selectedSummary.worker.full_name ?? selectedSummary.worker.email
+                        : "None assigned"}
+                    </p>
+                    {selectedSummary.assignment ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Assigned {getDateLabel(selectedSummary.assignment.assigned_at)}
+                      </p>
+                    ) : null}
+                  </div>
+                  {selectedSummary.assignment ? (
+                    <form action={removePartnerWorkerAssignment}>
+                      <input
+                        name="assignment_id"
+                        type="hidden"
+                        value={selectedSummary.assignment.id}
+                      />
+                      <ConfirmSubmitButton
+                        confirmLabel="Remove Assignment"
+                        description="This will end the active worker assignment for this Partner. Past production, payroll, and history will stay saved."
+                        title="Remove assigned worker?"
+                        variant="secondary"
+                      >
+                        Remove Assignment
+                      </ConfirmSubmitButton>
+                    </form>
+                  ) : null}
+                </div>
                 <form action={assignPartnerWorker} className="mt-4 grid gap-3 md:grid-cols-4">
                   <input name="partner_id" type="hidden" value={selectedPartner.id} />
                   <select

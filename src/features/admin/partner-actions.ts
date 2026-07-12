@@ -144,6 +144,28 @@ export async function assignPartnerWorker(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function removePartnerWorkerAssignment(formData: FormData) {
+  await requireAdminProfile();
+
+  const assignmentId = String(formData.get("assignment_id") ?? "");
+
+  if (!assignmentId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const today = new Intl.DateTimeFormat("en-CA").format(new Date());
+
+  await supabase
+    .from("partner_worker_assignments")
+    .update({ ended_at: today, status: "ended" })
+    .eq("id", assignmentId)
+    .eq("status", "active");
+
+  revalidatePath("/partners");
+  revalidatePath("/dashboard");
+}
+
 export async function createPartnerInvoice(formData: FormData) {
   await requireAdminProfile();
 
