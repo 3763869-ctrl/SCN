@@ -1,27 +1,27 @@
 import {
   BarChart3,
-  Building2,
   Clock3,
+  Folder,
   FileChartColumn,
   FileText,
   HandCoins,
+  Handshake,
   LayoutDashboard,
-  Receipt,
+  RefreshCcw,
   Settings,
   Users,
-  WalletCards,
 } from "lucide-react";
 
 export const navigationItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Clients", href: "/clients", icon: Building2 },
+  { label: "Partners", href: "/partners", icon: Handshake },
   { label: "Workers", href: "/workers", icon: Users },
   { label: "Time Tracking", href: "/time-tracking", icon: Clock3 },
   { label: "Payroll", href: "/payroll", icon: HandCoins },
   { label: "Invoices", href: "/invoices", icon: FileText },
-  { label: "Expenses", href: "/expenses", icon: WalletCards },
-  { label: "Taxes", href: "/taxes", icon: Receipt },
+  { label: "Settlements", href: "/settlements", icon: RefreshCcw },
   { label: "Reports", href: "/reports", icon: FileChartColumn },
+  { label: "Documents", href: "/documents", icon: Folder },
   { label: "Settings", href: "/settings", icon: Settings },
 ] as const;
 

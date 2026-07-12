@@ -4,7 +4,7 @@ export default function ClientsPage() {
   return (
     <PlaceholderPanel
       title="Clients"
-      description="Manage customer records, job relationships, contacts, and billing preferences."
+      description="Background client setup. MS Support is the initial client, while Partners are the main business records."
     />
   );
 }

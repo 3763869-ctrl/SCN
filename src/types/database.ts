@@ -3,10 +3,374 @@ export type PayrollSchedule = "weekly" | "semi_monthly";
 export type ProductionUnitStatus = "pending" | "approved" | "rejected";
 export type TimesheetWeekStatus = "open" | "completed" | "reopened";
 export type WorkerPayrollStatus = "due" | "partial" | "paid" | "reopened";
+export type PartnerStatus = "active" | "inactive";
+export type PartnerAssignmentStatus = "active" | "ended";
+export type PartnerInvoiceStatus =
+  | "draft"
+  | "ready"
+  | "sent"
+  | "paid"
+  | "overdue"
+  | "cancelled";
+export type PartnerSettlementStatus =
+  | "pending"
+  | "partial"
+  | "transferred"
+  | "waived"
+  | "cancelled";
 
 export type Database = {
   public: {
     Tables: {
+      clients: {
+        Row: {
+          id: string;
+          name: string;
+          status: PartnerStatus;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          status?: PartnerStatus;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          status?: PartnerStatus;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      partners: {
+        Row: {
+          id: string;
+          client_id: string;
+          full_name: string;
+          email: string | null;
+          phone: string | null;
+          status: PartnerStatus;
+          start_date: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          full_name: string;
+          email?: string | null;
+          phone?: string | null;
+          status?: PartnerStatus;
+          start_date?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          full_name?: string;
+          email?: string | null;
+          phone?: string | null;
+          status?: PartnerStatus;
+          start_date?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partners_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_worker_assignments: {
+        Row: {
+          id: string;
+          partner_id: string;
+          worker_id: string;
+          status: PartnerAssignmentStatus;
+          assigned_at: string;
+          ended_at: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          partner_id: string;
+          worker_id: string;
+          status?: PartnerAssignmentStatus;
+          assigned_at?: string;
+          ended_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          partner_id?: string;
+          worker_id?: string;
+          status?: PartnerAssignmentStatus;
+          assigned_at?: string;
+          ended_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_worker_assignments_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_worker_assignments_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_invoices: {
+        Row: {
+          id: string;
+          partner_id: string;
+          client_id: string;
+          invoice_number: string;
+          billing_period_start: string;
+          billing_period_end: string;
+          units: number;
+          rate_per_unit: number;
+          invoice_total: number;
+          created_date: string;
+          sent_date: string | null;
+          due_date: string | null;
+          status: PartnerInvoiceStatus;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          partner_id: string;
+          client_id: string;
+          invoice_number: string;
+          billing_period_start: string;
+          billing_period_end: string;
+          units?: number;
+          rate_per_unit?: number;
+          invoice_total?: number;
+          created_date?: string;
+          sent_date?: string | null;
+          due_date?: string | null;
+          status?: PartnerInvoiceStatus;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          partner_id?: string;
+          client_id?: string;
+          invoice_number?: string;
+          billing_period_start?: string;
+          billing_period_end?: string;
+          units?: number;
+          rate_per_unit?: number;
+          invoice_total?: number;
+          created_date?: string;
+          sent_date?: string | null;
+          due_date?: string | null;
+          status?: PartnerInvoiceStatus;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_invoices_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_invoices_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_invoice_payments: {
+        Row: {
+          id: string;
+          invoice_id: string;
+          partner_id: string;
+          amount_received: number;
+          date_received: string;
+          payment_method: string | null;
+          deposit_account: string | null;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          invoice_id: string;
+          partner_id: string;
+          amount_received: number;
+          date_received?: string;
+          payment_method?: string | null;
+          deposit_account?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          invoice_id?: string;
+          partner_id?: string;
+          amount_received?: number;
+          date_received?: string;
+          payment_method?: string | null;
+          deposit_account?: string | null;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_invoice_payments_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_invoices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_invoice_payments_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_settlements: {
+        Row: {
+          id: string;
+          partner_id: string;
+          invoice_id: string | null;
+          amount_received_by_partner: number;
+          amount_partner_keeps: number;
+          amount_transferred_to_scn: number;
+          transfer_status: PartnerSettlementStatus;
+          transfer_date: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          partner_id: string;
+          invoice_id?: string | null;
+          amount_received_by_partner?: number;
+          amount_partner_keeps?: number;
+          amount_transferred_to_scn?: number;
+          transfer_status?: PartnerSettlementStatus;
+          transfer_date?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          partner_id?: string;
+          invoice_id?: string | null;
+          amount_received_by_partner?: number;
+          amount_partner_keeps?: number;
+          amount_transferred_to_scn?: number;
+          transfer_status?: PartnerSettlementStatus;
+          transfer_date?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_settlements_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_settlements_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_invoices";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_documents: {
+        Row: {
+          id: string;
+          partner_id: string;
+          document_type: string | null;
+          file_name: string;
+          storage_path: string;
+          notes: string | null;
+          uploaded_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          partner_id: string;
+          document_type?: string | null;
+          file_name: string;
+          storage_path: string;
+          notes?: string | null;
+          uploaded_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          partner_id?: string;
+          document_type?: string | null;
+          file_name?: string;
+          storage_path?: string;
+          notes?: string | null;
+          uploaded_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_documents_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           id: string;
@@ -586,6 +950,10 @@ export type Database = {
       payroll_schedule: PayrollSchedule;
       timesheet_week_status: TimesheetWeekStatus;
       worker_payroll_status: WorkerPayrollStatus;
+      partner_status: PartnerStatus;
+      partner_assignment_status: PartnerAssignmentStatus;
+      partner_invoice_status: PartnerInvoiceStatus;
+      partner_settlement_status: PartnerSettlementStatus;
     };
     CompositeTypes: Record<string, never>;
   };

@@ -1,43 +1,71 @@
 import {
-  Activity,
   BadgeDollarSign,
   Clock3,
   FileText,
+  Handshake,
+  PackageCheck,
+  RefreshCcw,
   Users,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/ui/stat-card";
-import {
-  getAdminOperationsData,
-  getProfileLabel,
-} from "@/features/admin/data";
+import { getPartnerOperationsData } from "@/features/admin/partner-data";
+
+const moneyFormatter = new Intl.NumberFormat("en-US", {
+  currency: "USD",
+  style: "currency",
+});
 
 export default async function DashboardPage() {
-  const operations = await getAdminOperationsData();
+  const operations = await getPartnerOperationsData();
   const stats = [
     {
-      title: "Active Workers",
-      value: String(operations.activeWorkers),
-      description: "Workers available for time and units",
-      icon: Users,
+      title: "Total Partners",
+      value: String(operations.stats.totalPartners),
+      description: "Partner business records",
+      icon: Handshake,
     },
     {
-      title: "Open Time Entries",
-      value: String(operations.activeClockIns),
-      description: "Workers currently clocked in",
+      title: "Partners Working Today",
+      value: String(operations.stats.partnersWorkingToday),
+      description: "Partners with worker activity today",
       icon: Clock3,
     },
     {
-      title: "Pending Units",
-      value: String(operations.pendingUnits),
-      description: "Submitted units awaiting review",
-      icon: Activity,
+      title: "Workers Online",
+      value: String(operations.stats.workersOnline),
+      description: "Workers currently clocked in",
+      icon: Users,
     },
     {
-      title: "Recent Hours",
-      value: operations.recentHours.toFixed(2),
-      description: "Hours from recent time entries",
+      title: "Units Today",
+      value: String(operations.stats.unitsToday),
+      description: "Production units entered today",
+      icon: PackageCheck,
+    },
+    {
+      title: "Units This Week",
+      value: String(operations.stats.unitsThisWeek),
+      description: "Sunday through Friday production",
+      icon: PackageCheck,
+    },
+    {
+      title: "Outstanding Invoices",
+      value: moneyFormatter.format(operations.stats.outstandingInvoices),
+      description: "Partner invoices not yet paid",
+      icon: FileText,
+    },
+    {
+      title: "Outstanding Settlements",
+      value: moneyFormatter.format(operations.stats.outstandingSettlements),
+      description: "Partner transfer amounts still open",
+      icon: RefreshCcw,
+    },
+    {
+      title: "Weekly Profit",
+      value: moneyFormatter.format(operations.stats.weeklyProfit),
+      description: "Current gross profit snapshot",
       icon: BadgeDollarSign,
     },
   ];
@@ -45,9 +73,8 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Admin Dashboard"
-        description="Operational overview for clients, workers, time, production, and financial workflows."
-        actionLabel="New Entry"
+        title="Partner Dashboard"
+        description="Business overview by Partner, worker production, invoices, settlements, and profit."
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -56,57 +83,52 @@ export default async function DashboardPage() {
         ))}
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="text-base font-semibold">Work Pipeline</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Time and production records that need operational attention.
-              </p>
-            </div>
-            <FileText className="h-5 w-5 text-accent" aria-hidden="true" />
+      <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-base font-semibold">Partner Overview</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Quick scan of assigned workers, production, and open money.
+            </p>
           </div>
-          <div className="mt-5 space-y-3">
-            {[
-              ["Open clocks", operations.activeClockIns],
-              ["Pending unit quantity", operations.pendingUnits],
-              ["Active workers", operations.activeWorkers],
-            ].map(([item, value]) => (
-                <div
-                  key={item}
-                  className="flex items-center justify-between rounded-md border border-border bg-background px-4 py-3"
-                >
-                  <span className="text-sm font-medium">{item}</span>
-                  <span className="text-sm text-muted-foreground">{value}</span>
-                </div>
-              ))}
-          </div>
+          <Handshake className="h-5 w-5 text-accent" aria-hidden="true" />
         </div>
 
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-          <h2 className="text-base font-semibold">Recent Activity</h2>
-          <div className="mt-5 space-y-4">
-            {operations.unitEntries.slice(0, 3).map((entry) => (
-              <div key={entry.id} className="flex gap-3">
-                <span className="mt-1 h-2 w-2 rounded-full bg-accent" />
-                <div>
-                  <p className="text-sm font-medium">
-                    {entry.quantity} units from{" "}
-                    {getProfileLabel(operations.profileMap.get(entry.worker_id))}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {entry.status} on {entry.work_date}
-                  </p>
-                </div>
+        <div className="mt-5 divide-y divide-border rounded-md border border-border bg-background">
+          {operations.partnerSummaries.slice(0, 8).map((summary) => (
+            <div
+              className="grid gap-3 px-4 py-3 text-sm lg:grid-cols-[1.2fr_1fr_1fr_1fr]"
+              key={summary.partner.id}
+            >
+              <div>
+                <p className="font-semibold">{summary.partner.full_name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Worker: {summary.worker?.full_name ?? summary.worker?.email ?? "None"}
+                </p>
               </div>
-            ))}
-            {!operations.unitEntries.length ? (
-              <p className="text-sm text-muted-foreground">
-                No worker activity submitted yet.
+              <p className="text-muted-foreground">
+                Today: <span className="font-semibold text-foreground">{summary.todayUnits}</span>{" "}
+                units
               </p>
-            ) : null}
-          </div>
+              <p className="text-muted-foreground">
+                Week: <span className="font-semibold text-foreground">{summary.weekUnits}</span>{" "}
+                units
+              </p>
+              <p className="text-muted-foreground">
+                Open:{" "}
+                <span className="font-semibold text-foreground">
+                  {moneyFormatter.format(
+                    summary.outstandingInvoices + summary.outstandingSettlements,
+                  )}
+                </span>
+              </p>
+            </div>
+          ))}
+          {!operations.partnerSummaries.length ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">
+              No Partners created yet.
+            </p>
+          ) : null}
         </div>
       </section>
     </div>
