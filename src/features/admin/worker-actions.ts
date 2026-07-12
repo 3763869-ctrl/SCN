@@ -15,6 +15,40 @@ function sanitizeStorageName(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]/g, "-");
 }
 
+function getOptionalText(formData: FormData, name: string) {
+  const value = String(formData.get(name) ?? "").trim();
+
+  return value || null;
+}
+
+function getWorkerDetailsPayload(formData: FormData, workerId: string) {
+  const ageValue = String(formData.get("age") ?? "").trim();
+  const ageNumber = ageValue ? Number(ageValue) : null;
+  const age =
+    ageNumber !== null &&
+    Number.isFinite(ageNumber) &&
+    ageNumber >= 0 &&
+    ageNumber <= 120
+      ? Math.floor(ageNumber)
+      : null;
+
+  return {
+    address_line1: getOptionalText(formData, "address_line1"),
+    age,
+    city: getOptionalText(formData, "city"),
+    country: getOptionalText(formData, "country"),
+    hiring_source: getOptionalText(formData, "hiring_source"),
+    phone_number: getOptionalText(formData, "phone_number"),
+    referral_name: getOptionalText(formData, "referral_name"),
+    secondary_contact_name: getOptionalText(formData, "secondary_contact_name"),
+    secondary_contact_phone: getOptionalText(formData, "secondary_contact_phone"),
+    start_date: getOptionalText(formData, "start_date"),
+    state: getOptionalText(formData, "state"),
+    worker_id: workerId,
+    zip_code: getOptionalText(formData, "zip_code"),
+  };
+}
+
 export async function updateWorkerProfile(formData: FormData) {
   await requireAdminProfile();
 
@@ -29,6 +63,22 @@ export async function updateWorkerProfile(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   await supabase.from("profiles").update({ role, active }).eq("id", id);
+
+  revalidatePath("/workers");
+}
+
+export async function updateWorkerDetails(formData: FormData) {
+  await requireAdminProfile();
+
+  const workerId = String(formData.get("worker_id") ?? "");
+
+  if (!workerId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase.from("worker_details").upsert(getWorkerDetailsPayload(formData, workerId));
 
   revalidatePath("/workers");
 }
@@ -127,6 +177,10 @@ export async function createWorker(formData: FormData) {
     weekly_unit_goal: 100,
     worker_id: data.user.id,
   });
+
+  await adminSupabase
+    .from("worker_details")
+    .upsert(getWorkerDetailsPayload(formData, data.user.id));
 
   revalidatePath("/workers");
 }

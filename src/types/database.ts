@@ -210,6 +210,68 @@ export type Database = {
           },
         ];
       };
+      worker_details: {
+        Row: {
+          worker_id: string;
+          phone_number: string | null;
+          age: number | null;
+          address_line1: string | null;
+          city: string | null;
+          state: string | null;
+          country: string | null;
+          zip_code: string | null;
+          secondary_contact_name: string | null;
+          secondary_contact_phone: string | null;
+          start_date: string | null;
+          hiring_source: string | null;
+          referral_name: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          worker_id: string;
+          phone_number?: string | null;
+          age?: number | null;
+          address_line1?: string | null;
+          city?: string | null;
+          state?: string | null;
+          country?: string | null;
+          zip_code?: string | null;
+          secondary_contact_name?: string | null;
+          secondary_contact_phone?: string | null;
+          start_date?: string | null;
+          hiring_source?: string | null;
+          referral_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          worker_id?: string;
+          phone_number?: string | null;
+          age?: number | null;
+          address_line1?: string | null;
+          city?: string | null;
+          state?: string | null;
+          country?: string | null;
+          zip_code?: string | null;
+          secondary_contact_name?: string | null;
+          secondary_contact_phone?: string | null;
+          start_date?: string | null;
+          hiring_source?: string | null;
+          referral_name?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "worker_details_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       bonus_tiers: {
         Row: {
           id: string;

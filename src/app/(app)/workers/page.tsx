@@ -13,6 +13,7 @@ import {
   deleteWorkerFile,
   updateBonusTier,
   updateWorkerFile,
+  updateWorkerDetails,
   updateWorkerPassword,
   updateWorkerPaySettings,
   updateWorkerProfile,
@@ -77,6 +78,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
   const [
     { data: profiles },
     { data: paySettings },
+    { data: workerDetails },
     { data: bonusTiers },
     { data: timeEntries },
     { data: unitEntries },
@@ -92,6 +94,11 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
     supabase
       .from("worker_pay_settings")
       .select("worker_id, hourly_rate, payroll_schedule, weekly_unit_goal, active"),
+    supabase
+      .from("worker_details")
+      .select(
+        "worker_id, phone_number, age, address_line1, city, state, country, zip_code, secondary_contact_name, secondary_contact_phone, start_date, hiring_source, referral_name",
+      ),
     supabase
       .from("bonus_tiers")
       .select("id, worker_id, threshold_units, bonus_amount, label, active")
@@ -123,8 +130,14 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
   ]);
 
   const workers = profiles ?? [];
+  const detailsMap = new Map(
+    (workerDetails ?? []).map((details) => [details.worker_id, details]),
+  );
   const filteredWorkers = workers.filter((worker) => {
-    const haystack = `${worker.full_name ?? ""} ${worker.email}`.toLowerCase();
+    const details = detailsMap.get(worker.id);
+    const haystack =
+      `${worker.full_name ?? ""} ${worker.email} ${details?.phone_number ?? ""} ${details?.hiring_source ?? ""} ${details?.referral_name ?? ""}`.toLowerCase();
+
     return haystack.includes(query.toLowerCase());
   });
   const selectedWorker =
@@ -136,6 +149,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
   const selectedPaySettings = (paySettings ?? []).find(
     (setting) => setting.worker_id === selectedWorkerId,
   );
+  const selectedDetails = detailsMap.get(selectedWorkerId);
   const selectedBonusTiers = (bonusTiers ?? []).filter(
     (tier) => !tier.worker_id || tier.worker_id === selectedWorkerId,
   );
@@ -251,6 +265,100 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                   <option value="true">Active</option>
                   <option value="false">Inactive</option>
                 </select>
+                <details className="rounded-md border border-border bg-surface-muted p-3">
+                  <summary className="cursor-pointer text-sm font-semibold">
+                    Worker Info
+                  </summary>
+                  <div className="mt-3 space-y-2">
+                    <input
+                      className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                      name="phone_number"
+                      placeholder="Phone number"
+                      type="tel"
+                    />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <input
+                        className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                        max="120"
+                        min="0"
+                        name="age"
+                        placeholder="Age"
+                        type="number"
+                      />
+                      <input
+                        className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                        name="start_date"
+                        type="date"
+                      />
+                    </div>
+                    <input
+                      className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                      name="address_line1"
+                      placeholder="Address"
+                      type="text"
+                    />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <input
+                        className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                        name="city"
+                        placeholder="City"
+                        type="text"
+                      />
+                      <input
+                        className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                        name="state"
+                        placeholder="State"
+                        type="text"
+                      />
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <input
+                        className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                        name="country"
+                        placeholder="Country"
+                        type="text"
+                      />
+                      <input
+                        className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                        name="zip_code"
+                        placeholder="ZIP"
+                        type="text"
+                      />
+                    </div>
+                    <input
+                      className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                      name="secondary_contact_name"
+                      placeholder="2nd contact name"
+                      type="text"
+                    />
+                    <input
+                      className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                      name="secondary_contact_phone"
+                      placeholder="2nd contact phone"
+                      type="tel"
+                    />
+                    <select
+                      className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue=""
+                      name="hiring_source"
+                    >
+                      <option value="">Hiring source</option>
+                      <option value="Referral">Referral</option>
+                      <option value="Indeed">Indeed</option>
+                      <option value="Walk-in">Walk-in</option>
+                      <option value="Agency">Agency</option>
+                      <option value="Friend / Family">Friend / Family</option>
+                      <option value="Returning worker">Returning worker</option>
+                      <option value="Other">Other</option>
+                    </select>
+                    <input
+                      className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                      name="referral_name"
+                      placeholder="Referral name"
+                      type="text"
+                    />
+                  </div>
+                </details>
                 <Button className="h-10 w-full" type="submit">
                   Create Worker
                 </Button>
@@ -327,6 +435,17 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                       ? `, first clock-in ${getDateLabel(firstClockIn.clock_in_at)}`
                       : ""}
                   </p>
+                  {selectedDetails?.phone_number || selectedDetails?.start_date ? (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {selectedDetails.phone_number ?? ""}
+                      {selectedDetails.phone_number && selectedDetails.start_date
+                        ? " - "
+                        : ""}
+                      {selectedDetails.start_date
+                        ? `Start date ${getDateLabel(selectedDetails.start_date)}`
+                        : ""}
+                    </p>
+                  ) : null}
                 </div>
                 <form
                   action={updateWorkerProfile}
@@ -406,7 +525,142 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
             {activeTab === "profile" ? (
               <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
                 <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-                  <h3 className="text-base font-semibold">Worker Settings</h3>
+                  <h3 className="text-base font-semibold">Worker Details</h3>
+                  <form
+                    action={updateWorkerDetails}
+                    className="mt-4 grid gap-3 md:grid-cols-2"
+                  >
+                    <input
+                      name="worker_id"
+                      type="hidden"
+                      value={selectedWorker.id}
+                    />
+                    <label className="text-sm font-medium">
+                      Phone Number
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.phone_number ?? ""}
+                        name="phone_number"
+                        type="tel"
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      Age
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.age ?? ""}
+                        max="120"
+                        min="0"
+                        name="age"
+                        type="number"
+                      />
+                    </label>
+                    <label className="text-sm font-medium md:col-span-2">
+                      Address
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.address_line1 ?? ""}
+                        name="address_line1"
+                        type="text"
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      City
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.city ?? ""}
+                        name="city"
+                        type="text"
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      State
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.state ?? ""}
+                        name="state"
+                        type="text"
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      Country
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.country ?? ""}
+                        name="country"
+                        type="text"
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      ZIP
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.zip_code ?? ""}
+                        name="zip_code"
+                        type="text"
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      2nd Contact Name
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.secondary_contact_name ?? ""}
+                        name="secondary_contact_name"
+                        type="text"
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      2nd Contact Phone
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.secondary_contact_phone ?? ""}
+                        name="secondary_contact_phone"
+                        type="tel"
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      Start Date
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.start_date ?? ""}
+                        name="start_date"
+                        type="date"
+                      />
+                    </label>
+                    <label className="text-sm font-medium">
+                      Hiring Source
+                      <select
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.hiring_source ?? ""}
+                        name="hiring_source"
+                      >
+                        <option value="">Not recorded</option>
+                        <option value="Referral">Referral</option>
+                        <option value="Indeed">Indeed</option>
+                        <option value="Walk-in">Walk-in</option>
+                        <option value="Agency">Agency</option>
+                        <option value="Friend / Family">Friend / Family</option>
+                        <option value="Returning worker">Returning worker</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </label>
+                    <label className="text-sm font-medium md:col-span-2">
+                      Referral Name
+                      <input
+                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                        defaultValue={selectedDetails?.referral_name ?? ""}
+                        name="referral_name"
+                        type="text"
+                      />
+                    </label>
+                    <div className="md:col-span-2">
+                      <Button className="h-10" type="submit">
+                        Save Worker Details
+                      </Button>
+                    </div>
+                  </form>
+
+                  <h3 className="mt-6 text-base font-semibold">Pay Settings</h3>
                   <form
                     action={updateWorkerPaySettings}
                     className="mt-4 grid gap-3 md:grid-cols-2"
@@ -702,65 +956,72 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
             ) : null}
 
             {activeTab === "files" ? (
-              <section className="grid gap-4 xl:grid-cols-[0.8fr_1fr]">
-                <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-                  <h3 className="text-base font-semibold">Add Worker File</h3>
-                  <form
-                    action={uploadWorkerFile}
-                    className="mt-4 space-y-3"
-                    encType="multipart/form-data"
-                  >
-                    <input name="worker_id" type="hidden" value={selectedWorker.id} />
-                    <input
-                      className="block w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                      name="file"
-                      required
-                      type="file"
-                    />
-                    <input
-                      className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                      name="document_type"
-                      placeholder="Document type, e.g. Signed agreement"
-                    />
-                    <select
-                      className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                      defaultValue="false"
-                      name="signed"
+              <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <h3 className="text-base font-semibold">Worker Files</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {signedFiles.length} file{signedFiles.length === 1 ? "" : "s"} on
+                      record.
+                    </p>
+                  </div>
+                  <details className="rounded-md border border-border bg-background p-3 sm:min-w-72">
+                    <summary className="cursor-pointer text-sm font-semibold">
+                      Upload File
+                    </summary>
+                    <form
+                      action={uploadWorkerFile}
+                      className="mt-4 space-y-3"
+                      encType="multipart/form-data"
                     >
-                      <option value="true">Signed / Complete</option>
-                      <option value="false">Not signed yet</option>
-                    </select>
-                    <textarea
-                      className="min-h-20 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                      name="notes"
-                      placeholder="Notes"
-                    />
-                    <Button type="submit">Upload File</Button>
-                  </form>
+                      <input name="worker_id" type="hidden" value={selectedWorker.id} />
+                      <input
+                        className="block w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
+                        name="file"
+                        required
+                        type="file"
+                      />
+                      <input
+                        className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                        name="document_type"
+                        placeholder="Document type"
+                      />
+                      <select
+                        className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                        defaultValue="false"
+                        name="signed"
+                      >
+                        <option value="true">Signed / Complete</option>
+                        <option value="false">Not signed yet</option>
+                      </select>
+                      <textarea
+                        className="min-h-20 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm"
+                        name="notes"
+                        placeholder="Notes"
+                      />
+                      <Button className="h-10 w-full" type="submit">
+                        Upload
+                      </Button>
+                    </form>
+                  </details>
                 </div>
 
-                <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-                  <h3 className="text-base font-semibold">Worker Files</h3>
-                  <div className="mt-4 space-y-3">
-                    {signedFiles.map((file) => (
-                      <div
-                        className="rounded-md border border-border bg-background p-3"
-                        key={file.id}
-                      >
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <p className="font-semibold">{file.file_name}</p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {file.document_type || "Worker document"} -{" "}
-                              {file.signed ? "Signed / complete" : "Not signed yet"}
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Added {getDateLabel(file.created_at)}
-                            </p>
-                          </div>
+                <div className="mt-5 divide-y divide-border rounded-md border border-border bg-background">
+                  {signedFiles.map((file) => (
+                    <details className="group p-3" key={file.id}>
+                      <summary className="flex cursor-pointer list-none flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <span>
+                          <span className="block font-semibold">{file.file_name}</span>
+                          <span className="mt-1 block text-xs text-muted-foreground">
+                            {file.document_type || "Worker document"} -{" "}
+                            {file.signed ? "Signed / complete" : "Not signed yet"} -
+                            Added {getDateLabel(file.created_at)}
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-3 text-sm font-semibold">
                           {file.signedUrl ? (
                             <a
-                              className="text-sm font-semibold text-accent"
+                              className="text-accent"
                               href={file.signedUrl}
                               rel="noreferrer"
                               target="_blank"
@@ -768,8 +1029,20 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                               Open
                             </a>
                           ) : null}
-                        </div>
-                        <form action={updateWorkerFile} className="mt-3 grid gap-2">
+                          <span className="text-muted-foreground group-open:hidden">
+                            Edit
+                          </span>
+                          <span className="hidden text-muted-foreground group-open:inline">
+                            Close
+                          </span>
+                        </span>
+                      </summary>
+
+                      <div className="mt-4 grid gap-3 lg:grid-cols-[1fr_auto]">
+                        <form
+                          action={updateWorkerFile}
+                          className="grid gap-2 md:grid-cols-[1fr_180px_auto]"
+                        >
                           <input name="id" type="hidden" value={file.id} />
                           <input
                             className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
@@ -785,37 +1058,35 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                             <option value="true">Signed / Complete</option>
                             <option value="false">Not signed yet</option>
                           </select>
+                          <Button className="h-10 px-3" type="submit">
+                            Save
+                          </Button>
                           <textarea
-                            className="min-h-20 rounded-md border border-border bg-surface px-3 py-2 text-sm"
+                            className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm md:col-span-3"
                             defaultValue={file.notes ?? ""}
                             name="notes"
                             placeholder="Notes"
                           />
-                          <div className="flex justify-end gap-2">
-                            <Button className="h-10 px-3" type="submit">
-                              Save File
-                            </Button>
-                          </div>
                         </form>
-                        <form action={deleteWorkerFile} className="mt-2 flex justify-end">
+                        <form action={deleteWorkerFile}>
                           <input name="id" type="hidden" value={file.id} />
                           <input
                             name="storage_path"
                             type="hidden"
                             value={file.storage_path}
                           />
-                          <Button className="h-9 px-3" type="submit" variant="secondary">
-                            Delete File
+                          <Button className="h-10 px-3" type="submit" variant="secondary">
+                            Delete
                           </Button>
                         </form>
                       </div>
-                    ))}
-                    {!signedFiles.length ? (
-                      <p className="text-sm text-muted-foreground">
-                        No files have been added for this worker yet.
-                      </p>
-                    ) : null}
-                  </div>
+                    </details>
+                  ))}
+                  {!signedFiles.length ? (
+                    <p className="p-4 text-sm text-muted-foreground">
+                      No files have been added for this worker yet.
+                    </p>
+                  ) : null}
                 </div>
               </section>
             ) : null}
