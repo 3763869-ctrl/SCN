@@ -7,9 +7,11 @@ import {
   assignPartnerWorker,
   createPartner,
   createPartnerInvoice,
-  createPartnerSettlement,
+  recordPartnerPayrollPayment,
   recordPartnerInvoicePayment,
   removePartnerWorkerAssignment,
+  savePartnerBillingSettings,
+  savePartnerPaySettings,
   updatePartner,
   uploadPartnerDocument,
 } from "@/features/admin/partner-actions";
@@ -57,7 +59,7 @@ const tabs: Array<{ id: PartnerTab; label: string }> = [
   { id: "production", label: "Production" },
   { id: "invoices", label: "Invoices" },
   { id: "payments", label: "Payments" },
-  { id: "settlements", label: "Settlements" },
+  { id: "settlements", label: "Partner Payroll" },
   { id: "payroll", label: "Worker Payroll" },
   { id: "financials", label: "Financial Summary" },
   { id: "documents", label: "Documents" },
@@ -113,8 +115,8 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
   const selectedPayments = selectedPartner
     ? data.payments.filter((payment) => payment.partner_id === selectedPartner.id)
     : [];
-  const selectedSettlements = selectedPartner
-    ? data.settlements.filter((settlement) => settlement.partner_id === selectedPartner.id)
+  const selectedPartnerPayrolls = selectedPartner
+    ? data.partnerPayrolls.filter((payroll) => payroll.partner_id === selectedPartner.id)
     : [];
   const selectedDocuments = selectedPartner
     ? await Promise.all(
@@ -129,7 +131,7 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
     <div className="space-y-6">
       <PageHeader
         title="Partners"
-        description="Manage Partner operations, assigned workers, production, invoices, settlements, payroll, and documents."
+        description="Manage Partner operations, assigned workers, production, invoices, Partner payroll, and documents."
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -138,8 +140,8 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
           ["Partners Working Today", data.stats.partnersWorkingToday],
           ["Outstanding Invoices", moneyFormatter.format(data.stats.outstandingInvoices)],
           [
-            "Outstanding Settlements",
-            moneyFormatter.format(data.stats.outstandingSettlements),
+            "Partner Payroll Due",
+            moneyFormatter.format(data.stats.partnerPayrollDue),
           ],
         ].map(([label, value]) => (
           <div className="rounded-lg border border-border bg-surface p-4 shadow-sm" key={label}>
@@ -410,6 +412,7 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
 
             {activeTab === "invoices" ? (
               <InvoicesTab
+                billingSettings={selectedSummary.billingSettings}
                 clientId={selectedPartner.client_id}
                 invoices={selectedInvoices}
                 partnerId={selectedPartner.id}
@@ -421,10 +424,10 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
             ) : null}
 
             {activeTab === "settlements" ? (
-              <SettlementsTab
-                invoices={selectedInvoices}
+              <PartnerPayrollTab
+                partnerPaySettings={selectedSummary.partnerPaySettings}
                 partnerId={selectedPartner.id}
-                settlements={selectedSettlements}
+                payrolls={selectedPartnerPayrolls}
               />
             ) : null}
 
@@ -487,6 +490,7 @@ function PartnerQuickFacts({
           ["Total Received", moneyFormatter.format(summary.totalReceived)],
           ["Gross Profit", moneyFormatter.format(summary.grossProfit)],
           ["Outstanding Balance", moneyFormatter.format(summary.outstandingInvoices)],
+          ["Partner Payroll Due", moneyFormatter.format(summary.partnerPayrollDue)],
         ].map(([label, value]) => (
           <div className="flex justify-between gap-4 border-b border-border pb-2" key={label}>
             <span className="text-muted-foreground">{label}</span>
@@ -499,17 +503,70 @@ function PartnerQuickFacts({
 }
 
 function InvoicesTab({
+  billingSettings,
   clientId,
   invoices,
   partnerId,
 }: {
+  billingSettings: Awaited<ReturnType<typeof getPartnerOperationsData>>["partnerSummaries"][number]["billingSettings"];
   clientId: string;
   invoices: Awaited<ReturnType<typeof getPartnerOperationsData>>["invoices"];
   partnerId: string;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-      <h3 className="text-base font-semibold">Invoices</h3>
+    <section className="space-y-4">
+      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <h3 className="text-base font-semibold">MS Support Billing Settings</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          This rate is used when the invoice page generates invoices automatically.
+        </p>
+        <form action={savePartnerBillingSettings} className="mt-4 grid gap-3 md:grid-cols-5">
+          <input name="partner_id" type="hidden" value={partnerId} />
+          <input name="client_id" type="hidden" value={clientId} />
+          <input
+            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+            defaultValue={Number(billingSettings?.rate_per_unit ?? 0)}
+            min="0"
+            name="rate_per_unit"
+            placeholder="Rate per unit"
+            step="0.01"
+            type="number"
+          />
+          <select
+            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+            defaultValue={billingSettings?.billing_frequency ?? "semi_monthly"}
+            name="billing_frequency"
+          >
+            <option value="semi_monthly">Semi-monthly</option>
+            <option value="manual">Manual</option>
+          </select>
+          <input
+            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+            defaultValue={billingSettings?.payment_terms_days ?? 15}
+            min="0"
+            name="payment_terms_days"
+            placeholder="Payment terms days"
+            type="number"
+          />
+          <label className="flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm">
+            <input
+              defaultChecked={billingSettings?.active ?? true}
+              name="active"
+              type="checkbox"
+            />
+            Active
+          </label>
+          <Button type="submit">Save Billing</Button>
+          <textarea
+            className="min-h-16 rounded-md border border-border bg-background px-3 py-2 text-sm md:col-span-5"
+            defaultValue={billingSettings?.notes ?? ""}
+            name="notes"
+            placeholder="Billing notes"
+          />
+        </form>
+      </div>
+      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <h3 className="text-base font-semibold">Invoices</h3>
       <form action={createPartnerInvoice} className="mt-4 grid gap-3 md:grid-cols-4">
         <input name="partner_id" type="hidden" value={partnerId} />
         <input name="client_id" type="hidden" value={clientId} />
@@ -536,7 +593,7 @@ function InvoicesTab({
           defaultValue="draft"
           name="status"
         >
-          {["draft", "ready", "sent", "paid", "overdue", "cancelled"].map((status) => (
+          {["draft", "ready", "sent", "partial", "paid", "overdue", "cancelled"].map((status) => (
             <option key={status} value={status}>
               {getStatusLabel(status)}
             </option>
@@ -582,9 +639,10 @@ function InvoicesTab({
         items={invoices.map((invoice) => ({
           id: invoice.id,
           label: `${invoice.invoice_number} - ${moneyFormatter.format(Number(invoice.invoice_total))}`,
-          meta: `${getDateLabel(invoice.billing_period_start)} - ${getDateLabel(invoice.billing_period_end)} - ${getStatusLabel(invoice.status)}`,
+          meta: `${getDateLabel(invoice.billing_period_start)} - ${getDateLabel(invoice.billing_period_end)} - ${getStatusLabel(invoice.status)} - Balance ${moneyFormatter.format(Number(invoice.balance_remaining ?? invoice.invoice_total))}`,
         }))}
       />
+      </div>
     </section>
   );
 }
@@ -660,78 +718,203 @@ function PaymentsTab({
   );
 }
 
-function SettlementsTab({
-  invoices,
+function PartnerPayrollTab({
+  partnerPaySettings,
   partnerId,
-  settlements,
+  payrolls,
 }: {
-  invoices: Awaited<ReturnType<typeof getPartnerOperationsData>>["invoices"];
+  partnerPaySettings: Awaited<ReturnType<typeof getPartnerOperationsData>>["partnerSummaries"][number]["partnerPaySettings"];
   partnerId: string;
-  settlements: Awaited<ReturnType<typeof getPartnerOperationsData>>["settlements"];
+  payrolls: Awaited<ReturnType<typeof getPartnerOperationsData>>["partnerPayrolls"];
+}) {
+  const duePayrolls = payrolls.filter((payroll) => ["due", "partial"].includes(payroll.status));
+  const paidPayrolls = payrolls.filter((payroll) => payroll.status === "paid");
+  const savedPayType = partnerPaySettings?.pay_type ?? "none";
+  const savedRuleLabel =
+    savedPayType === "flat"
+      ? `Flat Pay - ${moneyFormatter.format(Number(partnerPaySettings?.flat_pay_per_invoice ?? 0))} per invoice`
+      : savedPayType === "percentage"
+        ? `Percentage - ${Number(partnerPaySettings?.invoice_percentage ?? 0).toFixed(2)}% of invoice`
+        : "No Partner Pay";
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <h3 className="text-base font-semibold">Partner Pay Rule</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Choose how this Partner gets paid when an invoice is run. Fill only
+          the number that matches the selected rule.
+        </p>
+        <div className="mt-4 rounded-md border border-border bg-background p-3 text-sm">
+          <p className="font-semibold">Currently saved: {savedRuleLabel}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Status: {partnerPaySettings?.active ?? true ? "Active" : "Inactive"}
+          </p>
+          {!partnerPaySettings ? (
+            <p className="mt-2 text-xs font-semibold text-amber-700">
+              No saved Partner pay rule found yet. Save this form once after
+              running the latest Supabase migration.
+            </p>
+          ) : null}
+        </div>
+        <form action={savePartnerPaySettings} className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <input name="partner_id" type="hidden" value={partnerId} />
+          <label className="space-y-1 text-sm font-semibold">
+            <span>Pay type</span>
+            <select
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm font-normal"
+              defaultValue={partnerPaySettings?.pay_type ?? "none"}
+              name="pay_type"
+            >
+              <option value="none">No Partner Pay</option>
+              <option value="flat">Flat Pay</option>
+              <option value="percentage">Percentage</option>
+            </select>
+            <span className="block text-xs font-normal text-muted-foreground">
+              Pick whether this Partner gets nothing, a fixed amount, or a percent.
+            </span>
+          </label>
+          <label className="space-y-1 text-sm font-semibold">
+            <span>Flat amount per invoice</span>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm font-normal"
+              defaultValue={Number(partnerPaySettings?.flat_pay_per_invoice ?? 0)}
+              min="0"
+              name="flat_pay_per_invoice"
+              placeholder="Example: 250.00"
+              step="0.01"
+              type="number"
+            />
+            <span className="block text-xs font-normal text-muted-foreground">
+              Use this only when pay type is Flat Pay.
+            </span>
+          </label>
+          <label className="space-y-1 text-sm font-semibold">
+            <span>Percentage of invoice</span>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm font-normal"
+              defaultValue={Number(partnerPaySettings?.invoice_percentage ?? 0)}
+              max="100"
+              min="0"
+              name="invoice_percentage"
+              placeholder="Example: 20"
+              step="0.01"
+              type="number"
+            />
+            <span className="block text-xs font-normal text-muted-foreground">
+              Use this only when pay type is Percentage. Enter 20 for 20%.
+            </span>
+          </label>
+          <label className="space-y-1 text-sm font-semibold">
+            <span>Status</span>
+            <span className="flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-normal">
+              <input
+                defaultChecked={partnerPaySettings?.active ?? true}
+                name="active"
+                type="checkbox"
+              />
+              Active
+            </span>
+            <span className="block text-xs font-normal text-muted-foreground">
+              Turn off to stop creating Partner Payroll for this Partner.
+            </span>
+          </label>
+          <label className="space-y-1 text-sm font-semibold">
+            <span>Notes</span>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm font-normal"
+              defaultValue={partnerPaySettings?.notes ?? ""}
+              name="notes"
+              placeholder="Optional note"
+            />
+          </label>
+          <div className="md:col-span-2 xl:col-span-5">
+            <Button type="submit">Save Partner Pay Rule</Button>
+          </div>
+        </form>
+      </div>
+      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <h3 className="text-base font-semibold">Due and Partial</h3>
+        <div className="mt-4 space-y-3">
+          {duePayrolls.map((payroll) => (
+            <PartnerPayrollCard key={payroll.id} payroll={payroll} showPaymentForm />
+          ))}
+          {!duePayrolls.length ? (
+            <p className="rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">
+              No Partner payroll is due for this Partner.
+            </p>
+          ) : null}
+        </div>
+      </div>
+      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <h3 className="text-base font-semibold">Paid History</h3>
+        <div className="mt-4 space-y-3">
+          {paidPayrolls.map((payroll) => (
+            <PartnerPayrollCard key={payroll.id} payroll={payroll} />
+          ))}
+          {!paidPayrolls.length ? (
+            <p className="rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">
+              No paid Partner payroll yet.
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function PartnerPayrollCard({
+  payroll,
+  showPaymentForm = false,
+}: {
+  payroll: Awaited<ReturnType<typeof getPartnerOperationsData>>["partnerPayrolls"][number];
+  showPaymentForm?: boolean;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-      <h3 className="text-base font-semibold">Settlements</h3>
-      <form action={createPartnerSettlement} className="mt-4 grid gap-3 md:grid-cols-3">
-        <input name="partner_id" type="hidden" value={partnerId} />
-        <select
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          name="invoice_id"
-        >
-          <option value="">No invoice selected</option>
-          {invoices.map((invoice) => (
-            <option key={invoice.id} value={invoice.id}>
-              {invoice.invoice_number}
-            </option>
-          ))}
-        </select>
-        <select
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          defaultValue="pending"
-          name="transfer_status"
-        >
-          {["pending", "partial", "transferred", "waived", "cancelled"].map((status) => (
-            <option key={status} value={status}>
-              {getStatusLabel(status)}
-            </option>
-          ))}
-        </select>
-        <input
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          name="transfer_date"
-          type="date"
-        />
-        {[
-          ["amount_received_by_partner", "Amount received by Partner"],
-          ["amount_partner_keeps", "Amount Partner keeps"],
-          ["amount_transferred_to_scn", "Amount transferred to SCN"],
-        ].map(([name, placeholder]) => (
+    <div className="rounded-md border border-border bg-background p-4 text-sm">
+      <div className="grid gap-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+        <div>
+          <p className="font-semibold">
+            {getDateLabel(payroll.billing_period_start)} -{" "}
+            {getDateLabel(payroll.billing_period_end)}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Rule: {getStatusLabel(payroll.pay_type_snapshot)} · Flat{" "}
+            {moneyFormatter.format(Number(payroll.flat_pay_snapshot))} ·{" "}
+            {Number(payroll.invoice_percentage_snapshot).toFixed(2)}%
+          </p>
+        </div>
+        <p>Owed: {moneyFormatter.format(Number(payroll.total_owed))}</p>
+        <p>Balance: {moneyFormatter.format(Number(payroll.balance_remaining))}</p>
+        <span className="font-semibold">{getStatusLabel(payroll.status)}</span>
+      </div>
+      {showPaymentForm ? (
+        <form action={recordPartnerPayrollPayment} className="mt-3 grid gap-3 md:grid-cols-4">
+          <input name="partner_payroll_id" type="hidden" value={payroll.id} />
           <input
-            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-            key={name}
+            className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+            max={Number(payroll.balance_remaining)}
             min="0"
-            name={name}
-            placeholder={placeholder}
+            name="amount"
+            placeholder="Amount paid"
+            required
             step="0.01"
             type="number"
           />
-        ))}
-        <textarea
-          className="min-h-16 rounded-md border border-border bg-background px-3 py-2 text-sm md:col-span-2"
-          name="notes"
-          placeholder="Notes"
-        />
-        <Button type="submit">Save Settlement</Button>
-      </form>
-      <RecordList
-        empty="No settlements recorded."
-        items={settlements.map((settlement) => ({
-          id: settlement.id,
-          label: `${moneyFormatter.format(Number(settlement.amount_transferred_to_scn))} to SCN`,
-          meta: `${getStatusLabel(settlement.transfer_status)} - ${getDateLabel(settlement.transfer_date)}`,
-        }))}
-      />
-    </section>
+          <input
+            className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+            name="paid_at"
+            type="date"
+          />
+          <input
+            className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+            name="notes"
+            placeholder="Notes"
+          />
+          <Button type="submit">Record Payment</Button>
+        </form>
+      ) : null}
+    </div>
   );
 }
 
@@ -766,11 +949,11 @@ function FinancialTab({
         ["Total Invoiced", summary.totalInvoiced],
         ["Total Received", summary.totalReceived],
         ["Worker Payroll", summary.workerPayroll],
-        ["Partner Compensation", summary.partnerCompensation],
+        ["Partner Payroll", summary.partnerPayrollOwed],
         ["Gross Profit", summary.grossProfit],
         ["Net Profit", summary.grossProfit],
         ["Outstanding Invoices", summary.outstandingInvoices],
-        ["Outstanding Settlements", summary.outstandingSettlements],
+        ["Partner Payroll Due", summary.partnerPayrollDue],
       ].map(([label, value]) => (
         <div className="rounded-lg border border-border bg-surface p-4 shadow-sm" key={label}>
           <p className="text-xs font-semibold text-muted-foreground">{label}</p>

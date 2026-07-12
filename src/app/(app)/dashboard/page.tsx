@@ -2,9 +2,9 @@ import {
   BadgeDollarSign,
   Clock3,
   FileText,
+  HandCoins,
   Handshake,
   PackageCheck,
-  RefreshCcw,
   Users,
 } from "lucide-react";
 
@@ -57,10 +57,10 @@ export default async function DashboardPage() {
       icon: FileText,
     },
     {
-      title: "Outstanding Settlements",
-      value: moneyFormatter.format(operations.stats.outstandingSettlements),
-      description: "Partner transfer amounts still open",
-      icon: RefreshCcw,
+      title: "Partner Payroll Due",
+      value: moneyFormatter.format(operations.stats.partnerPayrollDue),
+      description: "Flat Partner payroll still open",
+      icon: HandCoins,
     },
     {
       title: "Weekly Profit",
@@ -74,7 +74,7 @@ export default async function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Partner Dashboard"
-        description="Business overview by Partner, worker production, invoices, settlements, and profit."
+        description="Business overview by Partner, worker production, invoices, Partner payroll, and profit."
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -118,7 +118,7 @@ export default async function DashboardPage() {
                 Open:{" "}
                 <span className="font-semibold text-foreground">
                   {moneyFormatter.format(
-                    summary.outstandingInvoices + summary.outstandingSettlements,
+                    summary.outstandingInvoices + summary.partnerPayrollDue,
                   )}
                 </span>
               </p>

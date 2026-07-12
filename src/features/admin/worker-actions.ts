@@ -405,6 +405,21 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
     return;
   }
 
+  const { data: lockedUnitPeriod } = await supabase
+    .from("production_unit_periods")
+    .select("id")
+    .eq("worker_id", workerId)
+    .eq("status", "completed")
+    .lte("period_start", workDate)
+    .gte("period_end", workDate)
+    .maybeSingle();
+
+  const isUnitPeriodLocked = Boolean(lockedUnitPeriod);
+
+  if (isUnitPeriodLocked && action === "clear") {
+    return;
+  }
+
   if (action === "clear") {
     const dayStart = getUtcDateFromEasternDateTime(workDate);
     const dayEnd = getUtcDateFromEasternDateTime(addDaysToDateKey(workDate, 1));
@@ -495,6 +510,12 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
     }
   }
 
+  if (isUnitPeriodLocked) {
+    revalidatePath("/time-tracking");
+    revalidatePath("/worker");
+    return;
+  }
+
   if (units > 0) {
     const unitPayload = {
       worker_id: workerId,
@@ -518,6 +539,76 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
 
   revalidatePath("/time-tracking");
   revalidatePath("/worker");
+}
+
+export async function completeProductionUnitsPeriod(formData: FormData) {
+  const admin = await requireAdminProfile();
+
+  const workerId = String(formData.get("worker_id") ?? "");
+  const periodStart = String(formData.get("period_start") ?? "");
+  const requestedPeriodEnd = String(formData.get("period_end") ?? "");
+  const notes = String(formData.get("notes") ?? "").trim();
+  const lastLockableDate = addDaysToDateKey(getEasternDateKey(), -1);
+  const periodEnd =
+    requestedPeriodEnd && requestedPeriodEnd < lastLockableDate
+      ? requestedPeriodEnd
+      : lastLockableDate;
+
+  if (!workerId || !periodStart || !requestedPeriodEnd || periodEnd < periodStart) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const now = new Date().toISOString();
+
+  await supabase
+    .from("production_units")
+    .update({ status: "approved" })
+    .eq("worker_id", workerId)
+    .gte("work_date", periodStart)
+    .lte("work_date", periodEnd);
+
+  await supabase.from("production_unit_periods").upsert(
+    {
+      completed_at: now,
+      completed_by: admin.id,
+      notes: notes || null,
+      period_end: periodEnd,
+      period_start: periodStart,
+      reopened_at: null,
+      reopened_by: null,
+      status: "completed",
+      worker_id: workerId,
+    },
+    { onConflict: "worker_id,period_start,period_end" },
+  );
+
+  revalidatePath("/time-tracking");
+  revalidatePath("/invoices");
+}
+
+export async function reopenProductionUnitsPeriod(formData: FormData) {
+  const admin = await requireAdminProfile();
+
+  const periodId = String(formData.get("period_id") ?? "");
+
+  if (!periodId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase
+    .from("production_unit_periods")
+    .update({
+      reopened_at: new Date().toISOString(),
+      reopened_by: admin.id,
+      status: "reopened",
+    })
+    .eq("id", periodId);
+
+  revalidatePath("/time-tracking");
+  revalidatePath("/invoices");
 }
 
 export async function updateWorkerPaySettings(formData: FormData) {

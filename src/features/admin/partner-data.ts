@@ -33,9 +33,15 @@ export async function getPartnerOperationsData() {
     { data: units },
     { data: timeEntries },
     { data: paySettings },
+    { data: billingSettings },
+    { data: partnerPaySettings },
     { data: bonusTiers },
     { data: payrolls },
+    { data: partnerPayrolls },
+    { data: partnerPayrollPayments },
+    { data: invoiceRuns },
     { data: invoices },
+    { data: invoiceLines },
     { data: invoicePayments },
     { data: settlements },
     { data: documents },
@@ -65,6 +71,12 @@ export async function getPartnerOperationsData() {
       .from("worker_pay_settings")
       .select("worker_id, hourly_rate, weekly_unit_goal"),
     supabase
+      .from("partner_billing_settings")
+      .select("partner_id, client_id, rate_per_unit, billing_frequency, payment_terms_days, active, notes"),
+    supabase
+      .from("partner_pay_settings")
+      .select("partner_id, pay_type, flat_pay_per_invoice, invoice_percentage, active, notes"),
+    supabase
       .from("bonus_tiers")
       .select("id, worker_id, threshold_units, bonus_amount, label, active")
       .eq("active", true)
@@ -76,11 +88,33 @@ export async function getPartnerOperationsData() {
       )
       .order("week_start", { ascending: false }),
     supabase
+      .from("partner_payrolls")
+      .select(
+        "id, partner_id, invoice_id, billing_period_start, billing_period_end, pay_type_snapshot, flat_pay_snapshot, invoice_percentage_snapshot, total_owed, total_paid, balance_remaining, status",
+      )
+      .order("billing_period_start", { ascending: false }),
+    supabase
+      .from("partner_payroll_payments")
+      .select("id, partner_payroll_id, partner_id, amount, paid_at, notes")
+      .order("paid_at", { ascending: false }),
+    supabase
+      .from("invoice_runs")
+      .select(
+        "id, client_id, billing_period_start, billing_period_end, status, invoice_count, total_units, total_amount, generated_at, sent_at, notes",
+      )
+      .order("billing_period_start", { ascending: false }),
+    supabase
       .from("partner_invoices")
       .select(
-        "id, partner_id, client_id, invoice_number, billing_period_start, billing_period_end, units, rate_per_unit, invoice_total, created_date, sent_date, due_date, status, notes",
+        "id, invoice_run_id, partner_id, client_id, invoice_number, billing_period_start, billing_period_end, units, rate_per_unit, invoice_total, created_date, sent_date, due_date, status, total_paid, balance_remaining, generated_at, notes",
       )
       .order("created_date", { ascending: false }),
+    supabase
+      .from("partner_invoice_lines")
+      .select(
+        "id, invoice_id, partner_id, worker_id, work_date, description, units, rate_per_unit, line_total, source",
+      )
+      .order("work_date", { ascending: true }),
     supabase
       .from("partner_invoice_payments")
       .select(
@@ -104,7 +138,13 @@ export async function getPartnerOperationsData() {
   const unitList = units ?? [];
   const timeList = timeEntries ?? [];
   const payrollList = payrolls ?? [];
+  const partnerPayrollList = partnerPayrolls ?? [];
+  const partnerPayrollPaymentList = partnerPayrollPayments ?? [];
+  const billingSettingList = billingSettings ?? [];
+  const partnerPaySettingList = partnerPaySettings ?? [];
+  const invoiceRunList = invoiceRuns ?? [];
   const invoiceList = invoices ?? [];
+  const invoiceLineList = invoiceLines ?? [];
   const paymentList = invoicePayments ?? [];
   const settlementList = settlements ?? [];
   const workerMap = new Map(workerList.map((worker) => [worker.id, worker] as const));
@@ -116,6 +156,12 @@ export async function getPartnerOperationsData() {
   );
   const paySettingsMap = new Map(
     (paySettings ?? []).map((setting) => [setting.worker_id, setting] as const),
+  );
+  const billingSettingsMap = new Map(
+    billingSettingList.map((setting) => [setting.partner_id, setting] as const),
+  );
+  const partnerPaySettingsMap = new Map(
+    partnerPaySettingList.map((setting) => [setting.partner_id, setting] as const),
   );
 
   const partnerSummaries = partnerList.map((partner) => {
@@ -134,6 +180,9 @@ export async function getPartnerOperationsData() {
     const partnerSettlements = settlementList.filter(
       (settlement) => settlement.partner_id === partner.id,
     );
+    const partnerPayrollsForPartner = partnerPayrollList.filter(
+      (payroll) => payroll.partner_id === partner.id,
+    );
     const workerPayrolls = payrollList.filter((payroll) => payroll.worker_id === workerId);
     const totalInvoiced = partnerInvoices.reduce(
       (total, invoice) => total + Number(invoice.invoice_total),
@@ -151,6 +200,13 @@ export async function getPartnerOperationsData() {
       (total, settlement) => total + Number(settlement.amount_partner_keeps),
       0,
     );
+    const partnerPayrollOwed = partnerPayrollsForPartner.reduce(
+      (total, payroll) => total + Number(payroll.total_owed),
+      0,
+    );
+    const partnerPayrollDue = partnerPayrollsForPartner
+      .filter((payroll) => ["due", "partial"].includes(payroll.status))
+      .reduce((total, payroll) => total + Number(payroll.balance_remaining), 0);
     const transferredToScn = partnerSettlements.reduce(
       (total, settlement) => total + Number(settlement.amount_transferred_to_scn),
       0,
@@ -188,13 +244,18 @@ export async function getPartnerOperationsData() {
       assignment,
       client: clientMap.get(partner.client_id),
       currentBonusLevel,
-      grossProfit: totalReceived - workerPayroll - partnerCompensation,
+      grossProfit: totalReceived - workerPayroll - partnerPayrollOwed,
       isWorkingToday,
       lifetimeUnits,
       outstandingInvoices,
       outstandingSettlements,
       partner,
+      billingSettings: billingSettingsMap.get(partner.id),
+      partnerPaySettings: partnerPaySettingsMap.get(partner.id),
       partnerCompensation,
+      partnerPayrollDue,
+      partnerPayrollOwed,
+      partnerPayrolls: partnerPayrollsForPartner,
       payrolls: workerPayrolls,
       todayUnits,
       totalInvoiced,
@@ -222,6 +283,10 @@ export async function getPartnerOperationsData() {
     (total, summary) => total + summary.outstandingSettlements,
     0,
   );
+  const partnerPayrollDue = partnerSummaries.reduce(
+    (total, summary) => total + summary.partnerPayrollDue,
+    0,
+  );
   const weeklyProfit = partnerSummaries.reduce(
     (total, summary) => total + summary.grossProfit,
     0,
@@ -235,11 +300,17 @@ export async function getPartnerOperationsData() {
     activeAssignmentMap,
     assignments: assignmentList,
     clients: clients ?? [],
+    billingSettings: billingSettingList,
     documents: documents ?? [],
+    invoiceLines: invoiceLineList,
+    invoiceRuns: invoiceRunList,
     invoices: invoiceList,
     partners: partnerList,
     partnerSummaries,
     payments: paymentList,
+    partnerPaySettings: partnerPaySettingList,
+    partnerPayrollPayments: partnerPayrollPaymentList,
+    partnerPayrolls: partnerPayrollList,
     payrolls: payrollList,
     recentHours,
     settlements: settlementList,
@@ -250,6 +321,7 @@ export async function getPartnerOperationsData() {
       monthlyProfit: weeklyProfit,
       outstandingInvoices,
       outstandingSettlements,
+      partnerPayrollDue,
       partnersWorkingToday: partnerSummaries.filter((summary) => summary.isWorkingToday)
         .length,
       totalPartners: partnerList.length,

@@ -6,6 +6,8 @@ import { requireAdminProfile } from "@/features/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   PartnerInvoiceStatus,
+  PartnerPayrollStatus,
+  PartnerPayType,
   PartnerSettlementStatus,
   PartnerStatus,
 } from "@/types/database";
@@ -28,6 +30,121 @@ function moneyValue(formData: FormData, name: string) {
 
 function integerValue(formData: FormData, name: string) {
   return Math.floor(moneyValue(formData, name));
+}
+
+function addDaysToDateKey(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+
+  return date.toISOString().slice(0, 10);
+}
+
+function getInvoiceStatus(totalOwed: number, totalPaid: number): PartnerInvoiceStatus {
+  if (totalPaid >= totalOwed && totalOwed > 0) {
+    return "paid";
+  }
+
+  if (totalPaid > 0) {
+    return "partial";
+  }
+
+  return "sent";
+}
+
+function getPartnerPayrollStatus(totalOwed: number, totalPaid: number): PartnerPayrollStatus {
+  if (totalPaid >= totalOwed && totalOwed > 0) {
+    return "paid";
+  }
+
+  if (totalPaid > 0) {
+    return "partial";
+  }
+
+  return "due";
+}
+
+async function updateInvoiceRunTotals(invoiceRunId: string | null) {
+  if (!invoiceRunId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: runInvoices } = await supabase
+    .from("partner_invoices")
+    .select("units, invoice_total")
+    .eq("invoice_run_id", invoiceRunId)
+    .neq("status", "cancelled");
+  const runUnits = (runInvoices ?? []).reduce(
+    (total, item) => total + Number(item.units),
+    0,
+  );
+  const runTotal = (runInvoices ?? []).reduce(
+    (total, item) => total + Number(item.invoice_total),
+    0,
+  );
+
+  await supabase
+    .from("invoice_runs")
+    .update({
+      invoice_count: runInvoices?.length ?? 0,
+      total_amount: Math.round(runTotal * 100) / 100,
+      total_units: runUnits,
+    })
+    .eq("id", invoiceRunId);
+}
+
+async function createFlatPartnerPayrollFromInvoice(invoiceId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data: invoice } = await supabase
+    .from("partner_invoices")
+    .select("id, partner_id, billing_period_start, billing_period_end, invoice_total")
+    .eq("id", invoiceId)
+    .single();
+
+  if (!invoice) {
+    return;
+  }
+
+  const { data: setting } = await supabase
+    .from("partner_pay_settings")
+    .select("pay_type, flat_pay_per_invoice, invoice_percentage, active")
+    .eq("partner_id", invoice.partner_id)
+    .maybeSingle();
+
+  if (setting && !setting.active) {
+    return;
+  }
+
+  const payType = (setting?.pay_type ?? "none") as PartnerPayType;
+
+  if (payType === "none") {
+    return;
+  }
+
+  const flatPay = Number(setting?.flat_pay_per_invoice ?? 0);
+  const percentage = Number(setting?.invoice_percentage ?? 0);
+  const invoiceTotal = Number(invoice.invoice_total ?? 0);
+  const totalOwed =
+    payType === "percentage"
+      ? Math.round(invoiceTotal * (percentage / 100) * 100) / 100
+      : flatPay;
+
+  await supabase.from("partner_payrolls").upsert(
+    {
+      balance_remaining: totalOwed,
+      billing_period_end: invoice.billing_period_end,
+      billing_period_start: invoice.billing_period_start,
+      flat_pay_snapshot: flatPay,
+      invoice_percentage_snapshot: percentage,
+      invoice_id: invoice.id,
+      partner_id: invoice.partner_id,
+      pay_type_snapshot: payType,
+      status: totalOwed > 0 ? "due" : "paid",
+      total_owed: totalOwed,
+      total_paid: 0,
+    },
+    { onConflict: "invoice_id" },
+  );
 }
 
 async function getDefaultClientId() {
@@ -53,6 +170,66 @@ async function getDefaultClientId() {
     .single();
 
   return createdClient?.id ?? "";
+}
+
+export async function savePartnerBillingSettings(formData: FormData) {
+  await requireAdminProfile();
+
+  const partnerId = String(formData.get("partner_id") ?? "");
+  const clientId = String(formData.get("client_id") ?? "");
+
+  if (!partnerId || !clientId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase.from("partner_billing_settings").upsert(
+    {
+      active: formData.get("active") === "on",
+      billing_frequency: String(
+        formData.get("billing_frequency") ?? "semi_monthly",
+      ) as "semi_monthly" | "manual",
+      client_id: clientId,
+      notes: optionalText(formData, "notes"),
+      partner_id: partnerId,
+      payment_terms_days: integerValue(formData, "payment_terms_days"),
+      rate_per_unit: moneyValue(formData, "rate_per_unit"),
+    },
+    { onConflict: "partner_id" },
+  );
+
+  revalidatePath("/partners");
+  revalidatePath("/invoices");
+}
+
+export async function savePartnerPaySettings(formData: FormData) {
+  await requireAdminProfile();
+
+  const partnerId = String(formData.get("partner_id") ?? "");
+
+  if (!partnerId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase.from("partner_pay_settings").upsert(
+    {
+      active: formData.get("active") === "on",
+      invoice_percentage: moneyValue(formData, "invoice_percentage"),
+      flat_pay_per_invoice: moneyValue(formData, "flat_pay_per_invoice"),
+      notes: optionalText(formData, "notes"),
+      partner_id: partnerId,
+      pay_type: String(formData.get("pay_type") ?? "none") as PartnerPayType,
+    },
+    { onConflict: "partner_id" },
+  );
+
+  revalidatePath("/partners");
+  revalidatePath("/partners", "layout");
+  revalidatePath("/settlements");
+  revalidatePath("/dashboard");
 }
 
 export async function createPartner(formData: FormData) {
@@ -189,6 +366,7 @@ export async function createPartnerInvoice(formData: FormData) {
     due_date: optionalDate(formData, "due_date"),
     invoice_number: invoiceNumber,
     invoice_total: invoiceTotal,
+    balance_remaining: invoiceTotal,
     notes: optionalText(formData, "notes"),
     partner_id: partnerId,
     rate_per_unit: ratePerUnit,
@@ -202,14 +380,657 @@ export async function createPartnerInvoice(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function generatePartnerInvoices(formData: FormData) {
+  const admin = await requireAdminProfile();
+
+  const clientId = String(formData.get("client_id") ?? "") || (await getDefaultClientId());
+  const periodStart = String(formData.get("billing_period_start") ?? "");
+  const periodEnd = String(formData.get("billing_period_end") ?? "");
+  const notes = optionalText(formData, "notes");
+
+  if (!clientId || !periodStart || !periodEnd || periodEnd < periodStart) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const [{ data: partners }, { data: settings }, { data: assignments }, { data: units }] =
+    await Promise.all([
+      supabase
+        .from("partners")
+        .select("id, client_id, full_name, status")
+        .eq("client_id", clientId)
+        .eq("status", "active"),
+      supabase
+        .from("partner_billing_settings")
+        .select("partner_id, client_id, rate_per_unit, payment_terms_days, active")
+        .eq("client_id", clientId)
+        .eq("active", true),
+      supabase
+        .from("partner_worker_assignments")
+        .select("partner_id, worker_id, assigned_at, ended_at, status")
+        .lte("assigned_at", periodEnd)
+        .or(`ended_at.is.null,ended_at.gte.${periodStart}`),
+      supabase
+        .from("production_units")
+        .select("id, worker_id, quantity, work_date, status")
+        .gte("work_date", periodStart)
+        .lte("work_date", periodEnd)
+        .eq("status", "approved"),
+    ]);
+
+  const partnerList = partners ?? [];
+  const settingMap = new Map((settings ?? []).map((setting) => [setting.partner_id, setting]));
+  const assignmentList = assignments ?? [];
+  const unitList = units ?? [];
+  const now = new Date().toISOString();
+  const { data: invoiceRun } = await supabase
+    .from("invoice_runs")
+    .upsert(
+      {
+        billing_period_end: periodEnd,
+        billing_period_start: periodStart,
+        client_id: clientId,
+        generated_by: admin.id,
+        notes,
+        status: "ready",
+      },
+      { onConflict: "client_id,billing_period_start,billing_period_end" },
+    )
+    .select("id")
+    .single();
+
+  if (!invoiceRun) {
+    return;
+  }
+
+  let invoiceCount = 0;
+  let totalUnits = 0;
+  let totalAmount = 0;
+
+  for (const [index, partner] of partnerList.entries()) {
+    const billing = settingMap.get(partner.id);
+
+    if (!billing) {
+      continue;
+    }
+
+    const partnerAssignments = assignmentList.filter(
+      (assignment) => assignment.partner_id === partner.id,
+    );
+    const billableUnits = unitList.filter((unit) =>
+      partnerAssignments.some(
+        (assignment) =>
+          assignment.worker_id === unit.worker_id &&
+          assignment.assigned_at <= unit.work_date &&
+          (!assignment.ended_at || assignment.ended_at >= unit.work_date),
+      ),
+    );
+    const unitsByDate = new Map<string, { units: number; workerId: string | null }>();
+
+    for (const unit of billableUnits) {
+      const existing = unitsByDate.get(unit.work_date) ?? {
+        units: 0,
+        workerId: unit.worker_id,
+      };
+
+      unitsByDate.set(unit.work_date, {
+        units: existing.units + unit.quantity,
+        workerId: existing.workerId ?? unit.worker_id,
+      });
+    }
+
+    const unitsTotal = Array.from(unitsByDate.values()).reduce(
+      (total, value) => total + value.units,
+      0,
+    );
+
+    if (unitsTotal <= 0) {
+      continue;
+    }
+
+    const ratePerUnit = Number(billing.rate_per_unit ?? 0);
+    const invoiceTotal = Math.round(unitsTotal * ratePerUnit * 100) / 100;
+    const invoiceNumber = `MS-${periodStart.replaceAll("-", "")}-${periodEnd.replaceAll("-", "")}-${String(index + 1).padStart(3, "0")}`;
+    const dueDate = addDaysToDateKey(periodEnd, Number(billing.payment_terms_days ?? 15));
+    const { data: existingInvoice } = await supabase
+      .from("partner_invoices")
+      .select("id, status, total_paid")
+      .eq("partner_id", partner.id)
+      .eq("billing_period_start", periodStart)
+      .eq("billing_period_end", periodEnd)
+      .neq("status", "cancelled")
+      .maybeSingle();
+
+    let invoice: { id: string } | null = existingInvoice ? { id: existingInvoice.id } : null;
+
+    if (existingInvoice && ["draft", "ready"].includes(existingInvoice.status)) {
+      const totalPaid = Number(existingInvoice.total_paid ?? 0);
+
+      const { data: updatedInvoice } = await supabase
+        .from("partner_invoices")
+        .update({
+          balance_remaining: Math.max(0, invoiceTotal - totalPaid),
+          client_id: clientId,
+          due_date: dueDate,
+          generated_at: now,
+          invoice_number: invoiceNumber,
+          invoice_run_id: invoiceRun.id,
+          invoice_total: invoiceTotal,
+          notes: "Generated from Partner worker unit entries.",
+          rate_per_unit: ratePerUnit,
+          status: "draft",
+          total_paid: totalPaid,
+          units: unitsTotal,
+        })
+        .eq("id", existingInvoice.id)
+        .select("id")
+        .single();
+
+      invoice = updatedInvoice;
+    } else if (existingInvoice) {
+      continue;
+    } else {
+      const { data: createdInvoice } = await supabase
+        .from("partner_invoices")
+        .insert({
+          balance_remaining: invoiceTotal,
+          billing_period_end: periodEnd,
+          billing_period_start: periodStart,
+          client_id: clientId,
+          due_date: dueDate,
+          generated_at: now,
+          invoice_number: invoiceNumber,
+          invoice_run_id: invoiceRun.id,
+          invoice_total: invoiceTotal,
+          notes: "Generated from Partner worker unit entries.",
+          partner_id: partner.id,
+          rate_per_unit: ratePerUnit,
+          status: "draft",
+          total_paid: 0,
+          units: unitsTotal,
+        })
+        .select("id")
+        .single();
+
+      invoice = createdInvoice;
+    }
+
+    if (!invoice) {
+      continue;
+    }
+
+    await supabase
+      .from("partner_invoice_lines")
+      .delete()
+      .eq("invoice_id", invoice.id)
+      .eq("source", "generated");
+    await supabase.from("partner_invoice_lines").insert(
+      Array.from(unitsByDate.entries()).map(([workDate, value]) => ({
+        description: `Units completed on ${workDate}`,
+        invoice_id: invoice.id,
+        line_total: Math.round(value.units * ratePerUnit * 100) / 100,
+        partner_id: partner.id,
+        rate_per_unit: ratePerUnit,
+        units: value.units,
+        work_date: workDate,
+        worker_id: value.workerId,
+        source: "generated",
+      })),
+    );
+
+    const [{ data: allInvoiceLines }, { data: invoicePayments }] = await Promise.all([
+      supabase
+        .from("partner_invoice_lines")
+        .select("units, line_total")
+        .eq("invoice_id", invoice.id),
+      supabase
+        .from("partner_invoice_payments")
+        .select("amount_received")
+        .eq("invoice_id", invoice.id),
+    ]);
+    const finalUnits = (allInvoiceLines ?? []).reduce(
+      (total, line) => total + Number(line.units),
+      0,
+    );
+    const finalInvoiceTotal = Math.round(
+      (allInvoiceLines ?? []).reduce(
+        (total, line) => total + Number(line.line_total),
+        0,
+      ) * 100,
+    ) / 100;
+    const finalPaid = (invoicePayments ?? []).reduce(
+      (total, payment) => total + Number(payment.amount_received),
+      0,
+    );
+
+    await supabase
+      .from("partner_invoices")
+      .update({
+        balance_remaining: Math.max(0, finalInvoiceTotal - finalPaid),
+        invoice_total: finalInvoiceTotal,
+        total_paid: finalPaid,
+        units: finalUnits,
+      })
+      .eq("id", invoice.id);
+
+    invoiceCount += 1;
+    totalUnits += finalUnits;
+    totalAmount += finalInvoiceTotal;
+  }
+
+  await supabase
+    .from("invoice_runs")
+    .update({
+      invoice_count: invoiceCount,
+      total_amount: Math.round(totalAmount * 100) / 100,
+      total_units: totalUnits,
+    })
+    .eq("id", invoiceRun.id);
+
+  revalidatePath("/partners");
+  revalidatePath("/invoices");
+  revalidatePath("/dashboard");
+}
+
+export async function addPartnerInvoiceLine(formData: FormData) {
+  await requireAdminProfile();
+
+  const invoiceId = String(formData.get("invoice_id") ?? "");
+  const description = String(formData.get("description") ?? "").trim();
+  const workDate = optionalDate(formData, "work_date");
+  const units = integerValue(formData, "units");
+  const ratePerUnit = moneyValue(formData, "rate_per_unit");
+  const lineTotal = moneyValue(formData, "line_total") || units * ratePerUnit;
+
+  if (!invoiceId || !description || lineTotal < 0) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: invoice } = await supabase
+    .from("partner_invoices")
+    .select("id, invoice_run_id, partner_id, status")
+    .eq("id", invoiceId)
+    .single();
+
+  if (!invoice) {
+    return;
+  }
+
+  if (!["draft", "ready"].includes(invoice.status)) {
+    return;
+  }
+
+  await supabase.from("partner_invoice_lines").insert({
+    description,
+    invoice_id: invoiceId,
+    line_total: lineTotal,
+    partner_id: invoice.partner_id,
+    rate_per_unit: ratePerUnit,
+    source: "manual",
+    units,
+    work_date: workDate,
+  });
+
+  const { data: lines } = await supabase
+    .from("partner_invoice_lines")
+    .select("units, line_total")
+    .eq("invoice_id", invoiceId);
+  const { data: payments } = await supabase
+    .from("partner_invoice_payments")
+    .select("amount_received")
+    .eq("invoice_id", invoiceId);
+  const totalUnits = (lines ?? []).reduce((total, line) => total + Number(line.units), 0);
+  const invoiceTotal = (lines ?? []).reduce(
+    (total, line) => total + Number(line.line_total),
+    0,
+  );
+  const totalPaid = (payments ?? []).reduce(
+    (total, payment) => total + Number(payment.amount_received),
+    0,
+  );
+
+  await supabase
+    .from("partner_invoices")
+    .update({
+      balance_remaining: Math.max(0, invoiceTotal - totalPaid),
+      invoice_total: Math.round(invoiceTotal * 100) / 100,
+      status: totalPaid > 0 ? getInvoiceStatus(invoiceTotal, totalPaid) : invoice.status,
+      total_paid: totalPaid,
+      units: totalUnits,
+    })
+    .eq("id", invoiceId);
+
+  await updateInvoiceRunTotals(invoice.invoice_run_id);
+
+  revalidatePath("/invoices");
+  revalidatePath("/partners");
+  revalidatePath("/dashboard");
+}
+
+export async function updatePartnerInvoiceLine(formData: FormData) {
+  await requireAdminProfile();
+
+  const lineId = String(formData.get("line_id") ?? "");
+  const description = String(formData.get("description") ?? "").trim();
+  const workDate = optionalDate(formData, "work_date");
+  const units = integerValue(formData, "units");
+  const ratePerUnit = moneyValue(formData, "rate_per_unit");
+  const lineTotal = moneyValue(formData, "line_total") || units * ratePerUnit;
+
+  if (!lineId || !description || lineTotal < 0) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: line } = await supabase
+    .from("partner_invoice_lines")
+    .select("invoice_id, partner_invoices(status)")
+    .eq("id", lineId)
+    .single();
+
+  if (!line) {
+    return;
+  }
+
+  const invoiceStatus = Array.isArray(line.partner_invoices)
+    ? line.partner_invoices[0]?.status
+    : line.partner_invoices?.status;
+
+  if (!["draft", "ready"].includes(String(invoiceStatus))) {
+    return;
+  }
+
+  await supabase
+    .from("partner_invoice_lines")
+    .update({
+      description,
+      line_total: lineTotal,
+      rate_per_unit: ratePerUnit,
+      units,
+      work_date: workDate,
+    })
+    .eq("id", lineId);
+
+  await recalculatePartnerInvoice(line.invoice_id);
+
+  revalidatePath("/invoices");
+  revalidatePath("/partners");
+}
+
+export async function deletePartnerInvoiceLine(formData: FormData) {
+  await requireAdminProfile();
+
+  const lineId = String(formData.get("line_id") ?? "");
+
+  if (!lineId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: line } = await supabase
+    .from("partner_invoice_lines")
+    .select("invoice_id, partner_invoices(status)")
+    .eq("id", lineId)
+    .single();
+
+  if (!line) {
+    return;
+  }
+
+  const invoiceStatus = Array.isArray(line.partner_invoices)
+    ? line.partner_invoices[0]?.status
+    : line.partner_invoices?.status;
+
+  if (!["draft", "ready"].includes(String(invoiceStatus))) {
+    return;
+  }
+
+  await supabase.from("partner_invoice_lines").delete().eq("id", lineId);
+  await recalculatePartnerInvoice(line.invoice_id);
+
+  revalidatePath("/invoices");
+  revalidatePath("/partners");
+}
+
+async function recalculatePartnerInvoice(invoiceId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data: invoice } = await supabase
+    .from("partner_invoices")
+    .select("id, invoice_run_id, status")
+    .eq("id", invoiceId)
+    .single();
+
+  if (!invoice) {
+    return;
+  }
+
+  const [{ data: lines }, { data: payments }] = await Promise.all([
+    supabase
+      .from("partner_invoice_lines")
+      .select("units, line_total")
+      .eq("invoice_id", invoiceId),
+    supabase
+      .from("partner_invoice_payments")
+      .select("amount_received")
+      .eq("invoice_id", invoiceId),
+  ]);
+  const totalUnits = (lines ?? []).reduce((total, line) => total + Number(line.units), 0);
+  const invoiceTotal = Math.round(
+    (lines ?? []).reduce((total, line) => total + Number(line.line_total), 0) * 100,
+  ) / 100;
+  const totalPaid = (payments ?? []).reduce(
+    (total, payment) => total + Number(payment.amount_received),
+    0,
+  );
+
+  await supabase
+    .from("partner_invoices")
+    .update({
+      balance_remaining: Math.max(0, invoiceTotal - totalPaid),
+      invoice_total: invoiceTotal,
+      status: totalPaid > 0 ? getInvoiceStatus(invoiceTotal, totalPaid) : invoice.status,
+      total_paid: totalPaid,
+      units: totalUnits,
+    })
+    .eq("id", invoiceId);
+
+  await updateInvoiceRunTotals(invoice.invoice_run_id);
+}
+
+export async function finalizePartnerInvoice(formData: FormData) {
+  await requireAdminProfile();
+
+  const invoiceId = String(formData.get("invoice_id") ?? "");
+
+  if (!invoiceId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase
+    .from("partner_invoices")
+    .update({ status: "ready" })
+    .eq("id", invoiceId)
+    .eq("status", "draft");
+
+  await createFlatPartnerPayrollFromInvoice(invoiceId);
+
+  revalidatePath("/invoices");
+  revalidatePath("/partners");
+  revalidatePath("/settlements");
+  revalidatePath("/dashboard");
+}
+
+export async function markPartnerInvoiceSent(formData: FormData) {
+  await requireAdminProfile();
+
+  const invoiceId = String(formData.get("invoice_id") ?? "");
+
+  if (!invoiceId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const today = new Intl.DateTimeFormat("en-CA").format(new Date());
+
+  await supabase
+    .from("partner_invoices")
+    .update({ sent_date: today, status: "sent" })
+    .eq("id", invoiceId)
+    .eq("status", "ready");
+
+  revalidatePath("/invoices");
+  revalidatePath("/partners");
+  revalidatePath("/dashboard");
+}
+
+export async function deletePartnerInvoice(formData: FormData) {
+  await requireAdminProfile();
+
+  const invoiceId = String(formData.get("invoice_id") ?? "");
+
+  if (!invoiceId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: invoice } = await supabase
+    .from("partner_invoices")
+    .select("id, invoice_run_id, status, total_paid")
+    .eq("id", invoiceId)
+    .single();
+
+  if (!invoice || Number(invoice.total_paid) > 0 || !["draft", "ready"].includes(invoice.status)) {
+    return;
+  }
+
+  const { data: partnerPayroll } = await supabase
+    .from("partner_payrolls")
+    .select("id, total_paid")
+    .eq("invoice_id", invoiceId)
+    .maybeSingle();
+
+  if (partnerPayroll && Number(partnerPayroll.total_paid) > 0) {
+    return;
+  }
+
+  if (partnerPayroll) {
+    await supabase
+      .from("partner_payrolls")
+      .update({ balance_remaining: 0, status: "cancelled" })
+      .eq("id", partnerPayroll.id);
+  }
+
+  await supabase.from("partner_invoices").delete().eq("id", invoiceId);
+  await updateInvoiceRunTotals(invoice.invoice_run_id);
+
+  revalidatePath("/invoices");
+  revalidatePath("/partners");
+  revalidatePath("/dashboard");
+}
+
+export async function recordPartnerPayrollPayment(formData: FormData) {
+  const admin = await requireAdminProfile();
+
+  const payrollId = String(formData.get("partner_payroll_id") ?? "");
+  const amount = moneyValue(formData, "amount");
+  const paidAt = optionalDate(formData, "paid_at");
+
+  if (!payrollId || amount <= 0) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: payroll } = await supabase
+    .from("partner_payrolls")
+    .select("id, partner_id, total_owed, status")
+    .eq("id", payrollId)
+    .single();
+
+  if (!payroll || payroll.status === "paid" || payroll.status === "cancelled") {
+    return;
+  }
+
+  await supabase.from("partner_payroll_payments").insert({
+    amount,
+    created_by: admin.id,
+    notes: optionalText(formData, "notes"),
+    paid_at: paidAt ?? new Intl.DateTimeFormat("en-CA").format(new Date()),
+    partner_id: payroll.partner_id,
+    partner_payroll_id: payrollId,
+  });
+
+  const { data: payments } = await supabase
+    .from("partner_payroll_payments")
+    .select("amount")
+    .eq("partner_payroll_id", payrollId);
+  const totalPaid = (payments ?? []).reduce(
+    (total, payment) => total + Number(payment.amount),
+    0,
+  );
+  const totalOwed = Number(payroll.total_owed);
+
+  await supabase
+    .from("partner_payrolls")
+    .update({
+      balance_remaining: Math.max(0, totalOwed - totalPaid),
+      status: getPartnerPayrollStatus(totalOwed, totalPaid),
+      total_paid: totalPaid,
+    })
+    .eq("id", payrollId);
+
+  revalidatePath("/settlements");
+  revalidatePath("/partners");
+  revalidatePath("/dashboard");
+}
+
+export async function markInvoiceRunSent(formData: FormData) {
+  await requireAdminProfile();
+
+  const invoiceRunId = String(formData.get("invoice_run_id") ?? "");
+
+  if (!invoiceRunId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const today = new Intl.DateTimeFormat("en-CA").format(new Date());
+  const { data: draftInvoices } = await supabase
+    .from("partner_invoices")
+    .select("id")
+    .eq("invoice_run_id", invoiceRunId)
+    .eq("status", "draft")
+    .limit(1);
+
+  if (draftInvoices?.length) {
+    return;
+  }
+
+  await supabase
+    .from("invoice_runs")
+    .update({ sent_at: new Date().toISOString(), status: "sent" })
+    .eq("id", invoiceRunId);
+
+  await supabase
+    .from("partner_invoices")
+    .update({ sent_date: today, status: "sent" })
+    .eq("invoice_run_id", invoiceRunId)
+    .eq("status", "ready");
+
+  revalidatePath("/partners");
+  revalidatePath("/invoices");
+  revalidatePath("/dashboard");
+}
+
 export async function recordPartnerInvoicePayment(formData: FormData) {
   await requireAdminProfile();
 
   const invoiceId = String(formData.get("invoice_id") ?? "");
-  const partnerId = String(formData.get("partner_id") ?? "");
   const amountReceived = moneyValue(formData, "amount_received");
 
-  if (!invoiceId || !partnerId || amountReceived <= 0) {
+  if (!invoiceId || amountReceived <= 0) {
     return;
   }
 
@@ -218,17 +1039,49 @@ export async function recordPartnerInvoicePayment(formData: FormData) {
     optionalDate(formData, "date_received") ??
     new Intl.DateTimeFormat("en-CA").format(new Date());
 
+  const { data: invoice } = await supabase
+    .from("partner_invoices")
+    .select("id, partner_id, invoice_total, balance_remaining")
+    .eq("id", invoiceId)
+    .single();
+
+  if (!invoice) {
+    return;
+  }
+
+  if (Number(invoice.balance_remaining) <= 0) {
+    return;
+  }
+
   await supabase.from("partner_invoice_payments").insert({
     amount_received: amountReceived,
     date_received: dateReceived,
     deposit_account: optionalText(formData, "deposit_account"),
     invoice_id: invoiceId,
     notes: optionalText(formData, "notes"),
-    partner_id: partnerId,
+    partner_id: invoice.partner_id,
     payment_method: optionalText(formData, "payment_method"),
   });
 
-  await supabase.from("partner_invoices").update({ status: "paid" }).eq("id", invoiceId);
+  const { data: payments } = await supabase
+    .from("partner_invoice_payments")
+    .select("amount_received")
+    .eq("invoice_id", invoiceId);
+  const totalPaid = (payments ?? []).reduce(
+    (total, payment) => total + Number(payment.amount_received),
+    0,
+  );
+  const invoiceTotal = Number(invoice.invoice_total);
+  const balanceRemaining = Math.max(0, invoiceTotal - totalPaid);
+
+  await supabase
+    .from("partner_invoices")
+    .update({
+      balance_remaining: balanceRemaining,
+      status: getInvoiceStatus(invoiceTotal, totalPaid),
+      total_paid: totalPaid,
+    })
+    .eq("id", invoiceId);
 
   revalidatePath("/partners");
   revalidatePath("/invoices");

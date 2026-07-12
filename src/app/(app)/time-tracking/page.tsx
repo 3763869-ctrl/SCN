@@ -8,7 +8,11 @@ import {
   completeTimesheetWeek,
   reopenTimesheetWeek,
 } from "@/features/admin/payroll-actions";
-import { updateWorkerTimesheetDay } from "@/features/admin/worker-actions";
+import {
+  completeProductionUnitsPeriod,
+  reopenProductionUnitsPeriod,
+  updateWorkerTimesheetDay,
+} from "@/features/admin/worker-actions";
 import { getBreakHours, getHoursBetween } from "@/features/worker/metrics";
 import {
   addDaysToDateKey,
@@ -128,6 +132,7 @@ export default async function TimeTrackingPage({
     { data: paySettings },
     { data: bonusTiers },
     { data: timesheetWeek },
+    { data: unitPeriod },
     { data: payroll },
   ] = selectedWorker
     ? await Promise.all([
@@ -170,6 +175,13 @@ export default async function TimeTrackingPage({
           .eq("week_start", getDateKey(weekStart))
           .maybeSingle(),
         supabase
+          .from("production_unit_periods")
+          .select("id, status, period_start, period_end")
+          .eq("worker_id", selectedWorker.id)
+          .eq("period_start", getDateKey(weekStart))
+          .eq("period_end", getDateKey(addDays(weekStart, 5)))
+          .maybeSingle(),
+        supabase
           .from("worker_payrolls")
           .select("id, status, total_owed, total_paid, balance_remaining")
           .eq("worker_id", selectedWorker.id)
@@ -182,6 +194,7 @@ export default async function TimeTrackingPage({
         { data: [] },
         { data: null },
         { data: [] },
+        { data: null },
         { data: null },
         { data: null },
       ];
@@ -235,6 +248,7 @@ export default async function TimeTrackingPage({
   const displayStatus =
     weekStatus === "completed" && payroll?.status ? payroll.status : weekStatus;
   const isWeekLocked = weekStatus === "completed";
+  const isUnitPeriodLocked = unitPeriod?.status === "completed";
   const statusLabel =
     displayStatus === "completed" || displayStatus === "due"
       ? "Sent to Payroll"
@@ -352,8 +366,49 @@ export default async function TimeTrackingPage({
                       </Button>
                     </form>
                   )}
+                  {unitPeriod?.status === "completed" ? (
+                    <form action={reopenProductionUnitsPeriod}>
+                      <input name="period_id" type="hidden" value={unitPeriod.id} />
+                      <Button className="h-10" type="submit" variant="secondary">
+                        Reopen Units
+                      </Button>
+                    </form>
+                  ) : (
+                    <form action={completeProductionUnitsPeriod}>
+                      <input
+                        name="worker_id"
+                        type="hidden"
+                        value={selectedWorker.id}
+                      />
+                      <input
+                        name="period_start"
+                        type="hidden"
+                        value={getDateKey(weekStart)}
+                      />
+                      <input
+                        name="period_end"
+                        type="hidden"
+                        value={getDateKey(addDays(weekStart, 5))}
+                      />
+                      <Button className="h-10" type="submit" variant="secondary">
+                        Complete Units
+                      </Button>
+                    </form>
+                  )}
                 </div>
               ) : null}
+            </div>
+            <div className="mt-4 rounded-md border border-border bg-background p-3 text-sm">
+              <p className="font-semibold">
+                Units approval:{" "}
+                {isUnitPeriodLocked
+                  ? "Completed and ready for invoicing"
+                  : "Open for review"}
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Invoices only use approved units. Complete Units locks finished
+                dates only; today and future dates stay open.
+              </p>
             </div>
 
             <div className="mt-5 grid gap-3 sm:grid-cols-4">
@@ -460,7 +515,7 @@ export default async function TimeTrackingPage({
                           <input
                             className="h-10 rounded-md border border-border bg-background px-3 disabled:bg-surface-muted disabled:text-muted-foreground"
                             defaultValue={row.unitTotal}
-                            disabled={isWeekLocked}
+                            disabled={isWeekLocked || isUnitPeriodLocked}
                             min="0"
                             name="units"
                             step="1"
@@ -484,7 +539,7 @@ export default async function TimeTrackingPage({
                               className="h-10 px-3"
                               confirmLabel="Clear Day"
                               description="This will delete this day's clock times, lunch break, and units for this worker. This cannot be undone."
-                              disabled={isWeekLocked}
+                              disabled={isWeekLocked || isUnitPeriodLocked}
                               name="action"
                               title="Clear this day?"
                               value="clear"

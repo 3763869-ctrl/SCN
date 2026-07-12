@@ -2,13 +2,17 @@ export type AppRole = "admin" | "worker";
 export type PayrollSchedule = "weekly" | "semi_monthly";
 export type ProductionUnitStatus = "pending" | "approved" | "rejected";
 export type TimesheetWeekStatus = "open" | "completed" | "reopened";
+export type ProductionUnitPeriodStatus = "completed" | "reopened";
 export type WorkerPayrollStatus = "due" | "partial" | "paid" | "reopened";
+export type PartnerPayrollStatus = "due" | "partial" | "paid" | "cancelled";
+export type PartnerPayType = "none" | "flat" | "percentage";
 export type PartnerStatus = "active" | "inactive";
 export type PartnerAssignmentStatus = "active" | "ended";
 export type PartnerInvoiceStatus =
   | "draft"
   | "ready"
   | "sent"
+  | "partial"
   | "paid"
   | "overdue"
   | "cancelled";
@@ -147,9 +151,289 @@ export type Database = {
           },
         ];
       };
+      partner_billing_settings: {
+        Row: {
+          partner_id: string;
+          client_id: string;
+          rate_per_unit: number;
+          billing_frequency: "semi_monthly" | "manual";
+          payment_terms_days: number;
+          active: boolean;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          partner_id: string;
+          client_id: string;
+          rate_per_unit?: number;
+          billing_frequency?: "semi_monthly" | "manual";
+          payment_terms_days?: number;
+          active?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          partner_id?: string;
+          client_id?: string;
+          rate_per_unit?: number;
+          billing_frequency?: "semi_monthly" | "manual";
+          payment_terms_days?: number;
+          active?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_billing_settings_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: true;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_billing_settings_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_pay_settings: {
+        Row: {
+          partner_id: string;
+          pay_type: PartnerPayType;
+          flat_pay_per_invoice: number;
+          invoice_percentage: number;
+          active: boolean;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          partner_id: string;
+          pay_type?: PartnerPayType;
+          flat_pay_per_invoice?: number;
+          invoice_percentage?: number;
+          active?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          partner_id?: string;
+          pay_type?: PartnerPayType;
+          flat_pay_per_invoice?: number;
+          invoice_percentage?: number;
+          active?: boolean;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_pay_settings_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: true;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_payrolls: {
+        Row: {
+          id: string;
+          partner_id: string;
+          invoice_id: string | null;
+          billing_period_start: string;
+          billing_period_end: string;
+          pay_type_snapshot: PartnerPayType;
+          flat_pay_snapshot: number;
+          invoice_percentage_snapshot: number;
+          total_owed: number;
+          total_paid: number;
+          balance_remaining: number;
+          status: PartnerPayrollStatus;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          partner_id: string;
+          invoice_id?: string | null;
+          billing_period_start: string;
+          billing_period_end: string;
+          pay_type_snapshot?: PartnerPayType;
+          flat_pay_snapshot?: number;
+          invoice_percentage_snapshot?: number;
+          total_owed?: number;
+          total_paid?: number;
+          balance_remaining?: number;
+          status?: PartnerPayrollStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          partner_id?: string;
+          invoice_id?: string | null;
+          billing_period_start?: string;
+          billing_period_end?: string;
+          pay_type_snapshot?: PartnerPayType;
+          flat_pay_snapshot?: number;
+          invoice_percentage_snapshot?: number;
+          total_owed?: number;
+          total_paid?: number;
+          balance_remaining?: number;
+          status?: PartnerPayrollStatus;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_payrolls_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_payrolls_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: true;
+            referencedRelation: "partner_invoices";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_payroll_payments: {
+        Row: {
+          id: string;
+          partner_payroll_id: string;
+          partner_id: string;
+          amount: number;
+          paid_at: string;
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          partner_payroll_id: string;
+          partner_id: string;
+          amount: number;
+          paid_at?: string;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          partner_payroll_id?: string;
+          partner_id?: string;
+          amount?: number;
+          paid_at?: string;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_payroll_payments_partner_payroll_id_fkey";
+            columns: ["partner_payroll_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_payrolls";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_payroll_payments_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_payroll_payments_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      invoice_runs: {
+        Row: {
+          id: string;
+          client_id: string;
+          billing_period_start: string;
+          billing_period_end: string;
+          status: "ready" | "sent" | "closed" | "cancelled";
+          invoice_count: number;
+          total_units: number;
+          total_amount: number;
+          generated_by: string | null;
+          generated_at: string;
+          sent_at: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          client_id: string;
+          billing_period_start: string;
+          billing_period_end: string;
+          status?: "ready" | "sent" | "closed" | "cancelled";
+          invoice_count?: number;
+          total_units?: number;
+          total_amount?: number;
+          generated_by?: string | null;
+          generated_at?: string;
+          sent_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          client_id?: string;
+          billing_period_start?: string;
+          billing_period_end?: string;
+          status?: "ready" | "sent" | "closed" | "cancelled";
+          invoice_count?: number;
+          total_units?: number;
+          total_amount?: number;
+          generated_by?: string | null;
+          generated_at?: string;
+          sent_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invoice_runs_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invoice_runs_generated_by_fkey";
+            columns: ["generated_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       partner_invoices: {
         Row: {
           id: string;
+          invoice_run_id: string | null;
           partner_id: string;
           client_id: string;
           invoice_number: string;
@@ -162,12 +446,16 @@ export type Database = {
           sent_date: string | null;
           due_date: string | null;
           status: PartnerInvoiceStatus;
+          total_paid: number;
+          balance_remaining: number;
+          generated_at: string | null;
           notes: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
+          invoice_run_id?: string | null;
           partner_id: string;
           client_id: string;
           invoice_number: string;
@@ -180,12 +468,16 @@ export type Database = {
           sent_date?: string | null;
           due_date?: string | null;
           status?: PartnerInvoiceStatus;
+          total_paid?: number;
+          balance_remaining?: number;
+          generated_at?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
+          invoice_run_id?: string | null;
           partner_id?: string;
           client_id?: string;
           invoice_number?: string;
@@ -198,11 +490,21 @@ export type Database = {
           sent_date?: string | null;
           due_date?: string | null;
           status?: PartnerInvoiceStatus;
+          total_paid?: number;
+          balance_remaining?: number;
+          generated_at?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "partner_invoices_invoice_run_id_fkey";
+            columns: ["invoice_run_id"];
+            isOneToOne: false;
+            referencedRelation: "invoice_runs";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "partner_invoices_partner_id_fkey";
             columns: ["partner_id"];
@@ -215,6 +517,137 @@ export type Database = {
             columns: ["client_id"];
             isOneToOne: false;
             referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      partner_invoice_lines: {
+        Row: {
+          id: string;
+          invoice_id: string;
+          partner_id: string;
+          worker_id: string | null;
+          work_date: string | null;
+          description: string;
+          units: number;
+          rate_per_unit: number;
+          line_total: number;
+          source: "generated" | "manual";
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          invoice_id: string;
+          partner_id: string;
+          worker_id?: string | null;
+          work_date?: string | null;
+          description: string;
+          units?: number;
+          rate_per_unit?: number;
+          line_total?: number;
+          source?: "generated" | "manual";
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          invoice_id?: string;
+          partner_id?: string;
+          worker_id?: string | null;
+          work_date?: string | null;
+          description?: string;
+          units?: number;
+          rate_per_unit?: number;
+          line_total?: number;
+          source?: "generated" | "manual";
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "partner_invoice_lines_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_invoices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_invoice_lines_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "partner_invoice_lines_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      production_unit_periods: {
+        Row: {
+          id: string;
+          worker_id: string;
+          period_start: string;
+          period_end: string;
+          status: ProductionUnitPeriodStatus;
+          completed_at: string | null;
+          completed_by: string | null;
+          reopened_at: string | null;
+          reopened_by: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id: string;
+          period_start: string;
+          period_end: string;
+          status?: ProductionUnitPeriodStatus;
+          completed_at?: string | null;
+          completed_by?: string | null;
+          reopened_at?: string | null;
+          reopened_by?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string;
+          period_start?: string;
+          period_end?: string;
+          status?: ProductionUnitPeriodStatus;
+          completed_at?: string | null;
+          completed_by?: string | null;
+          reopened_at?: string | null;
+          reopened_by?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "production_unit_periods_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "production_unit_periods_completed_by_fkey";
+            columns: ["completed_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "production_unit_periods_reopened_by_fkey";
+            columns: ["reopened_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];
