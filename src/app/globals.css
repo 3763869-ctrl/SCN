@@ -1,14 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f7f8;
-  --foreground: #18212f;
+  --background: #f7f8fa;
+  --foreground: #111827;
   --surface: #ffffff;
-  --surface-muted: #eef1f4;
-  --border: #d9dee5;
+  --surface-muted: #f1f5f9;
+  --border: #e2e8f0;
   --accent: #0f766e;
   --accent-foreground: #ffffff;
-  --muted-foreground: #64748b;
+  --muted-foreground: #667085;
+  --info: #2563eb;
+  --success: #059669;
+  --warning: #d97706;
+  --danger: #dc2626;
 }
 
 @theme inline {
@@ -28,10 +32,78 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-feature-settings: "kern";
+  text-rendering: optimizeLegibility;
 }
 
 * {
   box-sizing: border-box;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+details > summary {
+  outline: none;
+}
+
+details[open] > summary {
+  border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+}
+
+input,
+select,
+textarea {
+  color: var(--foreground);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #98a2b3;
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 65%, white);
+  outline-offset: 2px;
+}
+
+.app-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.app-card-muted {
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--surface-muted) 72%, white);
+  border-radius: 10px;
+}
+
+.app-table {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.app-table-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f8fafc;
 }
 
 @keyframes float-up {

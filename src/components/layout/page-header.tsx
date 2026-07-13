@@ -12,9 +12,9 @@ export function PageHeader({
   actionLabel,
 }: PageHeaderProps) {
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex flex-col gap-4 border-b border-border/70 pb-6 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <h1 className="text-2xl font-semibold tracking-normal text-foreground">
+        <h1 className="text-[1.7rem] font-semibold tracking-normal text-foreground">
           {title}
         </h1>
         {description ? (

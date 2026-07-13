@@ -46,58 +46,59 @@ export default async function ClientsPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[380px_1fr]">
-        <form
-          action={createClient}
-          className="rounded-lg border border-border bg-surface p-5 shadow-sm"
-        >
-          <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-md bg-surface-muted text-accent">
-              <Plus className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-base font-semibold">Add Client</h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Add another company for future invoicing.
-              </p>
+        <details className="app-card p-5">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-md bg-surface-muted text-accent">
+                <Plus className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold">Add Client</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Open this only when adding another invoice customer.
+                </p>
+              </div>
             </div>
-          </div>
+            <span className="rounded-md border border-border px-3 py-2 text-sm font-semibold">
+              Add
+            </span>
+          </summary>
+          <form action={createClient} className="mt-5 space-y-4 border-t border-border pt-5">
+              <label className="block text-sm font-medium">
+                Client Name
+                <input
+                  className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  name="name"
+                  placeholder="MS Support"
+                  required
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                Status
+                <select
+                  className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  defaultValue="active"
+                  name="status"
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </label>
+              <label className="block text-sm font-medium">
+                Notes
+                <textarea
+                  className="mt-2 min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  name="notes"
+                  placeholder="Billing notes, contact details, or reminders"
+                />
+              </label>
+              <Button className="h-11 w-full" type="submit">
+                Add Client
+              </Button>
+          </form>
+        </details>
 
-          <div className="mt-5 space-y-4">
-            <label className="block text-sm font-medium">
-              Client Name
-              <input
-                className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-                name="name"
-                placeholder="MS Support"
-                required
-              />
-            </label>
-            <label className="block text-sm font-medium">
-              Status
-              <select
-                className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-                defaultValue="active"
-                name="status"
-              >
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </label>
-            <label className="block text-sm font-medium">
-              Notes
-              <textarea
-                className="mt-2 min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-                name="notes"
-                placeholder="Billing notes, contact details, or reminders"
-              />
-            </label>
-            <Button className="h-11 w-full" type="submit">
-              Add Client
-            </Button>
-          </div>
-        </form>
-
-        <section className="rounded-lg border border-border bg-surface shadow-sm">
+        <section className="app-card">
           <div className="border-b border-border p-5">
             <div className="flex items-center gap-3">
               <span className="grid h-10 w-10 place-items-center rounded-md bg-surface-muted text-accent">

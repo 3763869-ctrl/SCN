@@ -70,12 +70,6 @@ export default async function DashboardPage() {
       description: "Manual expenses this month",
       icon: ReceiptText,
     },
-    {
-      title: "Active Partners",
-      value: String(finances.stats.partnersActive),
-      description: "Partners currently active",
-      icon: Handshake,
-    },
   ];
 
   return (
@@ -85,13 +79,13 @@ export default async function DashboardPage() {
         description="A simple daily view of production, income, and expenses. Full financial analysis lives in Reports."
       />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {stats.map((stat) => (
           <StatCard key={stat.title} {...stat} />
         ))}
       </section>
 
-      <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+      <section className="app-card p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <h2 className="text-base font-semibold">Partner Overview</h2>
@@ -102,7 +96,7 @@ export default async function DashboardPage() {
           <Handshake className="h-5 w-5 text-accent" aria-hidden="true" />
         </div>
 
-        <div className="mt-5 divide-y divide-border rounded-md border border-border bg-background">
+        <div className="app-table mt-5 divide-y divide-border">
           {operations.partnerSummaries.slice(0, 8).map((summary) => (
             <div
               className="grid gap-3 px-4 py-3 text-sm lg:grid-cols-[1.2fr_1fr_1fr_1fr]"
