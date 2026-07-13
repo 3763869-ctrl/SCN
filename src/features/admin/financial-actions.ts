@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireAdminProfile } from "@/features/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -33,6 +34,12 @@ function revalidateFinancialPages() {
   revalidatePath("/partners");
 }
 
+function redirectAfterSave(formData: FormData, fallback: string): never {
+  const redirectTo = String(formData.get("redirect_to") ?? "").trim();
+
+  redirect(redirectTo.startsWith("/") ? redirectTo : fallback);
+}
+
 export async function createManualIncome(formData: FormData) {
   const admin = await requireAdminProfile();
   const amount = moneyValue(formData, "amount");
@@ -57,6 +64,36 @@ export async function createManualIncome(formData: FormData) {
   });
 
   revalidateFinancialPages();
+  redirectAfterSave(formData, "/income");
+}
+
+export async function updateIncome(formData: FormData) {
+  await requireAdminProfile();
+  const incomeId = String(formData.get("income_id") ?? "");
+  const amount = moneyValue(formData, "amount");
+
+  if (!incomeId || amount <= 0) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase
+    .from("financial_income_records")
+    .update({
+      amount,
+      client_id: optionalText(formData, "client_id"),
+      deposit_account: optionalText(formData, "deposit_account"),
+      income_date: dateValue(formData, "income_date"),
+      invoice_number: optionalText(formData, "invoice_number"),
+      notes: optionalText(formData, "notes"),
+      partner_id: optionalText(formData, "partner_id"),
+      payment_method: optionalText(formData, "payment_method"),
+    })
+    .eq("id", incomeId);
+
+  revalidateFinancialPages();
+  redirectAfterSave(formData, "/income");
 }
 
 export async function createExpense(formData: FormData) {
@@ -116,6 +153,7 @@ export async function createExpense(formData: FormData) {
   });
 
   revalidateFinancialPages();
+  redirectAfterSave(formData, "/expenses");
 }
 
 export async function updateExpense(formData: FormData) {
@@ -191,4 +229,5 @@ export async function updateExpense(formData: FormData) {
     .eq("id", expenseId);
 
   revalidateFinancialPages();
+  redirectAfterSave(formData, "/expenses");
 }

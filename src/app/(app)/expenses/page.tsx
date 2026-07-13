@@ -75,6 +75,13 @@ function getCsvHref(rows: Array<Record<string, string | number | boolean | null 
 
 export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
   const params = await searchParams;
+  const currentParams = new URLSearchParams();
+  Object.entries(params ?? {}).forEach(([key, value]) => {
+    if (value) {
+      currentParams.set(key, value);
+    }
+  });
+  const currentPath = `/expenses${currentParams.toString() ? `?${currentParams.toString()}` : ""}`;
   const data = await getFinancialManagementData({
     category: params?.category,
     endDate: params?.end,
@@ -138,6 +145,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
             className="mt-4 grid gap-3 md:grid-cols-4"
             encType="multipart/form-data"
           >
+            <input name="redirect_to" type="hidden" value={currentPath} />
             <input
               className="h-10 rounded-md border border-border bg-background px-3 text-sm"
               name="expense_date"
@@ -378,6 +386,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
                         encType="multipart/form-data"
                       >
                         <input name="expense_id" type="hidden" value={expense.id} />
+                        <input name="redirect_to" type="hidden" value={currentPath} />
                         <label className="text-xs font-semibold text-muted-foreground">
                           Date
                           <input

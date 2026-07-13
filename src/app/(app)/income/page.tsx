@@ -4,7 +4,7 @@ import { Download, Search } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { PrintButton } from "@/components/ui/print-button";
 import { Button } from "@/components/ui/button";
-import { createManualIncome } from "@/features/admin/financial-actions";
+import { createManualIncome, updateIncome } from "@/features/admin/financial-actions";
 import { getFinancialManagementData } from "@/features/admin/financial-data";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
@@ -59,6 +59,13 @@ function getCsvHref(rows: Array<Record<string, string | number | null | undefine
 
 export default async function IncomePage({ searchParams }: IncomePageProps) {
   const params = await searchParams;
+  const currentParams = new URLSearchParams();
+  Object.entries(params ?? {}).forEach(([key, value]) => {
+    if (value) {
+      currentParams.set(key, value);
+    }
+  });
+  const currentPath = `/income${currentParams.toString() ? `?${currentParams.toString()}` : ""}`;
   const data = await getFinancialManagementData({
     clientId: params?.client,
     endDate: params?.end,
@@ -118,6 +125,7 @@ export default async function IncomePage({ searchParams }: IncomePageProps) {
             Add Manual Income
           </summary>
           <form action={createManualIncome} className="mt-4 grid gap-3 md:grid-cols-4">
+            <input name="redirect_to" type="hidden" value={currentPath} />
             <select
               className="h-10 rounded-md border border-border bg-background px-3 text-sm"
               name="partner_id"
@@ -248,7 +256,7 @@ export default async function IncomePage({ searchParams }: IncomePageProps) {
         </div>
 
         <div className="mt-5 overflow-x-auto rounded-md border border-border">
-          <table className="w-full min-w-[900px] border-collapse text-sm">
+          <table className="w-full min-w-[1000px] border-collapse text-sm">
             <thead className="bg-background text-left text-muted-foreground">
               <tr>
                 <th className="px-3 py-2 font-semibold">Date</th>
@@ -258,11 +266,12 @@ export default async function IncomePage({ searchParams }: IncomePageProps) {
                 <th className="px-3 py-2 font-semibold">Method</th>
                 <th className="px-3 py-2 font-semibold">Deposit</th>
                 <th className="px-3 py-2 text-right font-semibold">Amount</th>
+                <th className="px-3 py-2 text-right font-semibold">Manage</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {rows.map((record) => (
-                <tr key={record.id}>
+                <tr key={record.id} className="align-top">
                   <td className="px-3 py-3">{getDateLabel(record.income_date)}</td>
                   <td className="px-3 py-3">
                     {record.partner_id
@@ -290,11 +299,111 @@ export default async function IncomePage({ searchParams }: IncomePageProps) {
                   <td className="px-3 py-3 text-right font-semibold">
                     {moneyFormatter.format(Number(record.amount))}
                   </td>
+                  <td className="px-3 py-3 text-right">
+                    <details>
+                      <summary className="cursor-pointer list-none text-sm font-semibold text-accent">
+                        Edit
+                      </summary>
+                      <form
+                        action={updateIncome}
+                        className="mt-3 grid min-w-[620px] gap-3 rounded-md border border-border bg-background p-4 text-left shadow-sm md:grid-cols-4"
+                      >
+                        <input name="income_id" type="hidden" value={record.id} />
+                        <input name="redirect_to" type="hidden" value={currentPath} />
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Partner
+                          <select
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={record.partner_id ?? ""}
+                            name="partner_id"
+                          >
+                            <option value="">No Partner</option>
+                            {data.partners.map((partner) => (
+                              <option key={partner.id} value={partner.id}>
+                                {partner.full_name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Client
+                          <select
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={record.client_id ?? ""}
+                            name="client_id"
+                          >
+                            <option value="">No Client</option>
+                            {data.clients.map((client) => (
+                              <option key={client.id} value={client.id}>
+                                {client.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Date
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={record.income_date}
+                            name="income_date"
+                            type="date"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Amount
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={Number(record.amount)}
+                            min="0.01"
+                            name="amount"
+                            required
+                            step="0.01"
+                            type="number"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Invoice / Reference
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={record.invoice_number ?? ""}
+                            name="invoice_number"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Payment method
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={record.payment_method ?? ""}
+                            name="payment_method"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Deposit account
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={record.deposit_account ?? ""}
+                            name="deposit_account"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground md:col-span-3">
+                          Notes
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={record.notes ?? ""}
+                            name="notes"
+                          />
+                        </label>
+                        <Button className="mt-5" type="submit">
+                          Save Changes
+                        </Button>
+                      </form>
+                    </details>
+                  </td>
                 </tr>
               ))}
               {!rows.length ? (
                 <tr>
-                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={7}>
+                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={8}>
                     No income found for these filters.
                   </td>
                 </tr>
