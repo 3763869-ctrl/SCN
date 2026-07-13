@@ -1,11 +1,8 @@
 import {
   BadgeDollarSign,
-  FileText,
-  HandCoins,
   Handshake,
   PackageCheck,
   ReceiptText,
-  WalletCards,
   Users,
 } from "lucide-react";
 
@@ -24,73 +21,17 @@ export default async function DashboardPage() {
     getPartnerOperationsData(),
     getFinancialManagementData(),
   ]);
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  const monthStartKey = monthStart.toISOString().slice(0, 10);
+  const expensesThisMonth = finances.expenses
+    .filter((expense) => expense.expense_date >= monthStartKey)
+    .reduce((total, expense) => total + Number(expense.amount), 0);
   const stats = [
-    {
-      title: "Revenue",
-      value: moneyFormatter.format(finances.stats.totalRevenue),
-      description: "Income received in the selected ledger",
-      icon: BadgeDollarSign,
-    },
-    {
-      title: "Expenses",
-      value: moneyFormatter.format(finances.stats.totalExpenses),
-      description: "Manual expenses plus paid payroll",
-      icon: ReceiptText,
-    },
-    {
-      title: "Gross Profit",
-      value: moneyFormatter.format(finances.stats.grossProfit),
-      description: "Revenue after worker and Partner payroll",
-      icon: BadgeDollarSign,
-    },
-    {
-      title: "Net Profit",
-      value: moneyFormatter.format(finances.stats.netProfit),
-      description: "Revenue after all tracked costs",
-      icon: BadgeDollarSign,
-    },
-    {
-      title: "Cash Available",
-      value: moneyFormatter.format(finances.stats.cashAvailable),
-      description: "Business cash after estimated tax reserve",
-      icon: WalletCards,
-    },
-    {
-      title: "Outstanding Receivables",
-      value: moneyFormatter.format(finances.stats.outstandingReceivables),
-      description: "Open invoice balances",
-      icon: FileText,
-    },
-    {
-      title: "Payroll Due",
-      value: moneyFormatter.format(
-        finances.stats.payrollDue + finances.stats.partnerPayrollDue,
-      ),
-      description: "Worker and Partner payroll balances",
-      icon: HandCoins,
-    },
-    {
-      title: "Taxes Reserved",
-      value: moneyFormatter.format(finances.stats.taxesReserved),
-      description: "Simple estimated reserve from net profit",
-      icon: BadgeDollarSign,
-    },
-    {
-      title: "Workers Online",
-      value: String(finances.stats.workersOnline),
-      description: "Workers currently clocked in",
-      icon: Users,
-    },
-    {
-      title: "Partners Active",
-      value: String(finances.stats.partnersActive),
-      description: "Active Partner business records",
-      icon: Handshake,
-    },
     {
       title: "Units Today",
       value: String(finances.stats.unitsToday),
-      description: "Production units entered today",
+      description: "Production entered today",
       icon: PackageCheck,
     },
     {
@@ -99,13 +40,49 @@ export default async function DashboardPage() {
       description: "Current week production",
       icon: PackageCheck,
     },
+    {
+      title: "Workers Online",
+      value: String(finances.stats.workersOnline),
+      description: "Workers currently clocked in",
+      icon: Users,
+    },
+    {
+      title: "Partners Working Today",
+      value: String(operations.stats.partnersWorkingToday),
+      description: "Partners with worker activity",
+      icon: Handshake,
+    },
+    {
+      title: "Income Today",
+      value: moneyFormatter.format(finances.stats.todayIncome),
+      description: "Payments received today",
+      icon: BadgeDollarSign,
+    },
+    {
+      title: "Income This Month",
+      value: moneyFormatter.format(finances.stats.monthlyIncome),
+      description: "Income received this month",
+      icon: BadgeDollarSign,
+    },
+    {
+      title: "Expenses This Month",
+      value: moneyFormatter.format(expensesThisMonth),
+      description: "Manual expenses this month",
+      icon: ReceiptText,
+    },
+    {
+      title: "Active Partners",
+      value: String(finances.stats.partnersActive),
+      description: "Partners currently active",
+      icon: Handshake,
+    },
   ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Executive Dashboard"
-        description="Revenue, expenses, profit, payroll, receivables, Partner activity, and production in one operating view."
+        title="Operations Dashboard"
+        description="A simple daily view of production, income, and expenses. Full financial analysis lives in Reports."
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -119,7 +96,7 @@ export default async function DashboardPage() {
           <div>
             <h2 className="text-base font-semibold">Partner Overview</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Quick scan of assigned workers, production, and open money.
+              Quick scan of assigned workers and production.
             </p>
           </div>
           <Handshake className="h-5 w-5 text-accent" aria-hidden="true" />
@@ -146,12 +123,9 @@ export default async function DashboardPage() {
                 units
               </p>
               <p className="text-muted-foreground">
-                Open:{" "}
-                <span className="font-semibold text-foreground">
-                  {moneyFormatter.format(
-                    summary.outstandingInvoices + summary.partnerPayrollDue,
-                  )}
-                </span>
+                Lifetime:{" "}
+                <span className="font-semibold text-foreground">{summary.lifetimeUnits}</span>{" "}
+                units
               </p>
             </div>
           ))}
