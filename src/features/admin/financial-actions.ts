@@ -110,10 +110,85 @@ export async function createExpense(formData: FormData) {
       | null,
     recurring_next_date: optionalText(formData, "recurring_next_date"),
     subcategory: optionalText(formData, "subcategory"),
-    tax_deductible: formData.get("tax_deductible") !== "off",
+    tax_deductible: formData.get("tax_deductible") === "on",
     vendor,
     worker_id: optionalText(formData, "worker_id"),
   });
+
+  revalidateFinancialPages();
+}
+
+export async function updateExpense(formData: FormData) {
+  const admin = await requireAdminProfile();
+  const expenseId = String(formData.get("expense_id") ?? "");
+  const vendor = String(formData.get("vendor") ?? "").trim();
+  const description = String(formData.get("description") ?? "").trim();
+  const amount = moneyValue(formData, "amount");
+  const file = formData.get("receipt");
+
+  if (!expenseId || !vendor || !description || amount <= 0) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const updates: {
+    amount: number;
+    category: FinancialExpenseCategory;
+    description: string;
+    expense_date: string;
+    notes: string | null;
+    paid_from_account: string | null;
+    partner_id: string | null;
+    payment_method: string | null;
+    receipt_file_name?: string | null;
+    receipt_storage_path?: string | null;
+    recurring: boolean;
+    recurring_frequency: FinancialRecurringFrequency | null;
+    recurring_next_date: string | null;
+    subcategory: string | null;
+    tax_deductible: boolean;
+    vendor: string;
+    worker_id: string | null;
+  } = {
+    amount,
+    category: String(formData.get("category") ?? "office_expenses") as FinancialExpenseCategory,
+    description,
+    expense_date: dateValue(formData, "expense_date"),
+    notes: optionalText(formData, "notes"),
+    paid_from_account: optionalText(formData, "paid_from_account"),
+    partner_id: optionalText(formData, "partner_id"),
+    payment_method: optionalText(formData, "payment_method"),
+    recurring: formData.get("recurring") === "on",
+    recurring_frequency: optionalText(formData, "recurring_frequency") as
+      | FinancialRecurringFrequency
+      | null,
+    recurring_next_date: optionalText(formData, "recurring_next_date"),
+    subcategory: optionalText(formData, "subcategory"),
+    tax_deductible: formData.get("tax_deductible") === "on",
+    vendor,
+    worker_id: optionalText(formData, "worker_id"),
+  };
+
+  if (file instanceof File && file.size > 0) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+    const storagePath = `${admin.id}/${Date.now()}-${safeName}`;
+    const { error } = await supabase.storage
+      .from("expense-receipts")
+      .upload(storagePath, file, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+
+    if (!error) {
+      updates.receipt_file_name = file.name;
+      updates.receipt_storage_path = storagePath;
+    }
+  }
+
+  await supabase
+    .from("financial_expenses")
+    .update(updates)
+    .eq("id", expenseId);
 
   revalidateFinancialPages();
 }

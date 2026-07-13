@@ -3,7 +3,7 @@ import { Download, Search } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { PrintButton } from "@/components/ui/print-button";
-import { createExpense } from "@/features/admin/financial-actions";
+import { createExpense, updateExpense } from "@/features/admin/financial-actions";
 import {
   expenseCategoryLabels,
   getFinancialManagementData,
@@ -335,11 +335,12 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
                 <th className="px-3 py-2 font-semibold">Worker</th>
                 <th className="px-3 py-2 font-semibold">Receipt</th>
                 <th className="px-3 py-2 text-right font-semibold">Amount</th>
+                <th className="px-3 py-2 text-right font-semibold">Manage</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {rows.map((expense) => (
-                <tr key={expense.id}>
+                <tr key={expense.id} className="align-top">
                   <td className="px-3 py-3">{getDateLabel(expense.expense_date)}</td>
                   <td className="px-3 py-3 font-medium">{expense.vendor}</td>
                   <td className="px-3 py-3">
@@ -366,11 +367,191 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
                   <td className="px-3 py-3 text-right font-semibold">
                     {moneyFormatter.format(Number(expense.amount))}
                   </td>
+                  <td className="px-3 py-3 text-right">
+                    <details className="group">
+                      <summary className="cursor-pointer list-none text-sm font-semibold text-accent">
+                        Edit
+                      </summary>
+                      <form
+                        action={updateExpense}
+                        className="mt-3 grid min-w-[680px] gap-3 rounded-md border border-border bg-background p-4 text-left shadow-sm md:grid-cols-4"
+                        encType="multipart/form-data"
+                      >
+                        <input name="expense_id" type="hidden" value={expense.id} />
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Date
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.expense_date}
+                            name="expense_date"
+                            type="date"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Vendor
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.vendor}
+                            name="vendor"
+                            required
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Category
+                          <select
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.category}
+                            name="category"
+                          >
+                            {categories.map(([category, label]) => (
+                              <option key={category} value={category}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Subcategory
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.subcategory ?? ""}
+                            list="expense-subcategories"
+                            name="subcategory"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground md:col-span-2">
+                          Description
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.description}
+                            name="description"
+                            required
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Amount
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={Number(expense.amount)}
+                            min="0.01"
+                            name="amount"
+                            required
+                            step="0.01"
+                            type="number"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Payment method
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.payment_method ?? ""}
+                            name="payment_method"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Paid from
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.paid_from_account ?? ""}
+                            name="paid_from_account"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Partner
+                          <select
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.partner_id ?? ""}
+                            name="partner_id"
+                          >
+                            <option value="">No Partner</option>
+                            {data.partners.map((partner) => (
+                              <option key={partner.id} value={partner.id}>
+                                {partner.full_name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Worker
+                          <select
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.worker_id ?? ""}
+                            name="worker_id"
+                          >
+                            <option value="">No Worker</option>
+                            {data.workers.map((worker) => (
+                              <option key={worker.id} value={worker.id}>
+                                {worker.full_name ?? worker.email}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Replace receipt
+                          <input
+                            className="mt-1 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground"
+                            name="receipt"
+                            type="file"
+                          />
+                        </label>
+                        <label className="mt-6 flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm text-foreground">
+                          <input
+                            defaultChecked={expense.tax_deductible}
+                            name="tax_deductible"
+                            type="checkbox"
+                          />
+                          Tax deductible
+                        </label>
+                        <label className="mt-6 flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm text-foreground">
+                          <input
+                            defaultChecked={expense.recurring}
+                            name="recurring"
+                            type="checkbox"
+                          />
+                          Recurring
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Frequency
+                          <select
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.recurring_frequency ?? ""}
+                            name="recurring_frequency"
+                          >
+                            <option value="">Frequency</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="yearly">Yearly</option>
+                          </select>
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground">
+                          Next date
+                          <input
+                            className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                            defaultValue={expense.recurring_next_date ?? ""}
+                            name="recurring_next_date"
+                            type="date"
+                          />
+                        </label>
+                        <label className="text-xs font-semibold text-muted-foreground md:col-span-3">
+                          Notes
+                          <textarea
+                            className="mt-1 min-h-16 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-foreground"
+                            defaultValue={expense.notes ?? ""}
+                            name="notes"
+                          />
+                        </label>
+                        <Button className="mt-5" type="submit">
+                          Save Changes
+                        </Button>
+                      </form>
+                    </details>
+                  </td>
                 </tr>
               ))}
               {!rows.length ? (
                 <tr>
-                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={8}>
+                  <td className="px-3 py-6 text-center text-muted-foreground" colSpan={9}>
                     No expenses found for these filters.
                   </td>
                 </tr>
