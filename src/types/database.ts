@@ -29,7 +29,8 @@ export type FinancialExpenseCategory =
   | "software"
   | "banking_payment_fees"
   | "professional_services"
-  | "taxes_government";
+  | "taxes_government"
+  | "travel";
 export type FinancialRecurringFrequency =
   | "weekly"
   | "monthly"

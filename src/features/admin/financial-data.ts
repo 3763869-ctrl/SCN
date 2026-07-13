@@ -9,6 +9,7 @@ export const expenseCategoryLabels: Record<FinancialExpenseCategory, string> = {
   professional_services: "Professional Services",
   software: "Software",
   taxes_government: "Taxes & Government",
+  travel: "Travel",
 };
 
 export const payrollSubcategories = [
