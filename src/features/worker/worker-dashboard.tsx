@@ -29,6 +29,19 @@ import { EASTERN_TIME_ZONE } from "@/lib/dates/eastern-time";
 type WorkerDashboardData = {
   openEntry: { id: string; clock_in_at: string; clock_out_at: string | null } | null;
   openBreak: { id: string; break_start_at: string; break_end_at: string | null } | null;
+  breakEntries: Array<{
+    id: string;
+    time_entry_id: string;
+    break_start_at: string;
+    break_end_at: string | null;
+    break_type: string | null;
+  }>;
+  timeEntries: Array<{
+    id: string;
+    clock_in_at: string;
+    clock_out_at: string | null;
+    notes: string | null;
+  }>;
   todayHours: number;
   todayBreakHours: number;
   todayUnits: number;
@@ -106,6 +119,22 @@ function getTimeLabel(value: number, mode: "12" | "24") {
   }).format(value);
 }
 
+function getSessionTimeLabel(value: string, mode: "12" | "24") {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    hour12: mode === "12",
+    minute: "2-digit",
+    timeZone: EASTERN_TIME_ZONE,
+  }).format(new Date(value));
+}
+
+function getSessionHours(start: string, end: string | null, now: number) {
+  const startMs = new Date(start).getTime();
+  const endMs = end ? new Date(end).getTime() : now;
+
+  return Math.max(0, (endMs - startMs) / 36e5);
+}
+
 export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"clock" | "units">("clock");
@@ -141,6 +170,39 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
   const currentTimeLabel = useMemo(
     () => getTimeLabel(now, timeDisplayMode),
     [now, timeDisplayMode],
+  );
+  const todaySessions = useMemo(
+    () =>
+      data.timeEntries
+        .map((entry) => {
+          const sessionBreakHours = data.breakEntries
+            .filter((breakEntry) => breakEntry.time_entry_id === entry.id)
+            .reduce(
+              (total, breakEntry) =>
+                total +
+                getSessionHours(
+                  breakEntry.break_start_at,
+                  breakEntry.break_end_at,
+                  now,
+                ),
+              0,
+            );
+
+          return {
+            ...entry,
+            netHours: Math.max(
+              0,
+              getSessionHours(entry.clock_in_at, entry.clock_out_at, now) -
+                sessionBreakHours,
+            ),
+          };
+        })
+        .sort(
+          (firstEntry, secondEntry) =>
+            new Date(firstEntry.clock_in_at).getTime() -
+            new Date(secondEntry.clock_in_at).getTime(),
+        ),
+    [data.breakEntries, data.timeEntries, now],
   );
 
   function runAction(action: () => Promise<WorkerActionState>) {
@@ -260,7 +322,9 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
                 <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   If you are only going for lunch, press Lunch Pause. If you are
                   finished working today, press End Day. You will enter today&apos;s
-                  units next, and then you will be clocked out.
+                  units next, and then this work session will be clocked out. If
+                  you come back later today, clock in again and it will be saved
+                  as another session for the same day.
                 </p>
               </div>
             </div>
@@ -435,6 +499,53 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
             <p className="mt-4 text-sm text-muted-foreground">
               Lunch today: {getDurationLabel(data.todayBreakHours)}
             </p>
+
+            <div className="mt-5 rounded-md border border-border bg-background p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold">Today&apos;s Sessions</h2>
+                <span className="text-sm font-semibold text-muted-foreground">
+                  Subtotal {getDurationLabel(liveTodayHours)}
+                </span>
+              </div>
+              <div className="mt-3 space-y-2">
+                {todaySessions.length ? (
+                  todaySessions.map((session, index) => (
+                    <div
+                      className="grid grid-cols-[1fr_auto] gap-3 rounded-md border border-border bg-surface px-3 py-2 text-sm"
+                      key={session.id}
+                    >
+                      <div>
+                        <p className="font-semibold">
+                          Session {index + 1}
+                          {!session.clock_out_at ? (
+                            <span className="ml-2 rounded bg-accent/10 px-2 py-0.5 text-xs text-accent">
+                              Active
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="mt-1 text-muted-foreground">
+                          {getSessionTimeLabel(session.clock_in_at, timeDisplayMode)}
+                          {" - "}
+                          {session.clock_out_at
+                            ? getSessionTimeLabel(
+                                session.clock_out_at,
+                                timeDisplayMode,
+                              )
+                            : "Now"}
+                        </p>
+                      </div>
+                      <p className="self-center font-mono font-semibold">
+                        {getDurationLabel(session.netHours)}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
+                    No clock sessions yet today.
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4">
