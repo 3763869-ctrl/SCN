@@ -1,15 +1,17 @@
 import {
   BadgeDollarSign,
-  Clock3,
   FileText,
   HandCoins,
   Handshake,
   PackageCheck,
+  ReceiptText,
+  WalletCards,
   Users,
 } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { StatCard } from "@/components/ui/stat-card";
+import { getFinancialManagementData } from "@/features/admin/financial-data";
 import { getPartnerOperationsData } from "@/features/admin/partner-data";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
@@ -18,63 +20,92 @@ const moneyFormatter = new Intl.NumberFormat("en-US", {
 });
 
 export default async function DashboardPage() {
-  const operations = await getPartnerOperationsData();
+  const [operations, finances] = await Promise.all([
+    getPartnerOperationsData(),
+    getFinancialManagementData(),
+  ]);
   const stats = [
     {
-      title: "Total Partners",
-      value: String(operations.stats.totalPartners),
-      description: "Partner business records",
-      icon: Handshake,
+      title: "Revenue",
+      value: moneyFormatter.format(finances.stats.totalRevenue),
+      description: "Income received in the selected ledger",
+      icon: BadgeDollarSign,
     },
     {
-      title: "Partners Working Today",
-      value: String(operations.stats.partnersWorkingToday),
-      description: "Partners with worker activity today",
-      icon: Clock3,
+      title: "Expenses",
+      value: moneyFormatter.format(finances.stats.totalExpenses),
+      description: "Manual expenses plus paid payroll",
+      icon: ReceiptText,
+    },
+    {
+      title: "Gross Profit",
+      value: moneyFormatter.format(finances.stats.grossProfit),
+      description: "Revenue after worker and Partner payroll",
+      icon: BadgeDollarSign,
+    },
+    {
+      title: "Net Profit",
+      value: moneyFormatter.format(finances.stats.netProfit),
+      description: "Revenue after all tracked costs",
+      icon: BadgeDollarSign,
+    },
+    {
+      title: "Cash Available",
+      value: moneyFormatter.format(finances.stats.cashAvailable),
+      description: "Business cash after estimated tax reserve",
+      icon: WalletCards,
+    },
+    {
+      title: "Outstanding Receivables",
+      value: moneyFormatter.format(finances.stats.outstandingReceivables),
+      description: "Open invoice balances",
+      icon: FileText,
+    },
+    {
+      title: "Payroll Due",
+      value: moneyFormatter.format(
+        finances.stats.payrollDue + finances.stats.partnerPayrollDue,
+      ),
+      description: "Worker and Partner payroll balances",
+      icon: HandCoins,
+    },
+    {
+      title: "Taxes Reserved",
+      value: moneyFormatter.format(finances.stats.taxesReserved),
+      description: "Simple estimated reserve from net profit",
+      icon: BadgeDollarSign,
     },
     {
       title: "Workers Online",
-      value: String(operations.stats.workersOnline),
+      value: String(finances.stats.workersOnline),
       description: "Workers currently clocked in",
       icon: Users,
     },
     {
+      title: "Partners Active",
+      value: String(finances.stats.partnersActive),
+      description: "Active Partner business records",
+      icon: Handshake,
+    },
+    {
       title: "Units Today",
-      value: String(operations.stats.unitsToday),
+      value: String(finances.stats.unitsToday),
       description: "Production units entered today",
       icon: PackageCheck,
     },
     {
       title: "Units This Week",
-      value: String(operations.stats.unitsThisWeek),
-      description: "Sunday through Friday production",
+      value: String(finances.stats.unitsThisWeek),
+      description: "Current week production",
       icon: PackageCheck,
-    },
-    {
-      title: "Outstanding Invoices",
-      value: moneyFormatter.format(operations.stats.outstandingInvoices),
-      description: "Partner invoices not yet paid",
-      icon: FileText,
-    },
-    {
-      title: "Partner Payroll Due",
-      value: moneyFormatter.format(operations.stats.partnerPayrollDue),
-      description: "Flat Partner payroll still open",
-      icon: HandCoins,
-    },
-    {
-      title: "Weekly Profit",
-      value: moneyFormatter.format(operations.stats.weeklyProfit),
-      description: "Current gross profit snapshot",
-      icon: BadgeDollarSign,
     },
   ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Partner Dashboard"
-        description="Business overview by Partner, worker production, invoices, Partner payroll, and profit."
+        title="Executive Dashboard"
+        description="Revenue, expenses, profit, payroll, receivables, Partner activity, and production in one operating view."
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

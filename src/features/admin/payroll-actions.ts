@@ -269,4 +269,7 @@ export async function recordPayrollPayment(formData: FormData) {
 
   revalidatePath("/payroll");
   revalidatePath("/time-tracking");
+  revalidatePath("/expenses");
+  revalidatePath("/reports");
+  revalidatePath("/dashboard");
 }

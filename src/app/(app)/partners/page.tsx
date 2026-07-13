@@ -950,8 +950,9 @@ function FinancialTab({
         ["Total Received", summary.totalReceived],
         ["Worker Payroll", summary.workerPayroll],
         ["Partner Payroll", summary.partnerPayrollOwed],
+        ["Other Assigned Expenses", summary.otherAssignedExpenses],
         ["Gross Profit", summary.grossProfit],
-        ["Net Profit", summary.grossProfit],
+        ["Net Profit", summary.netProfit],
         ["Outstanding Invoices", summary.outstandingInvoices],
         ["Partner Payroll Due", summary.partnerPayrollDue],
       ].map(([label, value]) => (

@@ -983,6 +983,8 @@ export async function recordPartnerPayrollPayment(formData: FormData) {
 
   revalidatePath("/settlements");
   revalidatePath("/partners");
+  revalidatePath("/expenses");
+  revalidatePath("/reports");
   revalidatePath("/dashboard");
 }
 
@@ -1041,7 +1043,7 @@ export async function recordPartnerInvoicePayment(formData: FormData) {
 
   const { data: invoice } = await supabase
     .from("partner_invoices")
-    .select("id, partner_id, invoice_total, balance_remaining")
+    .select("id, partner_id, client_id, invoice_number, invoice_total, balance_remaining")
     .eq("id", invoiceId)
     .single();
 
@@ -1053,15 +1055,41 @@ export async function recordPartnerInvoicePayment(formData: FormData) {
     return;
   }
 
-  await supabase.from("partner_invoice_payments").insert({
+  const paymentMethod = optionalText(formData, "payment_method");
+  const depositAccount = optionalText(formData, "deposit_account");
+  const notes = optionalText(formData, "notes");
+  const { data: payment } = await supabase
+    .from("partner_invoice_payments")
+    .insert({
     amount_received: amountReceived,
     date_received: dateReceived,
-    deposit_account: optionalText(formData, "deposit_account"),
+    deposit_account: depositAccount,
     invoice_id: invoiceId,
-    notes: optionalText(formData, "notes"),
+    notes,
     partner_id: invoice.partner_id,
-    payment_method: optionalText(formData, "payment_method"),
-  });
+    payment_method: paymentMethod,
+  })
+    .select("id")
+    .single();
+
+  if (payment) {
+    await supabase.from("financial_income_records").upsert(
+      {
+        amount: amountReceived,
+        client_id: invoice.client_id,
+        deposit_account: depositAccount,
+        income_date: dateReceived,
+        invoice_id: invoiceId,
+        invoice_number: invoice.invoice_number,
+        invoice_payment_id: payment.id,
+        notes,
+        partner_id: invoice.partner_id,
+        payment_method: paymentMethod,
+        source: "invoice_payment",
+      },
+      { onConflict: "invoice_payment_id" },
+    );
+  }
 
   const { data: payments } = await supabase
     .from("partner_invoice_payments")
@@ -1085,6 +1113,8 @@ export async function recordPartnerInvoicePayment(formData: FormData) {
 
   revalidatePath("/partners");
   revalidatePath("/invoices");
+  revalidatePath("/income");
+  revalidatePath("/reports");
   revalidatePath("/dashboard");
 }
 

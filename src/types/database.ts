@@ -22,6 +22,19 @@ export type PartnerSettlementStatus =
   | "transferred"
   | "waived"
   | "cancelled";
+export type FinancialIncomeSource = "invoice_payment" | "manual";
+export type FinancialExpenseCategory =
+  | "payroll"
+  | "office_expenses"
+  | "software"
+  | "banking_payment_fees"
+  | "professional_services"
+  | "taxes_government";
+export type FinancialRecurringFrequency =
+  | "weekly"
+  | "monthly"
+  | "quarterly"
+  | "yearly";
 
 export type Database = {
   public: {
@@ -699,6 +712,176 @@ export type Database = {
             columns: ["partner_id"];
             isOneToOne: false;
             referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      financial_income_records: {
+        Row: {
+          id: string;
+          source: FinancialIncomeSource;
+          partner_id: string | null;
+          client_id: string | null;
+          invoice_id: string | null;
+          invoice_payment_id: string | null;
+          invoice_number: string | null;
+          income_date: string;
+          amount: number;
+          payment_method: string | null;
+          deposit_account: string | null;
+          notes: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          source?: FinancialIncomeSource;
+          partner_id?: string | null;
+          client_id?: string | null;
+          invoice_id?: string | null;
+          invoice_payment_id?: string | null;
+          invoice_number?: string | null;
+          income_date?: string;
+          amount: number;
+          payment_method?: string | null;
+          deposit_account?: string | null;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          source?: FinancialIncomeSource;
+          partner_id?: string | null;
+          client_id?: string | null;
+          invoice_id?: string | null;
+          invoice_payment_id?: string | null;
+          invoice_number?: string | null;
+          income_date?: string;
+          amount?: number;
+          payment_method?: string | null;
+          deposit_account?: string | null;
+          notes?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "financial_income_records_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_income_records_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_income_records_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_invoices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_income_records_invoice_payment_id_fkey";
+            columns: ["invoice_payment_id"];
+            isOneToOne: true;
+            referencedRelation: "partner_invoice_payments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      financial_expenses: {
+        Row: {
+          id: string;
+          expense_date: string;
+          vendor: string;
+          category: FinancialExpenseCategory;
+          subcategory: string | null;
+          description: string;
+          amount: number;
+          payment_method: string | null;
+          paid_from_account: string | null;
+          partner_id: string | null;
+          worker_id: string | null;
+          receipt_file_name: string | null;
+          receipt_storage_path: string | null;
+          tax_deductible: boolean;
+          notes: string | null;
+          recurring: boolean;
+          recurring_frequency: FinancialRecurringFrequency | null;
+          recurring_next_date: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          expense_date?: string;
+          vendor: string;
+          category: FinancialExpenseCategory;
+          subcategory?: string | null;
+          description: string;
+          amount: number;
+          payment_method?: string | null;
+          paid_from_account?: string | null;
+          partner_id?: string | null;
+          worker_id?: string | null;
+          receipt_file_name?: string | null;
+          receipt_storage_path?: string | null;
+          tax_deductible?: boolean;
+          notes?: string | null;
+          recurring?: boolean;
+          recurring_frequency?: FinancialRecurringFrequency | null;
+          recurring_next_date?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          expense_date?: string;
+          vendor?: string;
+          category?: FinancialExpenseCategory;
+          subcategory?: string | null;
+          description?: string;
+          amount?: number;
+          payment_method?: string | null;
+          paid_from_account?: string | null;
+          partner_id?: string | null;
+          worker_id?: string | null;
+          receipt_file_name?: string | null;
+          receipt_storage_path?: string | null;
+          tax_deductible?: boolean;
+          notes?: string | null;
+          recurring?: boolean;
+          recurring_frequency?: FinancialRecurringFrequency | null;
+          recurring_next_date?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "financial_expenses_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_expenses_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
             referencedColumns: ["id"];
           },
         ];

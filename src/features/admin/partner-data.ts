@@ -43,6 +43,7 @@ export async function getPartnerOperationsData() {
     { data: invoices },
     { data: invoiceLines },
     { data: invoicePayments },
+    { data: financialExpenses },
     { data: settlements },
     { data: documents },
   ] = await Promise.all([
@@ -122,6 +123,9 @@ export async function getPartnerOperationsData() {
       )
       .order("date_received", { ascending: false }),
     supabase
+      .from("financial_expenses")
+      .select("id, partner_id, amount, category, expense_date"),
+    supabase
       .from("partner_settlements")
       .select(
         "id, partner_id, invoice_id, amount_received_by_partner, amount_partner_keeps, amount_transferred_to_scn, transfer_status, transfer_date, notes",
@@ -146,6 +150,7 @@ export async function getPartnerOperationsData() {
   const invoiceList = invoices ?? [];
   const invoiceLineList = invoiceLines ?? [];
   const paymentList = invoicePayments ?? [];
+  const expenseList = financialExpenses ?? [];
   const settlementList = settlements ?? [];
   const workerMap = new Map(workerList.map((worker) => [worker.id, worker] as const));
   const clientMap = new Map((clients ?? []).map((client) => [client.id, client] as const));
@@ -183,6 +188,9 @@ export async function getPartnerOperationsData() {
     const partnerPayrollsForPartner = partnerPayrollList.filter(
       (payroll) => payroll.partner_id === partner.id,
     );
+    const otherAssignedExpenses = expenseList
+      .filter((expense) => expense.partner_id === partner.id)
+      .reduce((total, expense) => total + Number(expense.amount), 0);
     const workerPayrolls = payrollList.filter((payroll) => payroll.worker_id === workerId);
     const totalInvoiced = partnerInvoices.reduce(
       (total, invoice) => total + Number(invoice.invoice_total),
@@ -249,10 +257,12 @@ export async function getPartnerOperationsData() {
       lifetimeUnits,
       outstandingInvoices,
       outstandingSettlements,
+      otherAssignedExpenses,
       partner,
       billingSettings: billingSettingsMap.get(partner.id),
       partnerPaySettings: partnerPaySettingsMap.get(partner.id),
       partnerCompensation,
+      netProfit: totalReceived - workerPayroll - partnerPayrollOwed - otherAssignedExpenses,
       partnerPayrollDue,
       partnerPayrollOwed,
       partnerPayrolls: partnerPayrollsForPartner,

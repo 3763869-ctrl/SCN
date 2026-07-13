@@ -7,7 +7,9 @@ import {
   HandCoins,
   Handshake,
   LayoutDashboard,
+  ReceiptText,
   Settings,
+  WalletCards,
   Users,
 } from "lucide-react";
 
@@ -18,6 +20,8 @@ export const navigationItems = [
   { label: "Time Tracking", href: "/time-tracking", icon: Clock3 },
   { label: "Payroll", href: "/payroll", icon: HandCoins },
   { label: "Invoices", href: "/invoices", icon: FileText },
+  { label: "Income", href: "/income", icon: WalletCards },
+  { label: "Expenses", href: "/expenses", icon: ReceiptText },
   { label: "Partner Payroll", href: "/settlements", icon: HandCoins },
   { label: "Reports", href: "/reports", icon: FileChartColumn },
   { label: "Documents", href: "/documents", icon: Folder },
