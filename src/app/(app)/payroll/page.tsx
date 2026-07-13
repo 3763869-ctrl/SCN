@@ -1,7 +1,10 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { getProfileLabel } from "@/features/admin/data";
-import { recordPayrollPayment } from "@/features/admin/payroll-actions";
+import {
+  recordPayrollPayment,
+  updatePayrollPayment,
+} from "@/features/admin/payroll-actions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { WorkerPayrollStatus } from "@/types/database";
 
@@ -40,6 +43,64 @@ function getStatusStyles(status: WorkerPayrollStatus) {
 
 function getDateLabel(value: string) {
   return displayDateFormatter.format(new Date(`${value}T00:00:00`));
+}
+
+function PaymentHistoryEditor({ payment }: { payment: PaymentRecord }) {
+  return (
+    <details className="rounded-md border border-border bg-surface">
+      <summary className="grid cursor-pointer list-none gap-3 px-3 py-2 sm:grid-cols-[1fr_auto_auto] sm:items-center">
+        <span>
+          {getDateLabel(payment.paid_at)}
+          {payment.notes ? ` - ${payment.notes}` : ""}
+        </span>
+        <span className="font-semibold text-foreground">
+          {moneyFormatter.format(Number(payment.amount))}
+        </span>
+        <span className="text-xs font-semibold text-accent">Edit</span>
+      </summary>
+      <form
+        action={updatePayrollPayment}
+        className="grid gap-3 border-t border-border bg-background p-3 md:grid-cols-[140px_150px_1fr_auto]"
+      >
+        <input name="payment_id" type="hidden" value={payment.id} />
+        <label className="text-sm font-medium">
+          Amount
+          <input
+            className="mt-2 h-10 w-full rounded-md border border-border bg-surface px-3"
+            defaultValue={Number(payment.amount)}
+            min="0.01"
+            name="amount"
+            required
+            step="0.01"
+            type="number"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Date
+          <input
+            className="mt-2 h-10 w-full rounded-md border border-border bg-surface px-3"
+            defaultValue={payment.paid_at}
+            name="paid_at"
+            required
+            type="date"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Note
+          <input
+            className="mt-2 h-10 w-full rounded-md border border-border bg-surface px-3"
+            defaultValue={payment.notes ?? ""}
+            name="notes"
+            placeholder="Check, cash, memo..."
+            type="text"
+          />
+        </label>
+        <Button className="mt-7 h-10" type="submit">
+          Save
+        </Button>
+      </form>
+    </details>
+  );
 }
 
 type PayrollRecord = {
@@ -160,18 +221,7 @@ function PayrollCard({
           <div className="mt-3 space-y-2 text-sm text-muted-foreground">
             {payments.length ? (
               payments.map((payment) => (
-                <div
-                  className="flex justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0"
-                  key={payment.id}
-                >
-                  <span>
-                    {getDateLabel(payment.paid_at)}
-                    {payment.notes ? ` - ${payment.notes}` : ""}
-                  </span>
-                  <span className="font-semibold text-foreground">
-                    {moneyFormatter.format(Number(payment.amount))}
-                  </span>
-                </div>
+                <PaymentHistoryEditor key={payment.id} payment={payment} />
               ))
             ) : (
               <p>No payments recorded yet.</p>
@@ -295,18 +345,7 @@ function PaidHistoryRow({
           <div className="mt-3 space-y-2 text-sm text-muted-foreground">
             {payments.length ? (
               payments.map((payment) => (
-                <div
-                  className="flex justify-between gap-3 border-b border-border pb-2 last:border-0 last:pb-0"
-                  key={payment.id}
-                >
-                  <span>
-                    {getDateLabel(payment.paid_at)}
-                    {payment.notes ? ` - ${payment.notes}` : ""}
-                  </span>
-                  <span className="font-semibold text-foreground">
-                    {moneyFormatter.format(Number(payment.amount))}
-                  </span>
-                </div>
+                <PaymentHistoryEditor key={payment.id} payment={payment} />
               ))
             ) : (
               <p>No payment details found.</p>

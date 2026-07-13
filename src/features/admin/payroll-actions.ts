@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireAdminProfile } from "@/features/auth/session";
 import { getBreakHours, getHoursBetween } from "@/features/worker/metrics";
@@ -37,6 +38,36 @@ function getPayrollStatus(totalOwed: number, totalPaid: number): WorkerPayrollSt
   }
 
   return "due";
+}
+
+async function refreshPayrollPaymentTotals(payrollId: string) {
+  const supabase = await createSupabaseServerClient();
+  const [{ data: payroll }, { data: payments }] = await Promise.all([
+    supabase
+      .from("worker_payrolls")
+      .select("total_owed")
+      .eq("id", payrollId)
+      .single(),
+    supabase
+      .from("payroll_payments")
+      .select("amount")
+      .eq("payroll_id", payrollId),
+  ]);
+
+  const totalOwed = Number(payroll?.total_owed ?? 0);
+  const totalPaid = (payments ?? []).reduce(
+    (total, payment) => total + Number(payment.amount),
+    0,
+  );
+
+  await supabase
+    .from("worker_payrolls")
+    .update({
+      balance_remaining: Math.max(0, totalOwed - totalPaid),
+      status: getPayrollStatus(totalOwed, totalPaid),
+      total_paid: totalPaid,
+    })
+    .eq("id", payrollId);
 }
 
 async function calculateWeeklyPayroll(workerId: string, weekStartValue: string) {
@@ -240,36 +271,53 @@ export async function recordPayrollPayment(formData: FormData) {
     worker_id: workerId,
   });
 
-  const [{ data: payroll }, { data: payments }] = await Promise.all([
-    supabase
-      .from("worker_payrolls")
-      .select("total_owed")
-      .eq("id", payrollId)
-      .single(),
-    supabase
-      .from("payroll_payments")
-      .select("amount")
-      .eq("payroll_id", payrollId),
-  ]);
-
-  const totalOwed = Number(payroll?.total_owed ?? 0);
-  const totalPaid = (payments ?? []).reduce(
-    (total, payment) => total + Number(payment.amount),
-    0,
-  );
-
-  await supabase
-    .from("worker_payrolls")
-    .update({
-      balance_remaining: Math.max(0, totalOwed - totalPaid),
-      status: getPayrollStatus(totalOwed, totalPaid),
-      total_paid: totalPaid,
-    })
-    .eq("id", payrollId);
+  await refreshPayrollPaymentTotals(payrollId);
 
   revalidatePath("/payroll");
   revalidatePath("/time-tracking");
   revalidatePath("/expenses");
   revalidatePath("/reports");
   revalidatePath("/dashboard");
+}
+
+export async function updatePayrollPayment(formData: FormData) {
+  await requireAdminProfile();
+
+  const paymentId = String(formData.get("payment_id") ?? "");
+  const amount = Number(formData.get("amount") ?? 0);
+  const paidAt = String(formData.get("paid_at") ?? "");
+  const notes = String(formData.get("notes") ?? "").trim();
+
+  if (!paymentId || !Number.isFinite(amount) || amount <= 0 || !paidAt) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: payment } = await supabase
+    .from("payroll_payments")
+    .select("payroll_id")
+    .eq("id", paymentId)
+    .single();
+
+  if (!payment) {
+    return;
+  }
+
+  await supabase
+    .from("payroll_payments")
+    .update({
+      amount,
+      notes: notes || null,
+      paid_at: paidAt,
+    })
+    .eq("id", paymentId);
+
+  await refreshPayrollPaymentTotals(payment.payroll_id);
+
+  revalidatePath("/payroll");
+  revalidatePath("/time-tracking");
+  revalidatePath("/expenses");
+  revalidatePath("/reports");
+  revalidatePath("/dashboard");
+  redirect("/payroll");
 }
