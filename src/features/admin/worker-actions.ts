@@ -42,6 +42,21 @@ function getWorkerDetailsPayload(formData: FormData, workerId: string) {
   };
 }
 
+function getWorkerOnboardingDetailsPayload(formData: FormData, workerId: string) {
+  return {
+    address_line1: getOptionalText(formData, "address_line1"),
+    city: getOptionalText(formData, "city"),
+    country: getOptionalText(formData, "country"),
+    date_of_birth: getOptionalText(formData, "date_of_birth"),
+    phone_number: getOptionalText(formData, "phone_number"),
+    secondary_contact_name: getOptionalText(formData, "secondary_contact_name"),
+    secondary_contact_phone: getOptionalText(formData, "secondary_contact_phone"),
+    state: getOptionalText(formData, "state"),
+    worker_id: workerId,
+    zip_code: getOptionalText(formData, "zip_code"),
+  };
+}
+
 export async function updateWorkerProfile(formData: FormData) {
   await requireAdminProfile();
 
@@ -123,7 +138,7 @@ export async function submitWorkerOnboarding(formData: FormData) {
 
   await adminSupabase
     .from("worker_details")
-    .upsert(getWorkerDetailsPayload(formData, link.worker_id));
+    .upsert(getWorkerOnboardingDetailsPayload(formData, link.worker_id));
   await adminSupabase
     .from("worker_onboarding_links")
     .update({ completed_at: new Date().toISOString() })

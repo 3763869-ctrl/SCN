@@ -583,7 +583,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                           .join(", ") || "Not recorded",
                       ],
                       [
-                        "2nd Contact",
+                        "Emergency Contact",
                         [
                           selectedDetails?.secondary_contact_name,
                           selectedDetails?.secondary_contact_phone,
@@ -694,7 +694,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                       />
                     </label>
                     <label className="text-sm font-medium">
-                      2nd Contact Name
+                      Emergency Contact Name
                       <input
                         className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
                         defaultValue={selectedDetails?.secondary_contact_name ?? ""}
@@ -703,7 +703,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                       />
                     </label>
                     <label className="text-sm font-medium">
-                      2nd Contact Phone
+                      Emergency Contact Phone
                       <input
                         className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
                         defaultValue={selectedDetails?.secondary_contact_phone ?? ""}
@@ -891,8 +891,8 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                         </h4>
                         <p className="mt-2 text-sm leading-6 text-muted-foreground">
                           Share a private link so the worker can fill in contact,
-                          address, date of birth, hiring source, and referral info.
-                          Start date stays admin-only.
+                          address, date of birth, and emergency contact info.
+                          Start date and hiring source stay admin-only.
                         </p>
                       </div>
                       <form action={createWorkerOnboardingLink}>

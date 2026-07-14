@@ -73,7 +73,7 @@ export default async function WorkerOnboardingPage({
     supabase
       .from("worker_details")
       .select(
-        "phone_number, date_of_birth, address_line1, city, state, country, zip_code, secondary_contact_name, secondary_contact_phone, hiring_source, referral_name",
+        "phone_number, date_of_birth, address_line1, city, state, country, zip_code, secondary_contact_name, secondary_contact_phone",
       )
       .eq("worker_id", link.worker_id)
       .maybeSingle(),
@@ -89,7 +89,7 @@ export default async function WorkerOnboardingPage({
         <h1 className="mt-2 text-2xl font-semibold">Worker Information</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
           {profile?.full_name || profile?.email || "Worker"}, please complete your
-          contact and hiring information.
+          contact and emergency contact information.
         </p>
 
         <form action={submitWorkerOnboarding} className="mt-6 grid gap-4 md:grid-cols-2">
@@ -161,7 +161,7 @@ export default async function WorkerOnboardingPage({
             />
           </label>
           <label className="text-sm font-medium">
-            2nd Contact Name
+            Emergency Contact Name
             <input
               className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
               defaultValue={details?.secondary_contact_name ?? ""}
@@ -170,38 +170,12 @@ export default async function WorkerOnboardingPage({
             />
           </label>
           <label className="text-sm font-medium">
-            2nd Contact Phone
+            Emergency Contact Phone
             <input
               className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
               defaultValue={details?.secondary_contact_phone ?? ""}
               name="secondary_contact_phone"
               type="tel"
-            />
-          </label>
-          <label className="text-sm font-medium">
-            Hiring Source
-            <select
-              className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
-              defaultValue={details?.hiring_source ?? ""}
-              name="hiring_source"
-            >
-              <option value="">Not recorded</option>
-              <option value="Referral">Referral</option>
-              <option value="Indeed">Indeed</option>
-              <option value="Walk-in">Walk-in</option>
-              <option value="Agency">Agency</option>
-              <option value="Friend / Family">Friend / Family</option>
-              <option value="Returning worker">Returning worker</option>
-              <option value="Other">Other</option>
-            </select>
-          </label>
-          <label className="text-sm font-medium">
-            Referral Name
-            <input
-              className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm"
-              defaultValue={details?.referral_name ?? ""}
-              name="referral_name"
-              type="text"
             />
           </label>
           <div className="md:col-span-2">
