@@ -2,6 +2,7 @@ import { Building2, Pencil, Plus } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { SaveSubmitButton } from "@/components/ui/save-submit-button";
 import { createClient, updateClient } from "@/features/admin/client-actions";
 import { getStatusLabel } from "@/features/admin/partner-data";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -171,9 +172,9 @@ export default async function ClientsPage() {
                     </select>
                   </label>
                   <div className="space-y-2">
-                    <Button className="h-11 w-full" type="submit">
+                    <SaveSubmitButton className="h-11 w-full" successMessage="Client saved.">
                       Save Changes
-                    </Button>
+                    </SaveSubmitButton>
                     <p className="text-xs text-muted-foreground">
                       Updated {dateFormatter.format(new Date(client.updated_at))}
                     </p>

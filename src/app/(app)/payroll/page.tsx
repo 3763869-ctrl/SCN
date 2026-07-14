@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
+import { SaveSubmitButton } from "@/components/ui/save-submit-button";
 import { getProfileLabel } from "@/features/admin/data";
 import {
   recordPayrollPayment,
@@ -95,9 +96,9 @@ function PaymentHistoryEditor({ payment }: { payment: PaymentRecord }) {
             type="text"
           />
         </label>
-        <Button className="mt-7 h-10" type="submit">
+        <SaveSubmitButton className="mt-7 h-10" successMessage="Payroll payment saved.">
           Save
-        </Button>
+        </SaveSubmitButton>
       </form>
     </details>
   );

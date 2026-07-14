@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { SaveSubmitButton } from "@/components/ui/save-submit-button";
 import {
   assignPartnerWorker,
   createPartner,
@@ -318,9 +319,9 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                       name="start_date"
                       type="date"
                     />
-                    <Button className="h-10" type="submit">
+                    <SaveSubmitButton className="h-10" successMessage="Partner saved.">
                       Save Partner
-                    </Button>
+                    </SaveSubmitButton>
                     <textarea
                       className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm sm:col-span-2"
                       defaultValue={selectedPartner.notes ?? ""}
@@ -603,7 +604,9 @@ function InvoicesTab({
             placeholder="Billing notes"
           />
           <div className="flex justify-end">
-            <Button type="submit">Save Billing</Button>
+            <SaveSubmitButton successMessage="Billing settings saved.">
+              Save Billing
+            </SaveSubmitButton>
           </div>
         </form>
       </div>
@@ -892,7 +895,9 @@ function PartnerPayrollTab({
             />
           </label>
           <div className="md:col-span-2 xl:col-span-5">
-            <Button type="submit">Save Partner Pay Rule</Button>
+            <SaveSubmitButton successMessage="Partner pay rule saved.">
+              Save Partner Pay Rule
+            </SaveSubmitButton>
           </div>
         </form>
       </div>

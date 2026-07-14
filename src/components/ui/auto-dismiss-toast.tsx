@@ -26,13 +26,15 @@ export function AutoDismissToast({
     const timeout = window.setTimeout(() => {
       setVisible(false);
 
-      const nextParams = new URLSearchParams(searchParams.toString());
-      paramsToClear.forEach((param) => nextParams.delete(param));
-      const nextQuery = nextParams.toString();
+      if (paramsToClear.length > 0) {
+        const nextParams = new URLSearchParams(searchParams.toString());
+        paramsToClear.forEach((param) => nextParams.delete(param));
+        const nextQuery = nextParams.toString();
 
-      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
-        scroll: false,
-      });
+        router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, {
+          scroll: false,
+        });
+      }
     }, dismissAfterMs);
 
     return () => window.clearTimeout(timeout);

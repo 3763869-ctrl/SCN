@@ -4,6 +4,7 @@ import { Download, Search } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { PrintButton } from "@/components/ui/print-button";
 import { Button } from "@/components/ui/button";
+import { SaveSubmitButton } from "@/components/ui/save-submit-button";
 import { createManualIncome, updateIncome } from "@/features/admin/financial-actions";
 import { getFinancialManagementData } from "@/features/admin/financial-data";
 
@@ -182,9 +183,9 @@ export default async function IncomePage({ searchParams }: IncomePageProps) {
               name="notes"
               placeholder="Notes"
             />
-            <Button className="md:col-span-4" type="submit">
+            <SaveSubmitButton className="md:col-span-4" successMessage="Manual income saved.">
               Save Manual Income
-            </Button>
+            </SaveSubmitButton>
           </form>
         </details>
       </section>
@@ -393,9 +394,9 @@ export default async function IncomePage({ searchParams }: IncomePageProps) {
                             name="notes"
                           />
                         </label>
-                        <Button className="mt-5" type="submit">
+                        <SaveSubmitButton className="mt-5" successMessage="Income changes saved.">
                           Save Changes
-                        </Button>
+                        </SaveSubmitButton>
                       </form>
                     </details>
                   </td>

@@ -3,6 +3,7 @@ import { Download, Search } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { PrintButton } from "@/components/ui/print-button";
+import { SaveSubmitButton } from "@/components/ui/save-submit-button";
 import { createExpense, updateExpense } from "@/features/admin/financial-actions";
 import {
   expenseCategoryLabels,
@@ -260,7 +261,9 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
               name="notes"
               placeholder="Notes"
             />
-            <Button type="submit">Save Expense</Button>
+            <SaveSubmitButton successMessage="Expense saved.">
+              Save Expense
+            </SaveSubmitButton>
           </form>
         </details>
       </section>
@@ -550,9 +553,9 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
                             name="notes"
                           />
                         </label>
-                        <Button className="mt-5" type="submit">
+                        <SaveSubmitButton className="mt-5" successMessage="Expense changes saved.">
                           Save Changes
-                        </Button>
+                        </SaveSubmitButton>
                       </form>
                     </details>
                   </td>

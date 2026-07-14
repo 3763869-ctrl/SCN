@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { AutoDismissToast } from "@/components/ui/auto-dismiss-toast";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { SaveSubmitButton } from "@/components/ui/save-submit-button";
 import { getProfileLabel } from "@/features/admin/data";
 import {
   completeTimesheetWeek,
@@ -609,15 +610,15 @@ export default async function TimeTrackingPage({
                             {moneyFormatter.format(row.totalHours * hourlyRate)}
                           </span>
                           <div className="grid grid-cols-2 gap-2">
-                            <Button
+                            <SaveSubmitButton
                               className="h-10 px-3"
                               disabled={isWeekLocked}
                               name="action"
-                              type="submit"
+                              successMessage="Timesheet day saved."
                               value="save"
                             >
                               Save
-                            </Button>
+                            </SaveSubmitButton>
                             <ConfirmSubmitButton
                               className="h-10 px-3"
                               confirmLabel="Clear Day"

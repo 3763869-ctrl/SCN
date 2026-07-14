@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { SaveSubmitButton } from "@/components/ui/save-submit-button";
 import { getProfileLabel } from "@/features/admin/data";
 import {
   addBonusTier,
@@ -492,9 +493,13 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                       <option value="true">Active</option>
                       <option value="false">Inactive</option>
                     </select>
-                    <Button className="h-10 px-4" type="submit" variant="secondary">
+                    <SaveSubmitButton
+                      className="h-10 px-4"
+                      successMessage="Worker profile saved."
+                      variant="secondary"
+                    >
                       Save
-                    </Button>
+                    </SaveSubmitButton>
                   </form>
                 </details>
               </div>
@@ -747,9 +752,9 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                       />
                     </label>
                     <div className="md:col-span-2">
-                      <Button className="h-10" type="submit">
+                      <SaveSubmitButton className="h-10" successMessage="Worker details saved.">
                         Save Worker Details
-                      </Button>
+                      </SaveSubmitButton>
                     </div>
                     </form>
                   </details>
@@ -840,9 +845,12 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                         />
                       </label>
                       <div className="flex items-end">
-                        <Button className="h-10 w-full" type="submit">
+                        <SaveSubmitButton
+                          className="h-10 w-full"
+                          successMessage="Worker pay settings saved."
+                        >
                           Save Settings
-                        </Button>
+                        </SaveSubmitButton>
                       </div>
                     </form>
                   </details>
@@ -1126,9 +1134,12 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                           />
                           {tier.worker_id ? (
                             <div className="flex justify-end gap-2">
-                              <Button className="h-10 px-3" type="submit">
+                              <SaveSubmitButton
+                                className="h-10 px-3"
+                                successMessage="Bonus tier saved."
+                              >
                                 Save
-                              </Button>
+                              </SaveSubmitButton>
                             </div>
                           ) : (
                             <p className="text-xs text-muted-foreground">
@@ -1259,9 +1270,12 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                             <option value="true">Signed / Complete</option>
                             <option value="false">Not signed yet</option>
                           </select>
-                          <Button className="h-10 px-3" type="submit">
+                          <SaveSubmitButton
+                            className="h-10 px-3"
+                            successMessage="Worker file saved."
+                          >
                             Save
-                          </Button>
+                          </SaveSubmitButton>
                           <textarea
                             className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm md:col-span-3"
                             defaultValue={file.notes ?? ""}

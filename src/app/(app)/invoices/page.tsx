@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { SaveSubmitButton } from "@/components/ui/save-submit-button";
 import {
   addPartnerInvoiceLine,
   deletePartnerInvoice,
@@ -226,38 +227,61 @@ export default async function InvoicesPage() {
                                   {line.source === "manual" ? "Manual line" : "Generated line"}
                                 </p>
                               </div>
-                              <input
-                                className="h-9 rounded-md border border-border bg-background px-3 text-sm"
-                                defaultValue={line.work_date ?? ""}
-                                name="work_date"
-                                type="date"
-                              />
-                              <input
-                                className="h-9 rounded-md border border-border bg-background px-3 text-sm"
-                                defaultValue={line.units}
-                                min="0"
-                                name="units"
-                                type="number"
-                              />
-                              <input
-                                className="h-9 rounded-md border border-border bg-background px-3 text-sm"
-                                defaultValue={Number(line.rate_per_unit)}
-                                min="0"
-                                name="rate_per_unit"
-                                step="0.01"
-                                type="number"
-                              />
-                              <input
-                                className="h-9 rounded-md border border-border bg-background px-3 text-sm"
-                                defaultValue={Number(line.line_total)}
-                                min="0"
-                                name="line_total"
-                                step="0.01"
-                                type="number"
-                              />
-                              <Button className="h-9 px-3" type="submit">
+                              <label className="space-y-1">
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  Date
+                                </span>
+                                <input
+                                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+                                  defaultValue={line.work_date ?? ""}
+                                  name="work_date"
+                                  type="date"
+                                />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  Units
+                                </span>
+                                <input
+                                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+                                  defaultValue={line.units}
+                                  min="0"
+                                  name="units"
+                                  type="number"
+                                />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  Rate
+                                </span>
+                                <input
+                                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+                                  defaultValue={Number(line.rate_per_unit)}
+                                  min="0"
+                                  name="rate_per_unit"
+                                  step="0.01"
+                                  type="number"
+                                />
+                              </label>
+                              <label className="space-y-1">
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  Total
+                                </span>
+                                <input
+                                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+                                  defaultValue={Number(line.line_total)}
+                                  min="0"
+                                  name="line_total"
+                                  step="0.01"
+                                  type="number"
+                                />
+                              </label>
+                              <SaveSubmitButton
+                                className="h-9 px-3"
+                                successMessage="Invoice line saved."
+                              >
                                 Save
-                              </Button>
+                              </SaveSubmitButton>
                             </form>
                             ) : (
                               <div className="grid gap-2 lg:grid-cols-[1.3fr_120px_90px_100px_110px_auto]">
