@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { writeAdminAuditEvent } from "@/features/admin/audit";
 import { requireAdminProfile } from "@/features/auth/session";
 import { getBreakHours, getHoursBetween } from "@/features/worker/metrics";
 import {
@@ -272,6 +273,14 @@ export async function recordPayrollPayment(formData: FormData) {
   });
 
   await refreshPayrollPaymentTotals(payrollId);
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: payrollId,
+    entityType: "worker_payroll",
+    eventType: "worker_payroll.payment.record",
+    metadata: { amount, workerId },
+    summary: `Recorded worker payroll payment for $${amount.toFixed(2)}`,
+  });
 
   revalidatePath("/payroll");
   revalidatePath("/time-tracking");
@@ -281,7 +290,7 @@ export async function recordPayrollPayment(formData: FormData) {
 }
 
 export async function updatePayrollPayment(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const paymentId = String(formData.get("payment_id") ?? "");
   const amount = Number(formData.get("amount") ?? 0);
@@ -313,6 +322,14 @@ export async function updatePayrollPayment(formData: FormData) {
     .eq("id", paymentId);
 
   await refreshPayrollPaymentTotals(payment.payroll_id);
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: paymentId,
+    entityType: "payroll_payment",
+    eventType: "worker_payroll.payment.update",
+    metadata: { amount },
+    summary: `Updated worker payroll payment to $${amount.toFixed(2)}`,
+  });
 
   revalidatePath("/payroll");
   revalidatePath("/time-tracking");

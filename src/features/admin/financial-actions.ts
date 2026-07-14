@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { writeAdminAuditEvent } from "@/features/admin/audit";
 import { requireAdminProfile } from "@/features/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
@@ -50,7 +51,9 @@ export async function createManualIncome(formData: FormData) {
 
   const supabase = await createSupabaseServerClient();
 
-  await supabase.from("financial_income_records").insert({
+  const { data: income } = await supabase
+    .from("financial_income_records")
+    .insert({
     amount,
     client_id: optionalText(formData, "client_id"),
     created_by: admin.id,
@@ -61,14 +64,27 @@ export async function createManualIncome(formData: FormData) {
     partner_id: optionalText(formData, "partner_id"),
     payment_method: optionalText(formData, "payment_method"),
     source: "manual",
-  });
+    })
+    .select("id")
+    .single();
+
+  if (income) {
+    await writeAdminAuditEvent({
+      actorId: admin.id,
+      entityId: income.id,
+      entityType: "income",
+      eventType: "income.create",
+      metadata: { amount },
+      summary: `Created manual income for $${amount.toFixed(2)}`,
+    });
+  }
 
   revalidateFinancialPages();
   redirectAfterSave(formData, "/income");
 }
 
 export async function updateIncome(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
   const incomeId = String(formData.get("income_id") ?? "");
   const amount = moneyValue(formData, "amount");
 
@@ -91,6 +107,15 @@ export async function updateIncome(formData: FormData) {
       payment_method: optionalText(formData, "payment_method"),
     })
     .eq("id", incomeId);
+
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: incomeId,
+    entityType: "income",
+    eventType: "income.update",
+    metadata: { amount },
+    summary: `Updated income record to $${amount.toFixed(2)}`,
+  });
 
   revalidateFinancialPages();
   redirectAfterSave(formData, "/income");
@@ -129,7 +154,9 @@ export async function createExpense(formData: FormData) {
     }
   }
 
-  await supabase.from("financial_expenses").insert({
+  const { data: expense } = await supabase
+    .from("financial_expenses")
+    .insert({
     amount,
     category: String(formData.get("category") ?? "office_expenses") as FinancialExpenseCategory,
     created_by: admin.id,
@@ -150,7 +177,20 @@ export async function createExpense(formData: FormData) {
     tax_deductible: formData.get("tax_deductible") === "on",
     vendor,
     worker_id: optionalText(formData, "worker_id"),
-  });
+    })
+    .select("id")
+    .single();
+
+  if (expense) {
+    await writeAdminAuditEvent({
+      actorId: admin.id,
+      entityId: expense.id,
+      entityType: "expense",
+      eventType: "expense.create",
+      metadata: { amount, vendor },
+      summary: `Created expense for ${vendor} at $${amount.toFixed(2)}`,
+    });
+  }
 
   revalidateFinancialPages();
   redirectAfterSave(formData, "/expenses");
@@ -227,6 +267,15 @@ export async function updateExpense(formData: FormData) {
     .from("financial_expenses")
     .update(updates)
     .eq("id", expenseId);
+
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: expenseId,
+    entityType: "expense",
+    eventType: "expense.update",
+    metadata: { amount, vendor },
+    summary: `Updated expense for ${vendor} to $${amount.toFixed(2)}`,
+  });
 
   revalidateFinancialPages();
   redirectAfterSave(formData, "/expenses");

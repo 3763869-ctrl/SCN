@@ -4,6 +4,7 @@ import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { writeAdminAuditEvent } from "@/features/admin/audit";
 import { requireAdminProfile, requireProfile } from "@/features/auth/session";
 import {
   addDaysToDateKey,
@@ -58,7 +59,7 @@ function getWorkerOnboardingDetailsPayload(formData: FormData, workerId: string)
 }
 
 export async function updateWorkerProfile(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const id = String(formData.get("id") ?? "");
   const role = String(formData.get("role") ?? "") as AppRole;
@@ -71,12 +72,20 @@ export async function updateWorkerProfile(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   await supabase.from("profiles").update({ role, active }).eq("id", id);
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: id,
+    entityType: "worker",
+    eventType: "worker.profile.update",
+    metadata: { active, role },
+    summary: "Updated worker profile access settings",
+  });
 
   revalidatePath("/workers");
 }
 
 export async function updateWorkerDetails(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const workerId = String(formData.get("worker_id") ?? "");
 
@@ -87,6 +96,13 @@ export async function updateWorkerDetails(formData: FormData) {
   const supabase = await createSupabaseServerClient();
 
   await supabase.from("worker_details").upsert(getWorkerDetailsPayload(formData, workerId));
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: workerId,
+    entityType: "worker",
+    eventType: "worker.details.update",
+    summary: "Updated worker details",
+  });
 
   revalidatePath("/workers");
 }
@@ -109,6 +125,13 @@ export async function createWorkerOnboardingLink(formData: FormData) {
     expires_at: expiresAt.toISOString(),
     token,
     worker_id: workerId,
+  });
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: workerId,
+    entityType: "worker",
+    eventType: "worker.onboarding_link.create",
+    summary: "Created worker onboarding link",
   });
 
   revalidatePath("/workers");
@@ -160,7 +183,7 @@ export async function markBirthdaySeen() {
 }
 
 export async function archiveWorker(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const id = String(formData.get("id") ?? "");
 
@@ -175,13 +198,20 @@ export async function archiveWorker(formData: FormData) {
     .update({ active: false })
     .eq("id", id)
     .eq("role", "worker");
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: id,
+    entityType: "worker",
+    eventType: "worker.archive",
+    summary: "Archived worker",
+  });
 
   revalidatePath("/workers");
   revalidatePath("/time-tracking");
 }
 
 export async function deleteWorker(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const id = String(formData.get("id") ?? "");
 
@@ -204,6 +234,13 @@ export async function deleteWorker(formData: FormData) {
 
   await adminSupabase.auth.admin.deleteUser(id);
   await adminSupabase.from("profiles").delete().eq("id", id).eq("role", "worker");
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: id,
+    entityType: "worker",
+    eventType: "worker.delete",
+    summary: "Deleted worker and related auth account",
+  });
 
   revalidatePath("/workers");
   revalidatePath("/time-tracking");
@@ -212,7 +249,7 @@ export async function deleteWorker(formData: FormData) {
 }
 
 export async function createWorker(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const fullName = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -257,12 +294,20 @@ export async function createWorker(formData: FormData) {
   await adminSupabase
     .from("worker_details")
     .upsert(getWorkerDetailsPayload(formData, data.user.id));
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: data.user.id,
+    entityType: "worker",
+    eventType: "worker.create",
+    metadata: { email },
+    summary: `Created worker ${fullName || email}`,
+  });
 
   revalidatePath("/workers");
 }
 
 export async function updateWorkerPassword(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const workerId = String(formData.get("worker_id") ?? "");
   const password = String(formData.get("password") ?? "");
@@ -275,6 +320,13 @@ export async function updateWorkerPassword(formData: FormData) {
 
   await adminSupabase.auth.admin.updateUserById(workerId, {
     password,
+  });
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: workerId,
+    entityType: "worker",
+    eventType: "worker.password.update",
+    summary: "Updated worker password",
   });
 
   revalidatePath("/workers");
@@ -317,12 +369,20 @@ export async function uploadWorkerFile(formData: FormData) {
     uploaded_by: admin.id,
     worker_id: workerId,
   });
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: workerId,
+    entityType: "worker_file",
+    eventType: "worker_file.upload",
+    metadata: { fileName: file.name },
+    summary: "Uploaded worker file",
+  });
 
   revalidatePath("/workers");
 }
 
 export async function updateWorkerFile(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const id = String(formData.get("id") ?? "");
   const documentType = String(formData.get("document_type") ?? "").trim();
@@ -343,12 +403,19 @@ export async function updateWorkerFile(formData: FormData) {
       signed,
     })
     .eq("id", id);
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: id,
+    entityType: "worker_file",
+    eventType: "worker_file.update",
+    summary: "Updated worker file details",
+  });
 
   revalidatePath("/workers");
 }
 
 export async function deleteWorkerFile(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const id = String(formData.get("id") ?? "");
   const storagePath = String(formData.get("storage_path") ?? "");
@@ -361,6 +428,13 @@ export async function deleteWorkerFile(formData: FormData) {
 
   await supabase.storage.from("worker-files").remove([storagePath]);
   await supabase.from("worker_files").delete().eq("id", id);
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: id,
+    entityType: "worker_file",
+    eventType: "worker_file.delete",
+    summary: "Deleted worker file",
+  });
 
   revalidatePath("/workers");
 }

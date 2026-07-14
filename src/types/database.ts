@@ -40,6 +40,53 @@ export type FinancialRecurringFrequency =
 export type Database = {
   public: {
     Tables: {
+      admin_audit_events: {
+        Row: {
+          id: string;
+          actor_id: string | null;
+          event_type: string;
+          entity_type: string;
+          entity_id: string | null;
+          summary: string;
+          metadata: Record<string, unknown>;
+          ip_address: string | null;
+          user_agent: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          actor_id?: string | null;
+          event_type: string;
+          entity_type: string;
+          entity_id?: string | null;
+          summary: string;
+          metadata?: Record<string, unknown>;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          actor_id?: string | null;
+          event_type?: string;
+          entity_type?: string;
+          entity_id?: string | null;
+          summary?: string;
+          metadata?: Record<string, unknown>;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_audit_events_actor_id_fkey";
+            columns: ["actor_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clients: {
         Row: {
           id: string;

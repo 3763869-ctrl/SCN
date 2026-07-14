@@ -41,7 +41,17 @@ Supabase is not connected yet. The structure is prepared for these values when t
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
 ```
+
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are browser-safe.
+`SUPABASE_SERVICE_ROLE_KEY` must stay server-only in local `.env.local` and
+Vercel Project Environment Variables. Never commit it to GitHub.
+
+`UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are optional but
+recommended in production so login and password reset rate limits work
+reliably across Vercel serverless instances.
 
 ## Project Structure
 
@@ -107,6 +117,19 @@ GitHub Actions can apply future migrations automatically with
 `.github/workflows/supabase-migrations.yml`. Add the pooled Supabase database
 URI as a repository secret named `SUPABASE_DB_URL`; do not commit database
 passwords or service-role keys.
+
+## Security Checklist
+
+- Keep Vercel Deployment Protection or password protection enabled for production.
+- Store production variables in Vercel Project Settings, not in GitHub code.
+- Disable public signups in Supabase Auth for this private internal app.
+- Require strong passwords in Supabase Auth settings.
+- Enable MFA for admin accounts when available.
+- Keep Row Level Security enabled on application tables.
+- Rotate the Supabase service-role key if it was ever exposed outside secure
+  environment-variable storage.
+- Apply `0018_admin_audit_events.sql` so sensitive admin and financial actions
+  are recorded in `admin_audit_events`.
 
 ### Creating the First Users
 

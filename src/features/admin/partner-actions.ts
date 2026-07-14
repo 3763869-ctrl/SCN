@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { writeAdminAuditEvent } from "@/features/admin/audit";
 import { requireAdminProfile } from "@/features/auth/session";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
@@ -227,7 +228,7 @@ async function getDefaultClientId() {
 }
 
 export async function savePartnerBillingSettings(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const partnerId = String(formData.get("partner_id") ?? "");
   const clientId = String(formData.get("client_id") ?? "");
@@ -252,13 +253,26 @@ export async function savePartnerBillingSettings(formData: FormData) {
     },
     { onConflict: "partner_id" },
   );
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: partnerId,
+    entityType: "partner",
+    eventType: "partner.billing_settings.update",
+    metadata: {
+      active: formData.get("active") === "on",
+      clientId,
+      paymentTermsDays: integerValue(formData, "payment_terms_days"),
+      ratePerUnit: moneyValue(formData, "rate_per_unit"),
+    },
+    summary: "Updated partner billing settings",
+  });
 
   revalidatePath("/partners");
   revalidatePath("/invoices");
 }
 
 export async function savePartnerPaySettings(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const partnerId = String(formData.get("partner_id") ?? "");
 
@@ -279,6 +293,19 @@ export async function savePartnerPaySettings(formData: FormData) {
     },
     { onConflict: "partner_id" },
   );
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: partnerId,
+    entityType: "partner",
+    eventType: "partner.pay_settings.update",
+    metadata: {
+      active: formData.get("active") === "on",
+      flatPayPerInvoice: moneyValue(formData, "flat_pay_per_invoice"),
+      invoicePercentage: moneyValue(formData, "invoice_percentage"),
+      payType: String(formData.get("pay_type") ?? "none"),
+    },
+    summary: "Updated partner pay settings",
+  });
 
   revalidatePath("/partners");
   revalidatePath("/partners", "layout");
@@ -287,7 +314,7 @@ export async function savePartnerPaySettings(formData: FormData) {
 }
 
 export async function createPartner(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const fullName = String(formData.get("full_name") ?? "").trim();
 
@@ -302,7 +329,9 @@ export async function createPartner(formData: FormData) {
     return;
   }
 
-  await supabase.from("partners").insert({
+  const { data: partner } = await supabase
+    .from("partners")
+    .insert({
     client_id: clientId,
     email: optionalText(formData, "email"),
     full_name: fullName,
@@ -310,14 +339,26 @@ export async function createPartner(formData: FormData) {
     phone: optionalText(formData, "phone"),
     start_date: optionalDate(formData, "start_date"),
     status: (String(formData.get("status") ?? "active") as PartnerStatus) || "active",
-  });
+    })
+    .select("id")
+    .single();
+
+  if (partner) {
+    await writeAdminAuditEvent({
+      actorId: admin.id,
+      entityId: partner.id,
+      entityType: "partner",
+      eventType: "partner.create",
+      summary: `Created partner ${fullName}`,
+    });
+  }
 
   revalidatePath("/partners");
   revalidatePath("/dashboard");
 }
 
 export async function updatePartner(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const id = String(formData.get("id") ?? "");
   const fullName = String(formData.get("full_name") ?? "").trim();
@@ -339,6 +380,13 @@ export async function updatePartner(formData: FormData) {
       status: String(formData.get("status") ?? "active") as PartnerStatus,
     })
     .eq("id", id);
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: id,
+    entityType: "partner",
+    eventType: "partner.update",
+    summary: `Updated partner ${fullName}`,
+  });
 
   revalidatePath("/partners");
   revalidatePath("/dashboard");
@@ -1103,6 +1151,14 @@ export async function deletePartnerInvoice(formData: FormData) {
     invoice_run_id: invoice.invoice_run_id,
     reason,
   });
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: invoiceId,
+    entityType: "partner_invoice",
+    eventType: "partner_invoice.void",
+    metadata: { reason },
+    summary: "Voided partner invoice and released linked units",
+  });
 
   await updateInvoiceRunTotals(invoice.invoice_run_id);
 
@@ -1159,6 +1215,14 @@ export async function voidPartnerInvoicePayment(formData: FormData) {
     invoice_id: payment.invoice_id,
     invoice_payment_id: paymentId,
     reason,
+  });
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: paymentId,
+    entityType: "partner_invoice_payment",
+    eventType: "partner_invoice_payment.void",
+    metadata: { invoiceId: payment.invoice_id, reason },
+    summary: "Voided partner invoice payment",
   });
 
   await recalculatePartnerInvoice(payment.invoice_id);
@@ -1219,6 +1283,14 @@ export async function recordPartnerPayrollPayment(formData: FormData) {
       total_paid: totalPaid,
     })
     .eq("id", payrollId);
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: payrollId,
+    entityType: "partner_payroll",
+    eventType: "partner_payroll.payment.record",
+    metadata: { amount, partnerId: payroll.partner_id },
+    summary: `Recorded partner payroll payment for $${amount.toFixed(2)}`,
+  });
 
   revalidatePath("/settlements");
   revalidatePath("/partners");
@@ -1268,7 +1340,7 @@ export async function markInvoiceRunSent(formData: FormData) {
 }
 
 export async function recordPartnerInvoicePayment(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const invoiceId = String(formData.get("invoice_id") ?? "");
   const amountReceived = moneyValue(formData, "amount_received");
@@ -1352,6 +1424,14 @@ export async function recordPartnerInvoicePayment(formData: FormData) {
       total_paid: totalPaid,
     })
     .eq("id", invoiceId);
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: payment?.id ?? invoiceId,
+    entityType: "partner_invoice_payment",
+    eventType: "partner_invoice_payment.record",
+    metadata: { amountReceived, invoiceId, partnerId: invoice.partner_id },
+    summary: `Recorded invoice payment for $${amountReceived.toFixed(2)}`,
+  });
 
   revalidatePath("/partners");
   revalidatePath("/invoices");
