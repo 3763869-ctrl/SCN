@@ -274,50 +274,61 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                     {getStatusLabel(selectedPartner.status)}
                   </p>
                 </div>
-                <form action={updatePartner} className="grid gap-2 sm:grid-cols-2">
-                  <input name="id" type="hidden" value={selectedPartner.id} />
-                  <input
-                    className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    defaultValue={selectedPartner.full_name}
-                    name="full_name"
-                    required
-                  />
-                  <select
-                    className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    defaultValue={selectedPartner.status}
-                    name="status"
+                <details className="w-full max-w-xl rounded-md border border-border bg-background p-3 lg:ml-auto">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
+                    <span>Edit Partner</span>
+                    <span className="rounded-md border border-border bg-surface px-3 py-1 text-xs">
+                      Open
+                    </span>
+                  </summary>
+                  <form
+                    action={updatePartner}
+                    className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-2"
                   >
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                  </select>
-                  <input
-                    className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    defaultValue={selectedPartner.email ?? ""}
-                    name="email"
-                    placeholder="Email"
-                  />
-                  <input
-                    className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    defaultValue={selectedPartner.phone ?? ""}
-                    name="phone"
-                    placeholder="Phone"
-                  />
-                  <input
-                    className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    defaultValue={selectedPartner.start_date ?? ""}
-                    name="start_date"
-                    type="date"
-                  />
-                  <Button className="h-10" type="submit">
-                    Save Partner
-                  </Button>
-                  <textarea
-                    className="min-h-16 rounded-md border border-border bg-background px-3 py-2 text-sm sm:col-span-2"
-                    defaultValue={selectedPartner.notes ?? ""}
-                    name="notes"
-                    placeholder="Notes"
-                  />
-                </form>
+                    <input name="id" type="hidden" value={selectedPartner.id} />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartner.full_name}
+                      name="full_name"
+                      required
+                    />
+                    <select
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartner.status}
+                      name="status"
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartner.email ?? ""}
+                      name="email"
+                      placeholder="Email"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartner.phone ?? ""}
+                      name="phone"
+                      placeholder="Phone"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartner.start_date ?? ""}
+                      name="start_date"
+                      type="date"
+                    />
+                    <Button className="h-10" type="submit">
+                      Save Partner
+                    </Button>
+                    <textarea
+                      className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm sm:col-span-2"
+                      defaultValue={selectedPartner.notes ?? ""}
+                      name="notes"
+                      placeholder="Notes"
+                    />
+                  </form>
+                </details>
               </div>
             </section>
 

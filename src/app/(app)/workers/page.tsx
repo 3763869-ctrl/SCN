@@ -464,31 +464,39 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                     </p>
                   ) : null}
                 </div>
-                <form
-                  action={updateWorkerProfile}
-                  className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]"
-                >
-                  <input name="id" type="hidden" value={selectedWorker.id} />
-                  <select
-                    className="h-10 rounded-md border border-border bg-background px-3 text-sm capitalize"
-                    defaultValue={selectedWorker.role}
-                    name="role"
+                <details className="w-full rounded-md border border-border bg-background p-3 lg:max-w-md">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
+                    <span>Edit Worker Access</span>
+                    <span className="rounded-md border border-border bg-surface px-3 py-1 text-xs">
+                      Open
+                    </span>
+                  </summary>
+                  <form
+                    action={updateWorkerProfile}
+                    className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-[1fr_1fr_auto]"
                   >
-                    <option value="admin">Admin</option>
-                    <option value="worker">Worker</option>
-                  </select>
-                  <select
-                    className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    defaultValue={String(selectedWorker.active)}
-                    name="active"
-                  >
-                    <option value="true">Active</option>
-                    <option value="false">Inactive</option>
-                  </select>
-                  <Button className="h-10 px-4" type="submit" variant="secondary">
-                    Save
-                  </Button>
-                </form>
+                    <input name="id" type="hidden" value={selectedWorker.id} />
+                    <select
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm capitalize"
+                      defaultValue={selectedWorker.role}
+                      name="role"
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="worker">Worker</option>
+                    </select>
+                    <select
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={String(selectedWorker.active)}
+                      name="active"
+                    >
+                      <option value="true">Active</option>
+                      <option value="false">Inactive</option>
+                    </select>
+                    <Button className="h-10 px-4" type="submit" variant="secondary">
+                      Save
+                    </Button>
+                  </form>
+                </details>
               </div>
 
               <div className="mt-5 grid gap-3 sm:grid-cols-4">
@@ -542,10 +550,77 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
             {activeTab === "profile" ? (
               <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
                 <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-                  <h3 className="text-base font-semibold">Worker Details</h3>
-                  <form
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <h3 className="text-base font-semibold">Worker Details</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Profile information is shown first. Open edit only when changing it.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {[
+                      ["Phone", selectedDetails?.phone_number || "Not recorded"],
+                      [
+                        "Date of Birth",
+                        selectedDetails?.date_of_birth
+                          ? `${getDateLabel(selectedDetails.date_of_birth)}${
+                              selectedAge !== null ? `, age ${selectedAge}` : ""
+                            }`
+                          : "Not recorded",
+                      ],
+                      [
+                        "Address",
+                        [
+                          selectedDetails?.address_line1,
+                          selectedDetails?.city,
+                          selectedDetails?.state,
+                          selectedDetails?.zip_code,
+                          selectedDetails?.country,
+                        ]
+                          .filter(Boolean)
+                          .join(", ") || "Not recorded",
+                      ],
+                      [
+                        "2nd Contact",
+                        [
+                          selectedDetails?.secondary_contact_name,
+                          selectedDetails?.secondary_contact_phone,
+                        ]
+                          .filter(Boolean)
+                          .join(" - ") || "Not recorded",
+                      ],
+                      [
+                        "Start Date",
+                        selectedDetails?.start_date
+                          ? getDateLabel(selectedDetails.start_date)
+                          : "Not recorded",
+                      ],
+                      ["Hiring Source", selectedDetails?.hiring_source || "Not recorded"],
+                    ].map(([label, value]) => (
+                      <div
+                        className="rounded-md border border-border bg-background p-3"
+                        key={label}
+                      >
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          {label}
+                        </p>
+                        <p className="mt-1 text-sm font-medium">{value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <details className="mt-5 rounded-md border border-border bg-background p-3">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
+                      <span>Edit Worker Details</span>
+                      <span className="rounded-md border border-border bg-surface px-3 py-1 text-xs">
+                        Open
+                      </span>
+                    </summary>
+                    <form
                     action={updateWorkerDetails}
-                    className="mt-4 grid gap-3 md:grid-cols-2"
+                    className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-2"
                   >
                     <input
                       name="worker_id"
@@ -676,89 +751,137 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                         Save Worker Details
                       </Button>
                     </div>
-                  </form>
+                    </form>
+                  </details>
 
-                  <h3 className="mt-6 text-base font-semibold">Pay Settings</h3>
-                  <form
-                    action={updateWorkerPaySettings}
-                    className="mt-4 grid gap-3 md:grid-cols-2"
-                  >
-                    <input
-                      name="worker_id"
-                      type="hidden"
-                      value={selectedWorker.id}
-                    />
-                    <label className="text-sm font-medium">
-                      Hourly Rate
-                      <input
-                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                        defaultValue={Number(selectedPaySettings?.hourly_rate ?? 0)}
-                        min="0"
-                        name="hourly_rate"
-                        step="0.01"
-                        type="number"
-                      />
-                    </label>
-                    <label className="text-sm font-medium">
-                      Payroll Schedule
-                      <select
-                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                        defaultValue={selectedPaySettings?.payroll_schedule ?? "weekly"}
-                        name="payroll_schedule"
-                      >
-                        <option value="weekly">Weekly</option>
-                        <option value="semi_monthly">Semi-monthly</option>
-                      </select>
-                    </label>
-                    <label className="text-sm font-medium">
-                      Weekly Unit Goal
-                      <input
-                        className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
-                        defaultValue={selectedPaySettings?.weekly_unit_goal ?? 100}
-                        min="1"
-                        name="weekly_unit_goal"
-                        step="1"
-                        type="number"
-                      />
-                    </label>
-                    <div className="flex items-end">
-                      <Button className="h-10 w-full" type="submit">
-                        Save Settings
-                      </Button>
+                  <div className="mt-6">
+                    <h3 className="text-base font-semibold">Pay Settings</h3>
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
+                      <div className="rounded-md border border-border bg-background p-3">
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          Hourly Rate
+                        </p>
+                        <p className="mt-1 text-sm font-medium">
+                          {moneyFormatter.format(
+                            Number(selectedPaySettings?.hourly_rate ?? 0),
+                          )}
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-border bg-background p-3">
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          Payroll Schedule
+                        </p>
+                        <p className="mt-1 text-sm font-medium">
+                          {selectedPaySettings?.payroll_schedule === "semi_monthly"
+                            ? "Semi-monthly"
+                            : "Weekly"}
+                        </p>
+                      </div>
+                      <div className="rounded-md border border-border bg-background p-3">
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          Weekly Unit Goal
+                        </p>
+                        <p className="mt-1 text-sm font-medium">
+                          {selectedPaySettings?.weekly_unit_goal ?? 100}
+                        </p>
+                      </div>
                     </div>
-                  </form>
+                  </div>
 
-                  <form
-                    action={updateWorkerPassword}
-                    className="mt-5 rounded-md border border-border bg-background p-4"
-                  >
-                    <input
-                      name="worker_id"
-                      type="hidden"
-                      value={selectedWorker.id}
-                    />
-                    <h4 className="text-sm font-semibold">Set Password</h4>
-                    {canCreateWorkers ? (
-                      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <details className="mt-5 rounded-md border border-border bg-background p-3">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
+                      <span>Edit Pay Settings</span>
+                      <span className="rounded-md border border-border bg-surface px-3 py-1 text-xs">
+                        Open
+                      </span>
+                    </summary>
+                    <form
+                      action={updateWorkerPaySettings}
+                      className="mt-4 grid gap-3 border-t border-border pt-4 md:grid-cols-2"
+                    >
+                      <input
+                        name="worker_id"
+                        type="hidden"
+                        value={selectedWorker.id}
+                      />
+                      <label className="text-sm font-medium">
+                        Hourly Rate
                         <input
-                          className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                          minLength={6}
-                          name="password"
-                          placeholder="New temporary password"
-                          required
-                          type="password"
+                          className="mt-2 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                          defaultValue={Number(selectedPaySettings?.hourly_rate ?? 0)}
+                          min="0"
+                          name="hourly_rate"
+                          step="0.01"
+                          type="number"
                         />
-                        <Button className="h-10 px-4" type="submit" variant="secondary">
-                          Update Password
+                      </label>
+                      <label className="text-sm font-medium">
+                        Payroll Schedule
+                        <select
+                          className="mt-2 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                          defaultValue={
+                            selectedPaySettings?.payroll_schedule ?? "weekly"
+                          }
+                          name="payroll_schedule"
+                        >
+                          <option value="weekly">Weekly</option>
+                          <option value="semi_monthly">Semi-monthly</option>
+                        </select>
+                      </label>
+                      <label className="text-sm font-medium">
+                        Weekly Unit Goal
+                        <input
+                          className="mt-2 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                          defaultValue={selectedPaySettings?.weekly_unit_goal ?? 100}
+                          min="1"
+                          name="weekly_unit_goal"
+                          step="1"
+                          type="number"
+                        />
+                      </label>
+                      <div className="flex items-end">
+                        <Button className="h-10 w-full" type="submit">
+                          Save Settings
                         </Button>
                       </div>
-                    ) : (
-                      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                        Password changes require the server-only Supabase service role
-                        key.
-                      </p>
-                    )}
-                  </form>
+                    </form>
+                  </details>
+
+                  <details className="mt-5 rounded-md border border-border bg-background p-3">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold">
+                      <span>Set Password</span>
+                      <span className="rounded-md border border-border bg-surface px-3 py-1 text-xs">
+                        Open
+                      </span>
+                    </summary>
+                    <form action={updateWorkerPassword} className="mt-4 border-t border-border pt-4">
+                      <input
+                        name="worker_id"
+                        type="hidden"
+                        value={selectedWorker.id}
+                      />
+                      {canCreateWorkers ? (
+                        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                          <input
+                            className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                            minLength={6}
+                            name="password"
+                            placeholder="New temporary password"
+                            required
+                            type="password"
+                          />
+                          <Button className="h-10 px-4" type="submit" variant="secondary">
+                            Update Password
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-sm leading-6 text-muted-foreground">
+                          Password changes require the server-only Supabase service role
+                          key.
+                        </p>
+                      )}
+                    </form>
+                  </details>
 
                   <div className="mt-5 rounded-md border border-border bg-background p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
