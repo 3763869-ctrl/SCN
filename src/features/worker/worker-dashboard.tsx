@@ -633,7 +633,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
                   <input
                     className="mt-2 h-12 w-full rounded-md border border-border bg-background px-3 text-lg font-semibold outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                     id="quantity"
-                    min="1"
+                    min="0"
                     name="quantity"
                     required
                     step="1"

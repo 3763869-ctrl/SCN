@@ -97,8 +97,39 @@ function getWeekStatusStyles(status: string) {
 }
 
 type TimeTrackingPageProps = {
-  searchParams?: Promise<{ week?: string; worker?: string }>;
+  searchParams?: Promise<{
+    date?: string;
+    saved?: string;
+    week?: string;
+    worker?: string;
+  }>;
 };
+
+function getSaveMessage(value: string | undefined, date: string | undefined) {
+  const dateLabel = date ? ` for ${date}` : "";
+
+  if (value === "saved") {
+    return `Timesheet saved${dateLabel}.`;
+  }
+
+  if (value === "cleared") {
+    return `Day cleared${dateLabel}.`;
+  }
+
+  if (value === "time-only") {
+    return `Time saved${dateLabel}. Units are locked.`;
+  }
+
+  if (value === "locked") {
+    return "This week is locked. Reopen it before editing.";
+  }
+
+  if (value === "units-locked") {
+    return "Units are locked. Reopen units before clearing this day.";
+  }
+
+  return null;
+}
 
 export default async function TimeTrackingPage({
   searchParams,
@@ -259,9 +290,16 @@ export default async function TimeTrackingPage({
           : displayStatus === "reopened"
         ? "Needs Review"
         : "Open";
+  const saveMessage = getSaveMessage(params?.saved, params?.date);
 
   return (
     <div className="space-y-6">
+      {saveMessage ? (
+        <div className="fixed bottom-5 right-5 z-50 max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-lg">
+          {saveMessage}
+        </div>
+      ) : null}
+
       <PageHeader
         title="Time Tracking"
         description="Review and edit worker weekly time, lunch, units, and pay."

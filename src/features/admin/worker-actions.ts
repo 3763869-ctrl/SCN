@@ -381,6 +381,17 @@ function getWeekStartKey(workDate: string) {
   return addDaysToDateKey(workDate, -date.getUTCDay());
 }
 
+function redirectToTimeTracking(workerId: string, workDate: string, saved: string) {
+  const params = new URLSearchParams({
+    date: workDate,
+    saved,
+    week: getWeekStartKey(workDate),
+    worker: workerId,
+  });
+
+  redirect(`/time-tracking?${params.toString()}`);
+}
+
 export async function updateWorkerTimesheetDay(formData: FormData) {
   await requireAdminProfile();
 
@@ -388,7 +399,6 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
   const workDate = String(formData.get("work_date") ?? "");
   const timeEntryId = String(formData.get("time_entry_id") ?? "");
   const breakId = String(formData.get("break_id") ?? "");
-  const unitEntryId = String(formData.get("unit_entry_id") ?? "");
   const action = String(formData.get("action") ?? "save");
   const clockInAt = buildDateTime(workDate, formData.get("clock_in"));
   const clockOutAt = buildDateTime(workDate, formData.get("clock_out"));
@@ -417,7 +427,7 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
     .maybeSingle();
 
   if (timesheetWeek?.status === "completed") {
-    return;
+    redirectToTimeTracking(workerId, workDate, "locked");
   }
 
   const { data: lockedUnitPeriod } = await supabase
@@ -432,7 +442,7 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
   const isUnitPeriodLocked = Boolean(lockedUnitPeriod);
 
   if (isUnitPeriodLocked && action === "clear") {
-    return;
+    redirectToTimeTracking(workerId, workDate, "units-locked");
   }
 
   if (action === "clear") {
@@ -467,7 +477,7 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
 
     revalidatePath("/time-tracking");
     revalidatePath("/worker");
-    return;
+    redirectToTimeTracking(workerId, workDate, "cleared");
   }
 
   if (targetTimeEntryId && !clockInAt && !clockOutAt && lunchMinutes === 0) {
@@ -528,8 +538,14 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
   if (isUnitPeriodLocked) {
     revalidatePath("/time-tracking");
     revalidatePath("/worker");
-    return;
+    redirectToTimeTracking(workerId, workDate, "time-only");
   }
+
+  await supabase
+    .from("production_units")
+    .delete()
+    .eq("worker_id", workerId)
+    .eq("work_date", workDate);
 
   if (units > 0) {
     const unitPayload = {
@@ -540,20 +556,12 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
       notes: "Admin adjusted timesheet",
     };
 
-    if (unitEntryId) {
-      await supabase
-        .from("production_units")
-        .update(unitPayload)
-        .eq("id", unitEntryId);
-    } else {
-      await supabase.from("production_units").insert(unitPayload);
-    }
-  } else if (unitEntryId) {
-    await supabase.from("production_units").delete().eq("id", unitEntryId);
+    await supabase.from("production_units").insert(unitPayload);
   }
 
   revalidatePath("/time-tracking");
   revalidatePath("/worker");
+  redirectToTimeTracking(workerId, workDate, "saved");
 }
 
 export async function completeProductionUnitsPeriod(formData: FormData) {

@@ -156,7 +156,7 @@ export async function addUnits(
   const quantity = Number(formData.get("quantity"));
   const notes = String(formData.get("notes") ?? "").trim();
 
-  if (!Number.isFinite(quantity) || quantity <= 0) {
+  if (!Number.isFinite(quantity) || quantity < 0) {
     return { message: "Enter a valid unit quantity.", success: false };
   }
 
@@ -207,5 +207,11 @@ export async function addUnits(
     };
   }
 
-  return { message: "Units submitted.", success: true };
+  return {
+    message:
+      Math.floor(quantity) === 0
+        ? "Zero units submitted."
+        : "Units submitted.",
+    success: true,
+  };
 }
