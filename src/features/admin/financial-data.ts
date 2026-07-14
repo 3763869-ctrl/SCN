@@ -122,7 +122,10 @@ export async function getFinancialManagementData(filters?: {
       .from("partners")
       .select("id, client_id, full_name, email, phone, status"),
     supabase.from("clients").select("id, name, status"),
-    supabase.from("profiles").select("id, full_name, email, role, active").eq("role", "worker"),
+    supabase
+      .from("profiles")
+      .select("id, full_name, email, role, active")
+      .in("role", ["admin", "worker"]),
     supabase
       .from("partner_invoices")
       .select("id, partner_id, client_id, invoice_number, invoice_total, total_paid, balance_remaining, status, due_date, billing_period_start, billing_period_end"),

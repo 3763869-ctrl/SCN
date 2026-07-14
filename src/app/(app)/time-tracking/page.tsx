@@ -118,7 +118,7 @@ export default async function TimeTrackingPage({
   const { data: profiles } = await supabase
     .from("profiles")
     .select("id, full_name, email, role, active")
-    .eq("role", "worker")
+    .in("role", ["admin", "worker"])
     .order("full_name", { ascending: true });
 
   const workers = profiles ?? [];
