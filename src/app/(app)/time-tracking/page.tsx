@@ -163,7 +163,7 @@ export default async function TimeTrackingPage({
     { data: paySettings },
     { data: bonusTiers },
     { data: timesheetWeek },
-    { data: unitPeriod },
+    { data: unitPeriods },
     { data: payroll },
   ] = selectedWorker
     ? await Promise.all([
@@ -209,9 +209,10 @@ export default async function TimeTrackingPage({
           .from("production_unit_periods")
           .select("id, status, period_start, period_end")
           .eq("worker_id", selectedWorker.id)
-          .eq("period_start", getDateKey(weekStart))
-          .eq("period_end", getDateKey(addDays(weekStart, 5)))
-          .maybeSingle(),
+          .eq("status", "completed")
+          .lte("period_start", getDateKey(addDays(weekStart, 5)))
+          .gte("period_end", getDateKey(weekStart))
+          .order("period_start", { ascending: true }),
         supabase
           .from("worker_payrolls")
           .select("id, status, total_owed, total_paid, balance_remaining")
@@ -233,6 +234,7 @@ export default async function TimeTrackingPage({
   const timeList = timeEntries ?? [];
   const breakList = breaks ?? [];
   const unitList = units ?? [];
+  const completedUnitPeriods = unitPeriods ?? [];
   const tiers = bonusTiers ?? [];
   const hourlyRate = Number(paySettings?.hourly_rate ?? 0);
 
@@ -245,6 +247,9 @@ export default async function TimeTrackingPage({
       (entry) => getEasternDateKey(new Date(entry.break_start_at)) === dateKey,
     );
     const dayUnits = unitList.filter((entry) => entry.work_date === dateKey);
+    const unitLock = completedUnitPeriods.find(
+      (period) => period.period_start <= dateKey && period.period_end >= dateKey,
+    );
     const firstEntry = dayEntries[0] ?? null;
     const firstBreak = dayBreaks[0] ?? null;
     const firstUnits = dayUnits[0] ?? null;
@@ -264,6 +269,8 @@ export default async function TimeTrackingPage({
       firstUnits,
       lunchMinutes: Math.round(lunchHours * 60),
       totalHours,
+      unitLock,
+      unitsLocked: Boolean(unitLock),
       unitTotal,
     };
   });
@@ -279,7 +286,7 @@ export default async function TimeTrackingPage({
   const displayStatus =
     weekStatus === "completed" && payroll?.status ? payroll.status : weekStatus;
   const isWeekLocked = weekStatus === "completed";
-  const isUnitPeriodLocked = unitPeriod?.status === "completed";
+  const hasLockedUnitDates = completedUnitPeriods.length > 0;
   const statusLabel =
     displayStatus === "completed" || displayStatus === "due"
       ? "Sent to Payroll"
@@ -404,13 +411,18 @@ export default async function TimeTrackingPage({
                       </Button>
                     </form>
                   )}
-                  {unitPeriod?.status === "completed" ? (
-                    <form action={reopenProductionUnitsPeriod}>
-                      <input name="period_id" type="hidden" value={unitPeriod.id} />
-                      <Button className="h-10" type="submit" variant="secondary">
-                        Reopen Units
-                      </Button>
-                    </form>
+                  {hasLockedUnitDates ? (
+                    completedUnitPeriods.map((period) => (
+                      <form action={reopenProductionUnitsPeriod} key={period.id}>
+                        <input name="period_id" type="hidden" value={period.id} />
+                        <Button className="h-10" type="submit" variant="secondary">
+                          Reopen Units{" "}
+                          {period.period_start === period.period_end
+                            ? period.period_start
+                            : `${period.period_start} - ${period.period_end}`}
+                        </Button>
+                      </form>
+                    ))
                   ) : (
                     <form action={completeProductionUnitsPeriod}>
                       <input
@@ -439,8 +451,8 @@ export default async function TimeTrackingPage({
             <div className="mt-4 rounded-md border border-border bg-background p-3 text-sm">
               <p className="font-semibold">
                 Units approval:{" "}
-                {isUnitPeriodLocked
-                  ? "Completed and ready for invoicing"
+                {hasLockedUnitDates
+                  ? "Some dates are completed and ready for invoicing"
                   : "Open for review"}
               </p>
               <p className="mt-1 text-muted-foreground">
@@ -553,7 +565,7 @@ export default async function TimeTrackingPage({
                           <input
                             className="h-10 rounded-md border border-border bg-background px-3 disabled:bg-surface-muted disabled:text-muted-foreground"
                             defaultValue={row.unitTotal}
-                            disabled={isWeekLocked || isUnitPeriodLocked}
+                            disabled={isWeekLocked || row.unitsLocked}
                             min="0"
                             name="units"
                             step="1"
@@ -577,7 +589,7 @@ export default async function TimeTrackingPage({
                               className="h-10 px-3"
                               confirmLabel="Clear Day"
                               description="This will delete this day's clock times, lunch break, and units for this worker. This cannot be undone."
-                              disabled={isWeekLocked || isUnitPeriodLocked}
+                              disabled={isWeekLocked || row.unitsLocked}
                               name="action"
                               title="Clear this day?"
                               value="clear"
@@ -586,6 +598,11 @@ export default async function TimeTrackingPage({
                               Clear
                             </ConfirmSubmitButton>
                           </div>
+                          {row.unitsLocked ? (
+                            <p className="col-start-5 col-end-6 text-xs font-semibold text-orange-700">
+                              Units locked
+                            </p>
+                          ) : null}
                         </form>
                       ))
                     : null}
