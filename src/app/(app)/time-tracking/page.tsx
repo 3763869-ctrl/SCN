@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { AutoDismissToast } from "@/components/ui/auto-dismiss-toast";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { getProfileLabel } from "@/features/admin/data";
@@ -96,6 +97,18 @@ function getWeekStatusStyles(status: string) {
   return "border-border bg-surface-muted text-muted-foreground";
 }
 
+function getLinkedInvoiceNumber(
+  link: {
+    partner_invoices?: { invoice_number?: string | null } | { invoice_number?: string | null }[] | null;
+  } | null | undefined,
+) {
+  const invoice = Array.isArray(link?.partner_invoices)
+    ? link?.partner_invoices[0]
+    : link?.partner_invoices;
+
+  return invoice?.invoice_number ?? "Invoice";
+}
+
 type TimeTrackingPageProps = {
   searchParams?: Promise<{
     date?: string;
@@ -126,6 +139,10 @@ function getSaveMessage(value: string | undefined, date: string | undefined) {
 
   if (value === "units-locked") {
     return "Units are locked. Reopen units before clearing this day.";
+  }
+
+  if (value === "units-invoiced") {
+    return "Units are already invoiced. Void the invoice first before changing these units.";
   }
 
   return null;
@@ -164,6 +181,7 @@ export default async function TimeTrackingPage({
     { data: bonusTiers },
     { data: timesheetWeek },
     { data: unitPeriods },
+    { data: unitInvoiceLinks },
     { data: payroll },
   ] = selectedWorker
     ? await Promise.all([
@@ -214,6 +232,14 @@ export default async function TimeTrackingPage({
           .gte("period_end", getDateKey(weekStart))
           .order("period_start", { ascending: true }),
         supabase
+          .from("production_unit_invoice_links")
+          .select("id, production_unit_id, invoice_id, work_date, quantity, partner_invoices(invoice_number, status)")
+          .eq("worker_id", selectedWorker.id)
+          .gte("work_date", getDateKey(weekStart))
+          .lt("work_date", addDaysToDateKey(getDateKey(weekStart), 7))
+          .is("released_at", null)
+          .order("work_date", { ascending: true }),
+        supabase
           .from("worker_payrolls")
           .select("id, status, total_owed, total_paid, balance_remaining")
           .eq("worker_id", selectedWorker.id)
@@ -228,12 +254,14 @@ export default async function TimeTrackingPage({
         { data: [] },
         { data: null },
         { data: null },
+        { data: [] },
         { data: null },
       ];
 
   const timeList = timeEntries ?? [];
   const breakList = breaks ?? [];
   const unitList = units ?? [];
+  const unitInvoiceLinkList = unitInvoiceLinks ?? [];
   const completedUnitPeriods = unitPeriods ?? [];
   const tiers = bonusTiers ?? [];
   const hourlyRate = Number(paySettings?.hourly_rate ?? 0);
@@ -247,6 +275,9 @@ export default async function TimeTrackingPage({
       (entry) => getEasternDateKey(new Date(entry.break_start_at)) === dateKey,
     );
     const dayUnits = unitList.filter((entry) => entry.work_date === dateKey);
+    const dayInvoiceLinks = unitInvoiceLinkList.filter(
+      (entry) => entry.work_date === dateKey,
+    );
     const unitLock = completedUnitPeriods.find(
       (period) => period.period_start <= dateKey && period.period_end >= dateKey,
     );
@@ -270,7 +301,9 @@ export default async function TimeTrackingPage({
       lunchMinutes: Math.round(lunchHours * 60),
       totalHours,
       unitLock,
-      unitsLocked: Boolean(unitLock),
+      unitInvoiceLinks: dayInvoiceLinks,
+      unitsInvoiced: dayInvoiceLinks.length > 0,
+      unitsLocked: Boolean(unitLock) || dayInvoiceLinks.length > 0,
       unitTotal,
     };
   });
@@ -302,9 +335,9 @@ export default async function TimeTrackingPage({
   return (
     <div className="space-y-6">
       {saveMessage ? (
-        <div className="fixed bottom-5 right-5 z-50 max-w-sm rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800 shadow-lg">
+        <AutoDismissToast>
           {saveMessage}
-        </div>
+        </AutoDismissToast>
       ) : null}
 
       <PageHeader
@@ -598,7 +631,15 @@ export default async function TimeTrackingPage({
                               Clear
                             </ConfirmSubmitButton>
                           </div>
-                          {row.unitsLocked ? (
+                          {row.unitsInvoiced ? (
+                            <Link
+                              className="col-start-5 col-end-7 text-xs font-semibold text-blue-700"
+                              href={`/invoices/${row.unitInvoiceLinks[0]?.invoice_id}/print`}
+                              target="_blank"
+                            >
+                              Invoiced: {getLinkedInvoiceNumber(row.unitInvoiceLinks[0])}
+                            </Link>
+                          ) : row.unitsLocked ? (
                             <p className="col-start-5 col-end-6 text-xs font-semibold text-orange-700">
                               Units locked
                             </p>

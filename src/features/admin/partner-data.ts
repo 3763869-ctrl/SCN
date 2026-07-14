@@ -107,8 +107,9 @@ export async function getPartnerOperationsData() {
     supabase
       .from("partner_invoices")
       .select(
-        "id, invoice_run_id, partner_id, client_id, invoice_number, billing_period_start, billing_period_end, units, rate_per_unit, invoice_total, created_date, sent_date, due_date, status, total_paid, balance_remaining, generated_at, notes",
+        "id, invoice_run_id, partner_id, client_id, invoice_number, billing_period_start, billing_period_end, units, rate_per_unit, invoice_total, created_date, sent_date, due_date, status, total_paid, balance_remaining, generated_at, voided_at, void_reason, notes",
       )
+      .is("voided_at", null)
       .order("created_date", { ascending: false }),
     supabase
       .from("partner_invoice_lines")
@@ -119,8 +120,9 @@ export async function getPartnerOperationsData() {
     supabase
       .from("partner_invoice_payments")
       .select(
-        "id, invoice_id, partner_id, amount_received, date_received, payment_method, deposit_account, notes",
+        "id, invoice_id, partner_id, amount_received, date_received, payment_method, deposit_account, notes, voided_at, void_reason",
       )
+      .is("voided_at", null)
       .order("date_received", { ascending: false }),
     supabase
       .from("financial_expenses")

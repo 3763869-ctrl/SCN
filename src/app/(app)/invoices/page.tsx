@@ -12,6 +12,7 @@ import {
   markPartnerInvoiceSent,
   recordPartnerInvoicePayment,
   updatePartnerInvoiceLine,
+  voidPartnerInvoicePayment,
 } from "@/features/admin/partner-actions";
 import {
   getPartnerLabel,
@@ -79,6 +80,7 @@ export default async function InvoicesPage() {
   const data = await getPartnerOperationsData();
   const partnerMap = new Map(data.partners.map((partner) => [partner.id, partner]));
   const clientId = data.clients[0]?.id ?? "";
+  const clientName = data.clients.find((client) => client.id === clientId)?.name ?? "Client";
   const currentPeriod = getCurrentBillingPeriod();
   const totalOutstanding = data.invoices
     .filter((invoice) => !["paid", "cancelled"].includes(invoice.status))
@@ -95,7 +97,7 @@ export default async function InvoicesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Invoices"
-        description="Generate Partner invoices for MS Support, mark them sent, and track payments."
+        description={`Generate Partner invoices for ${clientName}, mark them sent, and track payments.`}
       />
 
       <section className="grid gap-4 sm:grid-cols-4">
@@ -115,7 +117,7 @@ export default async function InvoicesPage() {
       <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Generate MS Support Invoices</h2>
+            <h2 className="text-lg font-semibold">Generate {clientName} Invoices</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Creates draft invoice previews per active Partner using approved
               worker units and the Partner rate per unit.
@@ -157,6 +159,9 @@ export default async function InvoicesPage() {
         <div className="divide-y divide-border">
           {data.invoices.map((invoice) => {
             const lines = data.invoiceLines.filter((line) => line.invoice_id === invoice.id);
+            const payments = data.payments.filter(
+              (payment) => payment.invoice_id === invoice.id,
+            );
             const canEdit = ["draft", "ready"].includes(invoice.status);
             const canPay = Number(invoice.balance_remaining ?? invoice.invoice_total) > 0;
 
@@ -373,28 +378,36 @@ export default async function InvoicesPage() {
                           >
                             Open Invoice / Pay
                           </Link>
-                          {["draft", "ready"].includes(invoice.status) &&
-                          Number(invoice.total_paid) === 0 ? (
+                          {Number(invoice.total_paid) === 0 ? (
                             <form action={deletePartnerInvoice}>
                               <input name="invoice_id" type="hidden" value={invoice.id} />
+                              <input
+                                className="mb-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                                name="void_reason"
+                                placeholder="Reason for void/delete"
+                              />
                               <ConfirmSubmitButton
                                 className="w-full"
-                                confirmLabel="Delete Invoice"
-                                description="This deletes this draft invoice and its lines. You can regenerate it again from approved units."
-                                title="Delete this invoice?"
+                                confirmLabel="Void Invoice"
+                                description="This hides the invoice from active screens and releases its generated units so you can regenerate it. Payments must be voided first."
+                                title="Void this invoice?"
                                 variant="secondary"
                               >
-                                Delete Invoice
+                                Void / Delete Invoice
                               </ConfirmSubmitButton>
                             </form>
-                          ) : null}
+                          ) : (
+                            <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-800">
+                              Void all payments first before voiding this invoice.
+                            </p>
+                          )}
                         </div>
                       </div>
                       <form
                         action={recordPartnerInvoicePayment}
                         className="rounded-md border border-border bg-surface p-4"
                       >
-                        <h3 className="font-semibold">Record MS Support Payment</h3>
+                        <h3 className="font-semibold">Record {clientName} Payment</h3>
                         <input name="invoice_id" type="hidden" value={invoice.id} />
                         {!canPay ? (
                           <p className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800">
@@ -437,6 +450,50 @@ export default async function InvoicesPage() {
                         </div>
                         )}
                       </form>
+                      <div className="rounded-md border border-border bg-surface p-4">
+                        <h3 className="font-semibold">Payment History</h3>
+                        <div className="mt-3 space-y-2">
+                          {payments.map((payment) => (
+                            <form
+                              action={voidPartnerInvoicePayment}
+                              className="rounded-md border border-border bg-background p-3"
+                              key={payment.id}
+                            >
+                              <input name="payment_id" type="hidden" value={payment.id} />
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-semibold">
+                                    {moneyFormatter.format(Number(payment.amount_received))}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {getDateLabel(payment.date_received)}
+                                    {payment.payment_method ? ` - ${payment.payment_method}` : ""}
+                                  </p>
+                                </div>
+                                <ConfirmSubmitButton
+                                  className="h-9 px-3"
+                                  confirmLabel="Void Payment"
+                                  description="This removes this payment from active totals and voids the connected income record."
+                                  title="Void this payment?"
+                                  variant="secondary"
+                                >
+                                  Void
+                                </ConfirmSubmitButton>
+                              </div>
+                              <input
+                                className="mt-2 h-9 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                                name="void_reason"
+                                placeholder="Reason for voiding payment"
+                              />
+                            </form>
+                          ))}
+                          {!payments.length ? (
+                            <p className="text-sm text-muted-foreground">
+                              No active payments recorded.
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

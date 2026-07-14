@@ -109,8 +109,9 @@ export async function getFinancialManagementData(filters?: {
     supabase
       .from("financial_income_records")
       .select(
-        "id, source, partner_id, client_id, invoice_id, invoice_payment_id, invoice_number, income_date, amount, payment_method, deposit_account, notes, created_at",
+        "id, source, partner_id, client_id, invoice_id, invoice_payment_id, invoice_number, income_date, amount, payment_method, deposit_account, notes, voided_at, created_at",
       )
+      .is("voided_at", null)
       .order("income_date", { ascending: false }),
     supabase
       .from("financial_expenses")
@@ -128,7 +129,8 @@ export async function getFinancialManagementData(filters?: {
       .in("role", ["admin", "worker"]),
     supabase
       .from("partner_invoices")
-      .select("id, partner_id, client_id, invoice_number, invoice_total, total_paid, balance_remaining, status, due_date, billing_period_start, billing_period_end"),
+      .select("id, partner_id, client_id, invoice_number, invoice_total, total_paid, balance_remaining, status, due_date, billing_period_start, billing_period_end, voided_at")
+      .is("voided_at", null),
     supabase
       .from("worker_payrolls")
       .select("id, worker_id, total_hours, total_units, hourly_pay, bonus_pay, total_owed, total_paid, balance_remaining, status, week_start, week_end"),

@@ -12,6 +12,8 @@ import type {
   PartnerStatus,
 } from "@/types/database";
 
+const DEFAULT_CLIENT_NAME = "RM Support";
+
 function optionalText(formData: FormData, name: string) {
   const value = String(formData.get(name) ?? "").trim();
 
@@ -37,6 +39,28 @@ function addDaysToDateKey(value: string, days: number) {
   date.setUTCDate(date.getUTCDate() + days);
 
   return date.toISOString().slice(0, 10);
+}
+
+function getInvoicePrefix(clientName: string | null | undefined) {
+  const firstWord = (clientName ?? "")
+    .trim()
+    .split(/\s+/)[0]
+    ?.replace(/[^a-z0-9]/gi, "");
+
+  if (firstWord && firstWord.length <= 4) {
+    return firstWord.toUpperCase();
+  }
+
+  const initials = (clientName ?? "")
+    .trim()
+    .split(/\s+/)
+    .map((word) => word[0])
+    .join("")
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(0, 4)
+    .toUpperCase();
+
+  return initials || "INV";
 }
 
 function getInvoiceStatus(totalOwed: number, totalPaid: number): PartnerInvoiceStatus {
@@ -73,6 +97,7 @@ async function updateInvoiceRunTotals(invoiceRunId: string | null) {
     .from("partner_invoices")
     .select("units, invoice_total")
     .eq("invoice_run_id", invoiceRunId)
+    .is("voided_at", null)
     .neq("status", "cancelled");
   const runUnits = (runInvoices ?? []).reduce(
     (total, item) => total + Number(item.units),
@@ -91,6 +116,20 @@ async function updateInvoiceRunTotals(invoiceRunId: string | null) {
       total_units: runUnits,
     })
     .eq("id", invoiceRunId);
+}
+
+async function getActiveInvoicePaymentsTotal(invoiceId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data: payments } = await supabase
+    .from("partner_invoice_payments")
+    .select("amount_received")
+    .eq("invoice_id", invoiceId)
+    .is("voided_at", null);
+
+  return (payments ?? []).reduce(
+    (total, payment) => total + Number(payment.amount_received),
+    0,
+  );
 }
 
 async function createFlatPartnerPayrollFromInvoice(invoiceId: string) {
@@ -152,17 +191,32 @@ async function getDefaultClientId() {
   const { data: existingClient } = await supabase
     .from("clients")
     .select("id")
-    .eq("name", "MS Support")
+    .eq("name", DEFAULT_CLIENT_NAME)
     .maybeSingle();
 
   if (existingClient?.id) {
     return existingClient.id;
   }
 
+  const { data: oldClient } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("name", "MS Support")
+    .maybeSingle();
+
+  if (oldClient?.id) {
+    await supabase
+      .from("clients")
+      .update({ name: DEFAULT_CLIENT_NAME })
+      .eq("id", oldClient.id);
+
+    return oldClient.id;
+  }
+
   const { data: createdClient } = await supabase
     .from("clients")
     .insert({
-      name: "MS Support",
+      name: DEFAULT_CLIENT_NAME,
       notes: "Initial client for partner production work.",
       status: "active",
     })
@@ -393,8 +447,15 @@ export async function generatePartnerInvoices(formData: FormData) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const [{ data: partners }, { data: settings }, { data: assignments }, { data: units }] =
+  const [
+    { data: client },
+    { data: partners },
+    { data: settings },
+    { data: assignments },
+    { data: units },
+  ] =
     await Promise.all([
+      supabase.from("clients").select("name").eq("id", clientId).maybeSingle(),
       supabase
         .from("partners")
         .select("id, client_id, full_name, status")
@@ -417,11 +478,28 @@ export async function generatePartnerInvoices(formData: FormData) {
         .lte("work_date", periodEnd)
         .eq("status", "approved"),
     ]);
+  const invoicePrefix = getInvoicePrefix(client?.name);
 
   const partnerList = partners ?? [];
   const settingMap = new Map((settings ?? []).map((setting) => [setting.partner_id, setting]));
   const assignmentList = assignments ?? [];
   const unitList = units ?? [];
+  const { data: activeUnitLinks } = unitList.length
+    ? await supabase
+        .from("production_unit_invoice_links")
+        .select("production_unit_id, invoice_id, partner_invoices(invoice_number)")
+        .in(
+          "production_unit_id",
+          unitList.map((unit) => unit.id),
+        )
+        .is("released_at", null)
+    : { data: [] };
+  const invoicedUnitIds = new Set(
+    (activeUnitLinks ?? []).map((link) => link.production_unit_id),
+  );
+  const activeLinkByUnitId = new Map(
+    (activeUnitLinks ?? []).map((link) => [link.production_unit_id, link] as const),
+  );
   const now = new Date().toISOString();
   const { data: invoiceRun } = await supabase
     .from("invoice_runs")
@@ -454,28 +532,62 @@ export async function generatePartnerInvoices(formData: FormData) {
       continue;
     }
 
+    const { data: existingInvoice } = await supabase
+      .from("partner_invoices")
+      .select("id, status, total_paid")
+      .eq("partner_id", partner.id)
+      .eq("billing_period_start", periodStart)
+      .eq("billing_period_end", periodEnd)
+      .is("voided_at", null)
+      .neq("status", "cancelled")
+      .maybeSingle();
+
     const partnerAssignments = assignmentList.filter(
       (assignment) => assignment.partner_id === partner.id,
     );
-    const billableUnits = unitList.filter((unit) =>
-      partnerAssignments.some(
+    const billableUnits = unitList.filter(
+      (unit) => {
+        const activeLink = activeLinkByUnitId.get(unit.id);
+
+        return (
+          (!invoicedUnitIds.has(unit.id) || activeLink?.invoice_id === existingInvoice?.id) &&
+        partnerAssignments.some(
         (assignment) =>
           assignment.worker_id === unit.worker_id &&
           assignment.assigned_at <= unit.work_date &&
           (!assignment.ended_at || assignment.ended_at >= unit.work_date),
-      ),
+          )
+        );
+      },
     );
-    const unitsByDate = new Map<string, { units: number; workerId: string | null }>();
+    const unitsByDate = new Map<
+      string,
+      {
+        units: number;
+        workerId: string | null;
+        unitRows: Array<{ id: string; quantity: number; worker_id: string; work_date: string }>;
+      }
+    >();
 
     for (const unit of billableUnits) {
       const existing = unitsByDate.get(unit.work_date) ?? {
         units: 0,
         workerId: unit.worker_id,
+        unitRows: [],
       };
 
       unitsByDate.set(unit.work_date, {
         units: existing.units + unit.quantity,
         workerId: existing.workerId ?? unit.worker_id,
+        unitRows: [
+          ...existing.unitRows,
+          {
+            id: unit.id,
+            quantity: unit.quantity,
+            work_date: unit.work_date,
+            worker_id: unit.worker_id,
+          },
+        ],
       });
     }
 
@@ -490,17 +602,8 @@ export async function generatePartnerInvoices(formData: FormData) {
 
     const ratePerUnit = Number(billing.rate_per_unit ?? 0);
     const invoiceTotal = Math.round(unitsTotal * ratePerUnit * 100) / 100;
-    const invoiceNumber = `MS-${periodStart.replaceAll("-", "")}-${periodEnd.replaceAll("-", "")}-${String(index + 1).padStart(3, "0")}`;
+    const invoiceNumber = `${invoicePrefix}-${periodStart.replaceAll("-", "")}-${periodEnd.replaceAll("-", "")}-${String(index + 1).padStart(3, "0")}`;
     const dueDate = addDaysToDateKey(periodEnd, Number(billing.payment_terms_days ?? 15));
-    const { data: existingInvoice } = await supabase
-      .from("partner_invoices")
-      .select("id, status, total_paid")
-      .eq("partner_id", partner.id)
-      .eq("billing_period_start", periodStart)
-      .eq("billing_period_end", periodEnd)
-      .neq("status", "cancelled")
-      .maybeSingle();
-
     let invoice: { id: string } | null = existingInvoice ? { id: existingInvoice.id } : null;
 
     if (existingInvoice && ["draft", "ready"].includes(existingInvoice.status)) {
@@ -560,12 +663,25 @@ export async function generatePartnerInvoices(formData: FormData) {
     }
 
     await supabase
+      .from("production_unit_invoice_links")
+      .update({
+        release_reason: "Regenerated invoice preview",
+        released_at: now,
+        released_by: admin.id,
+      })
+      .eq("invoice_id", invoice.id)
+      .is("released_at", null);
+
+    await supabase
       .from("partner_invoice_lines")
       .delete()
       .eq("invoice_id", invoice.id)
       .eq("source", "generated");
-    await supabase.from("partner_invoice_lines").insert(
-      Array.from(unitsByDate.entries()).map(([workDate, value]) => ({
+
+    for (const [workDate, value] of unitsByDate.entries()) {
+      const { data: line } = await supabase
+        .from("partner_invoice_lines")
+        .insert({
         description: `Units completed on ${workDate}`,
         invoice_id: invoice.id,
         line_total: Math.round(value.units * ratePerUnit * 100) / 100,
@@ -575,8 +691,26 @@ export async function generatePartnerInvoices(formData: FormData) {
         work_date: workDate,
         worker_id: value.workerId,
         source: "generated",
-      })),
-    );
+        })
+        .select("id")
+        .single();
+
+      if (line) {
+        await supabase.from("production_unit_invoice_links").insert(
+          value.unitRows.map((unit) => ({
+            created_by: admin.id,
+            invoice_id: invoice.id,
+            invoice_line_id: line.id,
+            invoice_run_id: invoiceRun.id,
+            partner_id: partner.id,
+            production_unit_id: unit.id,
+            quantity: unit.quantity,
+            work_date: unit.work_date,
+            worker_id: unit.worker_id,
+          })),
+        );
+      }
+    }
 
     const [{ data: allInvoiceLines }, { data: invoicePayments }] = await Promise.all([
       supabase
@@ -586,7 +720,8 @@ export async function generatePartnerInvoices(formData: FormData) {
       supabase
         .from("partner_invoice_payments")
         .select("amount_received")
-        .eq("invoice_id", invoice.id),
+        .eq("invoice_id", invoice.id)
+        .is("voided_at", null),
     ]);
     const finalUnits = (allInvoiceLines ?? []).reduce(
       (total, line) => total + Number(line.units),
@@ -679,7 +814,8 @@ export async function addPartnerInvoiceLine(formData: FormData) {
   const { data: payments } = await supabase
     .from("partner_invoice_payments")
     .select("amount_received")
-    .eq("invoice_id", invoiceId);
+    .eq("invoice_id", invoiceId)
+    .is("voided_at", null);
   const totalUnits = (lines ?? []).reduce((total, line) => total + Number(line.units), 0);
   const invoiceTotal = (lines ?? []).reduce(
     (total, line) => total + Number(line.line_total),
@@ -810,10 +946,11 @@ async function recalculatePartnerInvoice(invoiceId: string) {
       .from("partner_invoice_lines")
       .select("units, line_total")
       .eq("invoice_id", invoiceId),
-    supabase
-      .from("partner_invoice_payments")
-      .select("amount_received")
-      .eq("invoice_id", invoiceId),
+      supabase
+        .from("partner_invoice_payments")
+        .select("amount_received")
+        .eq("invoice_id", invoiceId)
+        .is("voided_at", null),
   ]);
   const totalUnits = (lines ?? []).reduce((total, line) => total + Number(line.units), 0);
   const invoiceTotal = Math.round(
@@ -829,7 +966,12 @@ async function recalculatePartnerInvoice(invoiceId: string) {
     .update({
       balance_remaining: Math.max(0, invoiceTotal - totalPaid),
       invoice_total: invoiceTotal,
-      status: totalPaid > 0 ? getInvoiceStatus(invoiceTotal, totalPaid) : invoice.status,
+      status:
+        totalPaid > 0
+          ? getInvoiceStatus(invoiceTotal, totalPaid)
+          : ["partial", "paid"].includes(invoice.status)
+            ? "sent"
+            : invoice.status,
       total_paid: totalPaid,
       units: totalUnits,
     })
@@ -887,9 +1029,11 @@ export async function markPartnerInvoiceSent(formData: FormData) {
 }
 
 export async function deletePartnerInvoice(formData: FormData) {
-  await requireAdminProfile();
+  const admin = await requireAdminProfile();
 
   const invoiceId = String(formData.get("invoice_id") ?? "");
+  const reason =
+    optionalText(formData, "void_reason") ?? "Admin voided invoice for correction.";
 
   if (!invoiceId) {
     return;
@@ -898,11 +1042,17 @@ export async function deletePartnerInvoice(formData: FormData) {
   const supabase = await createSupabaseServerClient();
   const { data: invoice } = await supabase
     .from("partner_invoices")
-    .select("id, invoice_run_id, status, total_paid")
+    .select("id, invoice_run_id, status, total_paid, voided_at")
     .eq("id", invoiceId)
     .single();
 
-  if (!invoice || Number(invoice.total_paid) > 0 || !["draft", "ready"].includes(invoice.status)) {
+  if (!invoice || invoice.voided_at || invoice.status === "cancelled") {
+    return;
+  }
+
+  const activePaid = await getActiveInvoicePaymentsTotal(invoiceId);
+
+  if (activePaid > 0) {
     return;
   }
 
@@ -923,11 +1073,100 @@ export async function deletePartnerInvoice(formData: FormData) {
       .eq("id", partnerPayroll.id);
   }
 
-  await supabase.from("partner_invoices").delete().eq("id", invoiceId);
+  const now = new Date().toISOString();
+
+  await supabase
+    .from("production_unit_invoice_links")
+    .update({
+      release_reason: reason,
+      released_at: now,
+      released_by: admin.id,
+    })
+    .eq("invoice_id", invoiceId)
+    .is("released_at", null);
+
+  await supabase
+    .from("partner_invoices")
+    .update({
+      balance_remaining: 0,
+      status: "cancelled",
+      void_reason: reason,
+      voided_at: now,
+      voided_by: admin.id,
+    })
+    .eq("id", invoiceId);
+
+  await supabase.from("invoice_recovery_events").insert({
+    created_by: admin.id,
+    event_type: "invoice_voided",
+    invoice_id: invoiceId,
+    invoice_run_id: invoice.invoice_run_id,
+    reason,
+  });
+
   await updateInvoiceRunTotals(invoice.invoice_run_id);
 
   revalidatePath("/invoices");
   revalidatePath("/partners");
+  revalidatePath("/dashboard");
+}
+
+export async function voidPartnerInvoicePayment(formData: FormData) {
+  const admin = await requireAdminProfile();
+
+  const paymentId = String(formData.get("payment_id") ?? "");
+  const reason =
+    optionalText(formData, "void_reason") ?? "Admin voided payment for correction.";
+
+  if (!paymentId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { data: payment } = await supabase
+    .from("partner_invoice_payments")
+    .select("id, invoice_id, voided_at")
+    .eq("id", paymentId)
+    .single();
+
+  if (!payment || payment.voided_at) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  await supabase
+    .from("partner_invoice_payments")
+    .update({
+      void_reason: reason,
+      voided_at: now,
+      voided_by: admin.id,
+    })
+    .eq("id", paymentId);
+
+  await supabase
+    .from("financial_income_records")
+    .update({
+      void_reason: reason,
+      voided_at: now,
+      voided_by: admin.id,
+    })
+    .eq("invoice_payment_id", paymentId);
+
+  await supabase.from("invoice_recovery_events").insert({
+    created_by: admin.id,
+    event_type: "payment_voided",
+    invoice_id: payment.invoice_id,
+    invoice_payment_id: paymentId,
+    reason,
+  });
+
+  await recalculatePartnerInvoice(payment.invoice_id);
+
+  revalidatePath("/partners");
+  revalidatePath("/invoices");
+  revalidatePath("/income");
+  revalidatePath("/reports");
   revalidatePath("/dashboard");
 }
 
@@ -1004,6 +1243,7 @@ export async function markInvoiceRunSent(formData: FormData) {
     .select("id")
     .eq("invoice_run_id", invoiceRunId)
     .eq("status", "draft")
+    .is("voided_at", null)
     .limit(1);
 
   if (draftInvoices?.length) {
@@ -1019,6 +1259,7 @@ export async function markInvoiceRunSent(formData: FormData) {
     .from("partner_invoices")
     .update({ sent_date: today, status: "sent" })
     .eq("invoice_run_id", invoiceRunId)
+    .is("voided_at", null)
     .eq("status", "ready");
 
   revalidatePath("/partners");
@@ -1043,11 +1284,11 @@ export async function recordPartnerInvoicePayment(formData: FormData) {
 
   const { data: invoice } = await supabase
     .from("partner_invoices")
-    .select("id, partner_id, client_id, invoice_number, invoice_total, balance_remaining")
+    .select("id, partner_id, client_id, invoice_number, invoice_total, balance_remaining, status, voided_at")
     .eq("id", invoiceId)
     .single();
 
-  if (!invoice) {
+  if (!invoice || invoice.voided_at || invoice.status === "cancelled") {
     return;
   }
 
@@ -1094,7 +1335,8 @@ export async function recordPartnerInvoicePayment(formData: FormData) {
   const { data: payments } = await supabase
     .from("partner_invoice_payments")
     .select("amount_received")
-    .eq("invoice_id", invoiceId);
+    .eq("invoice_id", invoiceId)
+    .is("voided_at", null);
   const totalPaid = (payments ?? []).reduce(
     (total, payment) => total + Number(payment.amount_received),
     0,

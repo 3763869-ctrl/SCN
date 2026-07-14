@@ -441,8 +441,21 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
 
   const isUnitPeriodLocked = Boolean(lockedUnitPeriod);
 
-  if (isUnitPeriodLocked && action === "clear") {
-    redirectToTimeTracking(workerId, workDate, "units-locked");
+  const { data: activeInvoiceLinks } = await supabase
+    .from("production_unit_invoice_links")
+    .select("id")
+    .eq("worker_id", workerId)
+    .eq("work_date", workDate)
+    .is("released_at", null)
+    .limit(1);
+  const isUnitInvoiced = Boolean(activeInvoiceLinks?.length);
+
+  if ((isUnitPeriodLocked || isUnitInvoiced) && action === "clear") {
+    redirectToTimeTracking(
+      workerId,
+      workDate,
+      isUnitInvoiced ? "units-invoiced" : "units-locked",
+    );
   }
 
   if (action === "clear") {
@@ -535,10 +548,14 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
     }
   }
 
-  if (isUnitPeriodLocked) {
+  if (isUnitPeriodLocked || isUnitInvoiced) {
     revalidatePath("/time-tracking");
     revalidatePath("/worker");
-    redirectToTimeTracking(workerId, workDate, "time-only");
+    redirectToTimeTracking(
+      workerId,
+      workDate,
+      isUnitInvoiced ? "units-invoiced" : "time-only",
+    );
   }
 
   await supabase

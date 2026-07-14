@@ -125,7 +125,7 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Bill To
               </p>
-              <p className="mt-2 text-xl font-bold">{client?.name ?? "MS Support"}</p>
+              <p className="mt-2 text-xl font-bold">{client?.name ?? "Client"}</p>
             </div>
           </div>
 

@@ -391,6 +391,9 @@ export type Database = {
           generated_by: string | null;
           generated_at: string;
           sent_at: string | null;
+          voided_at: string | null;
+          voided_by: string | null;
+          void_reason: string | null;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -407,6 +410,9 @@ export type Database = {
           generated_by?: string | null;
           generated_at?: string;
           sent_at?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -423,6 +429,9 @@ export type Database = {
           generated_by?: string | null;
           generated_at?: string;
           sent_at?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -463,6 +472,11 @@ export type Database = {
           total_paid: number;
           balance_remaining: number;
           generated_at: string | null;
+          voided_at: string | null;
+          voided_by: string | null;
+          void_reason: string | null;
+          restored_at: string | null;
+          restored_by: string | null;
           notes: string | null;
           created_at: string;
           updated_at: string;
@@ -485,6 +499,11 @@ export type Database = {
           total_paid?: number;
           balance_remaining?: number;
           generated_at?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
+          restored_at?: string | null;
+          restored_by?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -507,6 +526,11 @@ export type Database = {
           total_paid?: number;
           balance_remaining?: number;
           generated_at?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
+          restored_at?: string | null;
+          restored_by?: string | null;
           notes?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -666,6 +690,100 @@ export type Database = {
           },
         ];
       };
+      production_unit_invoice_links: {
+        Row: {
+          id: string;
+          production_unit_id: string;
+          invoice_id: string;
+          invoice_line_id: string | null;
+          invoice_run_id: string | null;
+          partner_id: string;
+          worker_id: string;
+          work_date: string;
+          quantity: number;
+          created_by: string | null;
+          created_at: string;
+          released_at: string | null;
+          released_by: string | null;
+          release_reason: string | null;
+        };
+        Insert: {
+          id?: string;
+          production_unit_id: string;
+          invoice_id: string;
+          invoice_line_id?: string | null;
+          invoice_run_id?: string | null;
+          partner_id: string;
+          worker_id: string;
+          work_date: string;
+          quantity: number;
+          created_by?: string | null;
+          created_at?: string;
+          released_at?: string | null;
+          released_by?: string | null;
+          release_reason?: string | null;
+        };
+        Update: {
+          id?: string;
+          production_unit_id?: string;
+          invoice_id?: string;
+          invoice_line_id?: string | null;
+          invoice_run_id?: string | null;
+          partner_id?: string;
+          worker_id?: string;
+          work_date?: string;
+          quantity?: number;
+          created_by?: string | null;
+          created_at?: string;
+          released_at?: string | null;
+          released_by?: string | null;
+          release_reason?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "production_unit_invoice_links_production_unit_id_fkey";
+            columns: ["production_unit_id"];
+            isOneToOne: false;
+            referencedRelation: "production_units";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "production_unit_invoice_links_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_invoices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "production_unit_invoice_links_invoice_line_id_fkey";
+            columns: ["invoice_line_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_invoice_lines";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "production_unit_invoice_links_invoice_run_id_fkey";
+            columns: ["invoice_run_id"];
+            isOneToOne: false;
+            referencedRelation: "invoice_runs";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "production_unit_invoice_links_partner_id_fkey";
+            columns: ["partner_id"];
+            isOneToOne: false;
+            referencedRelation: "partners";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "production_unit_invoice_links_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       partner_invoice_payments: {
         Row: {
           id: string;
@@ -676,6 +794,9 @@ export type Database = {
           payment_method: string | null;
           deposit_account: string | null;
           notes: string | null;
+          voided_at: string | null;
+          voided_by: string | null;
+          void_reason: string | null;
           created_at: string;
         };
         Insert: {
@@ -687,6 +808,9 @@ export type Database = {
           payment_method?: string | null;
           deposit_account?: string | null;
           notes?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
           created_at?: string;
         };
         Update: {
@@ -698,6 +822,9 @@ export type Database = {
           payment_method?: string | null;
           deposit_account?: string | null;
           notes?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -717,6 +844,61 @@ export type Database = {
           },
         ];
       };
+      invoice_recovery_events: {
+        Row: {
+          id: string;
+          event_type: "invoice_voided" | "payment_voided" | "unit_links_released";
+          invoice_id: string | null;
+          invoice_payment_id: string | null;
+          invoice_run_id: string | null;
+          reason: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_type: "invoice_voided" | "payment_voided" | "unit_links_released";
+          invoice_id?: string | null;
+          invoice_payment_id?: string | null;
+          invoice_run_id?: string | null;
+          reason?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_type?: "invoice_voided" | "payment_voided" | "unit_links_released";
+          invoice_id?: string | null;
+          invoice_payment_id?: string | null;
+          invoice_run_id?: string | null;
+          reason?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invoice_recovery_events_invoice_id_fkey";
+            columns: ["invoice_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_invoices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invoice_recovery_events_invoice_payment_id_fkey";
+            columns: ["invoice_payment_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_invoice_payments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "invoice_recovery_events_invoice_run_id_fkey";
+            columns: ["invoice_run_id"];
+            isOneToOne: false;
+            referencedRelation: "invoice_runs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       financial_income_records: {
         Row: {
           id: string;
@@ -732,6 +914,9 @@ export type Database = {
           deposit_account: string | null;
           notes: string | null;
           created_by: string | null;
+          voided_at: string | null;
+          voided_by: string | null;
+          void_reason: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -749,6 +934,9 @@ export type Database = {
           deposit_account?: string | null;
           notes?: string | null;
           created_by?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -766,6 +954,9 @@ export type Database = {
           deposit_account?: string | null;
           notes?: string | null;
           created_by?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          void_reason?: string | null;
           created_at?: string;
           updated_at?: string;
         };

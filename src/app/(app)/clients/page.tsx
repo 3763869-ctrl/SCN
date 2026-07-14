@@ -69,7 +69,7 @@ export default async function ClientsPage() {
                 <input
                   className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
                   name="name"
-                  placeholder="MS Support"
+                  placeholder="RM Support"
                   required
                 />
               </label>
@@ -184,7 +184,7 @@ export default async function ClientsPage() {
 
             {!clientList.length ? (
               <p className="px-5 py-6 text-sm text-muted-foreground">
-                No clients yet. Add MS Support or another client to begin.
+                No clients yet. Add RM Support or another client to begin.
               </p>
             ) : null}
           </div>

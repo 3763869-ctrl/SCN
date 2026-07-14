@@ -44,7 +44,7 @@ export default async function SettingsPage() {
           ))}
           {!data.clients.length ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">
-              MS Support will appear here after the Partner migration is run.
+              RM Support will appear here after the Partner migration is run.
             </p>
           ) : null}
         </div>

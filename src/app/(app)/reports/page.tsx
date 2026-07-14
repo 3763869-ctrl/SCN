@@ -72,7 +72,7 @@ const reportCategories = [
     id: "invoice",
     title: "Invoice Reports",
     reports: [
-      ["paid_invoices", "Paid Invoices", "Invoices fully paid by MS Support or other clients."],
+      ["paid_invoices", "Paid Invoices", "Invoices fully paid by clients."],
       ["outstanding_invoices", "Outstanding Invoices", "Invoices with balances remaining."],
       ["overdue_invoices", "Overdue Invoices", "Open invoices past the due date."],
       ["invoice_history", "Invoice History", "All invoice activity in the selected period."],

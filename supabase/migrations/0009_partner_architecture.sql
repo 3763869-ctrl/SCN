@@ -67,7 +67,7 @@ using (public.is_admin())
 with check (public.is_admin());
 
 insert into public.clients (name, status, notes)
-values ('MS Support', 'active', 'Initial client for partner production work.')
+values ('RM Support', 'active', 'Initial client for partner production work.')
 on conflict (name) do nothing;
 
 create table if not exists public.partners (

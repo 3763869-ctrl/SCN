@@ -270,7 +270,7 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                     {selectedPartner.phone || "No phone"}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Client: {selectedSummary.client?.name ?? "MS Support"} - Status:{" "}
+                    Client: {selectedSummary.client?.name ?? "Linked Client"} - Status:{" "}
                     {getStatusLabel(selectedPartner.status)}
                   </p>
                 </div>
@@ -424,6 +424,7 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
             {activeTab === "invoices" ? (
               <InvoicesTab
                 billingSettings={selectedSummary.billingSettings}
+                client={selectedSummary.client}
                 clientId={selectedPartner.client_id}
                 invoices={selectedInvoices}
                 partnerId={selectedPartner.id}
@@ -515,144 +516,195 @@ function PartnerQuickFacts({
 
 function InvoicesTab({
   billingSettings,
+  client,
   clientId,
   invoices,
   partnerId,
 }: {
   billingSettings: Awaited<ReturnType<typeof getPartnerOperationsData>>["partnerSummaries"][number]["billingSettings"];
+  client: Awaited<ReturnType<typeof getPartnerOperationsData>>["partnerSummaries"][number]["client"];
   clientId: string;
   invoices: Awaited<ReturnType<typeof getPartnerOperationsData>>["invoices"];
   partnerId: string;
 }) {
+  const clientName = client?.name ?? "Linked Client";
+
   return (
     <section className="space-y-4">
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-        <h3 className="text-base font-semibold">MS Support Billing Settings</h3>
+        <h3 className="text-base font-semibold">{clientName} Billing Settings</h3>
         <p className="mt-1 text-sm text-muted-foreground">
           This rate is used when the invoice page generates invoices automatically.
         </p>
-        <form action={savePartnerBillingSettings} className="mt-4 grid gap-3 md:grid-cols-5">
+        <form action={savePartnerBillingSettings} className="mt-4 space-y-4">
           <input name="partner_id" type="hidden" value={partnerId} />
           <input name="client_id" type="hidden" value={clientId} />
-          <input
-            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-            defaultValue={Number(billingSettings?.rate_per_unit ?? 0)}
-            min="0"
-            name="rate_per_unit"
-            placeholder="Rate per unit"
-            step="0.01"
-            type="number"
-          />
-          <select
-            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-            defaultValue={billingSettings?.billing_frequency ?? "semi_monthly"}
-            name="billing_frequency"
-          >
-            <option value="semi_monthly">Semi-monthly</option>
-            <option value="manual">Manual</option>
-          </select>
-          <input
-            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-            defaultValue={billingSettings?.payment_terms_days ?? 15}
-            min="0"
-            name="payment_terms_days"
-            placeholder="Payment terms days"
-            type="number"
-          />
-          <label className="flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm">
-            <input
-              defaultChecked={billingSettings?.active ?? true}
-              name="active"
-              type="checkbox"
-            />
-            Active
-          </label>
-          <Button type="submit">Save Billing</Button>
+          <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr_220px]">
+            <label className="space-y-2">
+              <span className="text-sm font-semibold">{clientName} Rate Per Unit ($)</span>
+              <input
+                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                defaultValue={Number(billingSettings?.rate_per_unit ?? 0).toFixed(2)}
+                min="0"
+                name="rate_per_unit"
+                step="0.01"
+                type="number"
+              />
+              <span className="block text-xs text-muted-foreground">
+                Amount {clientName} pays this Partner per approved unit.
+              </span>
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-semibold">Invoice Schedule</span>
+              <select
+                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                defaultValue={billingSettings?.billing_frequency ?? "semi_monthly"}
+                name="billing_frequency"
+              >
+                <option value="semi_monthly">Semi-monthly</option>
+                <option value="manual">Manual</option>
+              </select>
+              <span className="block text-xs text-muted-foreground">
+                Semi-monthly uses the 1st-15th and 16th-end of month.
+              </span>
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-semibold">Payment Terms (Days)</span>
+              <input
+                className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                defaultValue={billingSettings?.payment_terms_days ?? 15}
+                min="0"
+                name="payment_terms_days"
+                type="number"
+              />
+              <span className="block text-xs text-muted-foreground">
+                How many days after the invoice period ends the payment is due.
+              </span>
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-semibold">Billing Active</span>
+              <span className="flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm">
+                <input
+                  defaultChecked={billingSettings?.active ?? true}
+                  name="active"
+                  type="checkbox"
+                />
+                Use this Partner when generating invoices
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Turn off if this Partner should be skipped.
+              </span>
+            </label>
+          </div>
           <textarea
-            className="min-h-16 rounded-md border border-border bg-background px-3 py-2 text-sm md:col-span-5"
+            className="min-h-16 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             defaultValue={billingSettings?.notes ?? ""}
             name="notes"
             placeholder="Billing notes"
           />
+          <div className="flex justify-end">
+            <Button type="submit">Save Billing</Button>
+          </div>
         </form>
       </div>
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
         <h3 className="text-base font-semibold">Invoices</h3>
-      <form action={createPartnerInvoice} className="mt-4 grid gap-3 md:grid-cols-4">
-        <input name="partner_id" type="hidden" value={partnerId} />
-        <input name="client_id" type="hidden" value={clientId} />
-        <input
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          name="invoice_number"
-          placeholder="Invoice #"
-          required
+        <form action={createPartnerInvoice} className="mt-4 grid gap-3 md:grid-cols-4">
+          <input name="partner_id" type="hidden" value={partnerId} />
+          <input name="client_id" type="hidden" value={clientId} />
+          <label className="space-y-2">
+            <span className="text-sm font-semibold">Invoice Number</span>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              name="invoice_number"
+              placeholder="Invoice #"
+              required
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold">Billing Period Start</span>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              name="billing_period_start"
+              required
+              type="date"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold">Billing Period End</span>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              name="billing_period_end"
+              required
+              type="date"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold">Invoice Status</span>
+            <select
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              defaultValue="draft"
+              name="status"
+            >
+              {["draft", "ready", "sent", "partial", "paid", "overdue", "cancelled"].map((status) => (
+                <option key={status} value={status}>
+                  {getStatusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold">Units Billed</span>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              min="0"
+              name="units"
+              type="number"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold">Rate Per Unit ($)</span>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              min="0"
+              name="rate_per_unit"
+              step="0.01"
+              type="number"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold">Invoice Total ($)</span>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              min="0"
+              name="invoice_total"
+              step="0.01"
+              type="number"
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-semibold">Due Date</span>
+            <input
+              className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+              name="due_date"
+              type="date"
+            />
+          </label>
+          <textarea
+            className="min-h-16 rounded-md border border-border bg-background px-3 py-2 text-sm md:col-span-3"
+            name="notes"
+            placeholder="Notes"
+          />
+          <Button type="submit">Create Invoice</Button>
+        </form>
+        <RecordList
+          empty="No invoices yet."
+          items={invoices.map((invoice) => ({
+            id: invoice.id,
+            label: `${invoice.invoice_number} - ${moneyFormatter.format(Number(invoice.invoice_total))}`,
+            meta: `${getDateLabel(invoice.billing_period_start)} - ${getDateLabel(invoice.billing_period_end)} - ${getStatusLabel(invoice.status)} - Balance ${moneyFormatter.format(Number(invoice.balance_remaining ?? invoice.invoice_total))}`,
+          }))}
         />
-        <input
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          name="billing_period_start"
-          required
-          type="date"
-        />
-        <input
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          name="billing_period_end"
-          required
-          type="date"
-        />
-        <select
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          defaultValue="draft"
-          name="status"
-        >
-          {["draft", "ready", "sent", "partial", "paid", "overdue", "cancelled"].map((status) => (
-            <option key={status} value={status}>
-              {getStatusLabel(status)}
-            </option>
-          ))}
-        </select>
-        <input
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          min="0"
-          name="units"
-          placeholder="Units"
-          type="number"
-        />
-        <input
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          min="0"
-          name="rate_per_unit"
-          placeholder="Rate per unit"
-          step="0.01"
-          type="number"
-        />
-        <input
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          min="0"
-          name="invoice_total"
-          placeholder="Invoice total"
-          step="0.01"
-          type="number"
-        />
-        <input
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-          name="due_date"
-          type="date"
-        />
-        <textarea
-          className="min-h-16 rounded-md border border-border bg-background px-3 py-2 text-sm md:col-span-3"
-          name="notes"
-          placeholder="Notes"
-        />
-        <Button type="submit">Create Invoice</Button>
-      </form>
-      <RecordList
-        empty="No invoices yet."
-        items={invoices.map((invoice) => ({
-          id: invoice.id,
-          label: `${invoice.invoice_number} - ${moneyFormatter.format(Number(invoice.invoice_total))}`,
-          meta: `${getDateLabel(invoice.billing_period_start)} - ${getDateLabel(invoice.billing_period_end)} - ${getStatusLabel(invoice.status)} - Balance ${moneyFormatter.format(Number(invoice.balance_remaining ?? invoice.invoice_total))}`,
-        }))}
-      />
       </div>
     </section>
   );
@@ -667,7 +719,7 @@ function PaymentsTab({
 }) {
   return (
     <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-      <h3 className="text-base font-semibold">Payments from MS Support</h3>
+      <h3 className="text-base font-semibold">Client Payments</h3>
       <form action={recordPartnerInvoicePayment} className="mt-4 grid gap-3 md:grid-cols-3">
         <select
           className="h-10 rounded-md border border-border bg-background px-3 text-sm md:col-span-2"
@@ -789,7 +841,7 @@ function PartnerPayrollTab({
             <span>Flat amount per invoice</span>
             <input
               className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm font-normal"
-              defaultValue={Number(partnerPaySettings?.flat_pay_per_invoice ?? 0)}
+              defaultValue={Number(partnerPaySettings?.flat_pay_per_invoice ?? 0).toFixed(2)}
               min="0"
               name="flat_pay_per_invoice"
               placeholder="Example: 250.00"
@@ -804,7 +856,7 @@ function PartnerPayrollTab({
             <span>Percentage of invoice</span>
             <input
               className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm font-normal"
-              defaultValue={Number(partnerPaySettings?.invoice_percentage ?? 0)}
+              defaultValue={Number(partnerPaySettings?.invoice_percentage ?? 0).toFixed(2)}
               max="100"
               min="0"
               name="invoice_percentage"
