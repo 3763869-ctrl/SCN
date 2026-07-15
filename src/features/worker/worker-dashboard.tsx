@@ -243,7 +243,7 @@ export function WorkerDashboard({ workerName, data }: WorkerDashboardProps) {
       setMessage(result.message);
 
       if (endDayRequiresUnits && result.success) {
-        const clockOutResult = await clockOut();
+        const clockOutResult = await clockOut({ unitsSubmitted: true });
 
         if (clockOutResult.success) {
           setEndDayRequiresUnits(false);

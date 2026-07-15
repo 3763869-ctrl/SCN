@@ -101,23 +101,27 @@ export async function endLunch(): Promise<WorkerActionState> {
   return { message: "Lunch pause ended.", success: true };
 }
 
-export async function clockOut(): Promise<WorkerActionState> {
+export async function clockOut(options?: {
+  unitsSubmitted?: boolean;
+}): Promise<WorkerActionState> {
   const profile = await requireProfile();
   const supabase = await createSupabaseServerClient();
   const { workDate } = getTodayBounds();
 
-  const { data: todaysUnits } = await supabase
-    .from("production_units")
-    .select("id")
-    .eq("worker_id", profile.id)
-    .eq("work_date", workDate)
-    .limit(1);
+  if (!options?.unitsSubmitted) {
+    const { data: todaysUnits } = await supabase
+      .from("production_units")
+      .select("id")
+      .eq("worker_id", profile.id)
+      .eq("work_date", workDate)
+      .limit(1);
 
-  if (!todaysUnits?.length) {
-    return {
-      message: "Add today's units before clocking out.",
-      success: false,
-    };
+    if (!todaysUnits?.length) {
+      return {
+        message: "Add today's units before clocking out.",
+        success: false,
+      };
+    }
   }
 
   await supabase

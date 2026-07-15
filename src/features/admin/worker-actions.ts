@@ -11,7 +11,10 @@ import {
   getEasternDateKey,
   getUtcDateFromEasternDateTime,
 } from "@/lib/dates/eastern-time";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import {
+  createSupabaseAdminClient,
+  hasSupabaseAdminConfig,
+} from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { AppRole, PayrollSchedule } from "@/types/database";
 
@@ -62,22 +65,47 @@ export async function updateWorkerProfile(formData: FormData) {
   const admin = await requireAdminProfile();
 
   const id = String(formData.get("id") ?? "");
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const role = String(formData.get("role") ?? "") as AppRole;
   const active = formData.get("active") === "true";
 
-  if (!id || !["admin", "worker"].includes(role)) {
+  if (!id || !email || !["admin", "worker"].includes(role)) {
     return;
   }
 
   const supabase = await createSupabaseServerClient();
 
-  await supabase.from("profiles").update({ role, active }).eq("id", id);
+  if (hasSupabaseAdminConfig()) {
+    const adminSupabase = createSupabaseAdminClient();
+
+    const { error } = await adminSupabase.auth.admin.updateUserById(id, {
+      email,
+      user_metadata: {
+        full_name: fullName || email,
+      },
+    });
+
+    if (error) {
+      return;
+    }
+  }
+
+  await supabase
+    .from("profiles")
+    .update({
+      active,
+      email,
+      full_name: fullName || null,
+      role,
+    })
+    .eq("id", id);
   await writeAdminAuditEvent({
     actorId: admin.id,
     entityId: id,
     entityType: "worker",
     eventType: "worker.profile.update",
-    metadata: { active, role },
+    metadata: { active, email, role },
     summary: "Updated worker profile access settings",
   });
 

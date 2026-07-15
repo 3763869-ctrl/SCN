@@ -474,27 +474,54 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                   </summary>
                   <form
                     action={updateWorkerProfile}
-                    className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-[1fr_1fr_auto]"
+                    className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-2"
                   >
                     <input name="id" type="hidden" value={selectedWorker.id} />
+                    <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                      Full Name
+                      <input
+                        className="h-10 rounded-md border border-border bg-surface px-3 text-sm font-normal text-foreground"
+                        defaultValue={selectedWorker.full_name ?? ""}
+                        name="full_name"
+                        placeholder="Worker full name"
+                        type="text"
+                      />
+                    </label>
+                    <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                      Email
+                      <input
+                        className="h-10 rounded-md border border-border bg-surface px-3 text-sm font-normal text-foreground"
+                        defaultValue={selectedWorker.email}
+                        name="email"
+                        placeholder="Worker email"
+                        required
+                        type="email"
+                      />
+                    </label>
+                    <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                      Role
                     <select
-                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm capitalize"
+                        className="h-10 rounded-md border border-border bg-surface px-3 text-sm font-normal text-foreground capitalize"
                       defaultValue={selectedWorker.role}
                       name="role"
                     >
                       <option value="admin">Admin</option>
                       <option value="worker">Worker</option>
                     </select>
+                    </label>
+                    <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                      Status
                     <select
-                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                        className="h-10 rounded-md border border-border bg-surface px-3 text-sm font-normal text-foreground"
                       defaultValue={String(selectedWorker.active)}
                       name="active"
                     >
                       <option value="true">Active</option>
                       <option value="false">Inactive</option>
                     </select>
+                    </label>
                     <SaveSubmitButton
-                      className="h-10 px-4"
+                      className="h-10 px-4 sm:col-span-2"
                       successMessage="Worker profile saved."
                       variant="secondary"
                     >
