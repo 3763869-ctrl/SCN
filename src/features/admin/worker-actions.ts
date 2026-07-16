@@ -75,18 +75,25 @@ export async function updateWorkerProfile(formData: FormData) {
   }
 
   const supabase = await createSupabaseServerClient();
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("email, full_name")
+    .eq("id", id)
+    .maybeSingle();
+  const emailChanged = currentProfile?.email !== email;
+  const fullNameChanged = (currentProfile?.full_name ?? "") !== fullName;
 
-  if (hasSupabaseAdminConfig()) {
+  if (hasSupabaseAdminConfig() && (emailChanged || fullNameChanged)) {
     const adminSupabase = createSupabaseAdminClient();
 
     const { error } = await adminSupabase.auth.admin.updateUserById(id, {
-      email,
+      ...(emailChanged ? { email } : {}),
       user_metadata: {
         full_name: fullName || email,
       },
     });
 
-    if (error) {
+    if (error && emailChanged) {
       return;
     }
   }
@@ -100,12 +107,20 @@ export async function updateWorkerProfile(formData: FormData) {
       role,
     })
     .eq("id", id);
+
+  if (formData.has("start_date")) {
+    await supabase.from("worker_details").upsert({
+      start_date: getOptionalText(formData, "start_date"),
+      worker_id: id,
+    });
+  }
+
   await writeAdminAuditEvent({
     actorId: admin.id,
     entityId: id,
     entityType: "worker",
     eventType: "worker.profile.update",
-    metadata: { active, email, role },
+    metadata: { active, email, role, startDate: getOptionalText(formData, "start_date") },
     summary: "Updated worker profile access settings",
   });
 

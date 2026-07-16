@@ -242,6 +242,8 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
       (left, right) =>
         new Date(left.clock_in_at).getTime() - new Date(right.clock_in_at).getTime(),
     )[0];
+  const firstWorkDay =
+    selectedDetails?.start_date ?? firstClockIn?.clock_in_at ?? selectedWorker?.created_at;
   const recentActivity = [
     ...selectedTimeEntries.slice(0, 8).map((entry) => ({
       id: `time-${entry.id}`,
@@ -468,10 +470,13 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                     {selectedWorker.email}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Worker since {getDateLabel(selectedWorker.created_at)}
+                    First work day {getDateLabel(firstWorkDay)}
                     {firstClockIn
                       ? `, first clock-in ${getDateLabel(firstClockIn.clock_in_at)}`
                       : ""}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Account created {getDateLabel(selectedWorker.created_at)}
                   </p>
                   {selectedDetails?.phone_number || selectedDetails?.start_date ? (
                     <p className="mt-1 text-sm text-muted-foreground">
@@ -520,25 +525,34 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                     </label>
                     <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
                       Role
-                    <select
+                      <select
                         className="h-10 rounded-md border border-border bg-surface px-3 text-sm font-normal text-foreground capitalize"
-                      defaultValue={selectedWorker.role}
-                      name="role"
-                    >
-                      <option value="admin">Admin</option>
-                      <option value="worker">Worker</option>
-                    </select>
+                        defaultValue={selectedWorker.role}
+                        name="role"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="worker">Worker</option>
+                      </select>
                     </label>
                     <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
                       Status
-                    <select
+                      <select
                         className="h-10 rounded-md border border-border bg-surface px-3 text-sm font-normal text-foreground"
-                      defaultValue={String(selectedWorker.active)}
-                      name="active"
-                    >
-                      <option value="true">Active</option>
-                      <option value="false">Inactive</option>
-                    </select>
+                        defaultValue={String(selectedWorker.active)}
+                        name="active"
+                      >
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                      </select>
+                    </label>
+                    <label className="grid gap-1 text-xs font-semibold text-muted-foreground sm:col-span-2">
+                      First Day of Work
+                      <input
+                        className="h-10 rounded-md border border-border bg-surface px-3 text-sm font-normal text-foreground"
+                        defaultValue={selectedDetails?.start_date ?? ""}
+                        name="start_date"
+                        type="date"
+                      />
                     </label>
                     <SaveSubmitButton
                       className="h-10 px-4 sm:col-span-2"
