@@ -4,6 +4,7 @@ import { BirthdayCard } from "@/features/worker/birthday-card";
 import { WorkerDashboard } from "@/features/worker/worker-dashboard";
 import { getWorkerDashboardData } from "@/features/worker/metrics";
 import { getBirthdayDue } from "@/lib/dates/birthday";
+import { env } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function WorkerPage() {
@@ -52,6 +53,7 @@ export default async function WorkerPage() {
       <section className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
         <WorkerDashboard
           data={dashboard}
+          notificationPublicKey={env.vapidPublicKey}
           workerName={profile.full_name ?? profile.email}
         />
       </section>

@@ -94,6 +94,8 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
     { data: payrolls },
     { data: payments },
     { data: workerFiles },
+    { data: pushSubscriptions },
+    { data: presenceChecks },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -140,6 +142,17 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
         "id, worker_id, file_name, storage_path, document_type, signed, notes, created_at",
       )
       .order("created_at", { ascending: false }),
+    supabase
+      .from("worker_push_subscriptions")
+      .select("id, worker_id, active, last_seen_at, created_at")
+      .eq("active", true),
+    supabase
+      .from("worker_presence_checks")
+      .select(
+        "id, worker_id, status, scheduled_at, sent_at, expires_at, responded_at, auto_clock_out_at, failure_reason, created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(250),
   ]);
 
   const workers = profiles ?? [];
@@ -192,6 +205,13 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
   const selectedFiles = (workerFiles ?? []).filter(
     (file) => file.worker_id === selectedWorkerId,
   );
+  const selectedPushSubscriptions = (pushSubscriptions ?? []).filter(
+    (subscription) => subscription.worker_id === selectedWorkerId,
+  );
+  const selectedPresenceChecks = (presenceChecks ?? []).filter(
+    (check) => check.worker_id === selectedWorkerId,
+  );
+  const selectedWorkerHasPush = selectedPushSubscriptions.length > 0;
   const signedFiles = await Promise.all(
     selectedFiles.map(async (file) => {
       const { data } = await supabase.storage
@@ -560,6 +580,27 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                     {moneyFormatter.format(totalPaid)}
                   </p>
                 </div>
+                <div className="rounded-md border border-border bg-background p-3 sm:col-span-4">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    Check-In Notifications
+                  </p>
+                  <p
+                    className={`mt-2 text-sm font-semibold ${
+                      selectedWorkerHasPush ? "text-accent" : "text-amber-700"
+                    }`}
+                  >
+                    {selectedWorkerHasPush
+                      ? `Enabled on ${selectedPushSubscriptions.length} browser${
+                          selectedPushSubscriptions.length === 1 ? "" : "s"
+                        }`
+                      : "Not enabled"}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {selectedWorkerHasPush
+                      ? `Last seen ${getDateLabel(selectedPushSubscriptions[0].last_seen_at)}`
+                      : "Worker must enable Chrome notifications before clocking in."}
+                  </p>
+                </div>
               </div>
             </section>
 
@@ -785,6 +826,43 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                     </div>
                     </form>
                   </details>
+
+                  <div className="mt-6">
+                    <h3 className="text-base font-semibold">Check-In History</h3>
+                    <div className="mt-4 space-y-2">
+                      {selectedPresenceChecks.slice(0, 5).map((check) => (
+                        <div
+                          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+                          key={check.id}
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="font-semibold capitalize">
+                              {check.status.replaceAll("_", " ")}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {getDateLabel(check.sent_at ?? check.scheduled_at)}
+                            </span>
+                          </div>
+                          {check.auto_clock_out_at ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Auto clocked out at{" "}
+                              {timeFormatter.format(new Date(check.auto_clock_out_at))}
+                            </p>
+                          ) : null}
+                          {check.failure_reason ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {check.failure_reason}
+                            </p>
+                          ) : null}
+                        </div>
+                      ))}
+                      {!selectedPresenceChecks.length ? (
+                        <p className="rounded-md border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
+                          No check-ins recorded yet.
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
 
                   <div className="mt-6">
                     <h3 className="text-base font-semibold">Pay Settings</h3>

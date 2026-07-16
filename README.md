@@ -43,6 +43,10 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 UPSTASH_REDIS_REST_URL=
 UPSTASH_REDIS_REST_TOKEN=
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=
+CRON_SECRET=
 ```
 
 `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are browser-safe.
@@ -52,6 +56,15 @@ Vercel Project Environment Variables. Never commit it to GitHub.
 `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are optional but
 recommended in production so login and password reset rate limits work
 reliably across Vercel serverless instances.
+
+Worker Chrome check-in reminders use Web Push:
+
+- Generate VAPID keys with `npx web-push generate-vapid-keys`.
+- Put the public key in `NEXT_PUBLIC_VAPID_PUBLIC_KEY`.
+- Put the private key in `VAPID_PRIVATE_KEY`.
+- Set `VAPID_SUBJECT` to a contact value such as `mailto:you@example.com`.
+- Set `CRON_SECRET` in Vercel so `/api/cron/worker-presence` is protected.
+- Apply `0019_worker_presence_push.sql` before testing reminders.
 
 ## Project Structure
 

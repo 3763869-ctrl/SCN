@@ -75,6 +75,8 @@ export async function getWorkerDashboardData(workerId: string) {
     { data: weekUnitEntries },
     { data: paySettings },
     { data: bonusTiers },
+    { data: pushSubscriptions },
+    { data: presenceChecks },
   ] = await Promise.all([
     supabase
       .from("time_entries")
@@ -144,6 +146,18 @@ export async function getWorkerDashboardData(workerId: string) {
       .or(`worker_id.is.null,worker_id.eq.${workerId}`)
       .eq("active", true)
       .order("threshold_units", { ascending: true }),
+    supabase
+      .from("worker_push_subscriptions")
+      .select("id")
+      .eq("worker_id", workerId)
+      .eq("active", true)
+      .limit(1),
+    supabase
+      .from("worker_presence_checks")
+      .select("id, status, scheduled_at, sent_at, expires_at, responded_at, auto_clock_out_at")
+      .eq("worker_id", workerId)
+      .order("created_at", { ascending: false })
+      .limit(5),
   ]);
 
   const entries = timeEntries ?? [];
@@ -250,5 +264,7 @@ export async function getWorkerDashboardData(workerId: string) {
       end: getEasternDateKey(payrollPeriod.end),
     },
     calendarDays,
+    pushSubscriptionActive: Boolean(pushSubscriptions?.length),
+    recentPresenceChecks: presenceChecks ?? [],
   };
 }

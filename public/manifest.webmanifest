@@ -1,0 +1,17 @@
+{
+  "name": "SCN Operations",
+  "short_name": "SCN",
+  "description": "Private SCN operations workspace",
+  "start_url": "/worker",
+  "display": "standalone",
+  "background_color": "#f7f9fb",
+  "theme_color": "#0f766e",
+  "icons": [
+    {
+      "src": "/window.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

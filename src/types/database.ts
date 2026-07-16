@@ -36,6 +36,14 @@ export type FinancialRecurringFrequency =
   | "monthly"
   | "quarterly"
   | "yearly";
+export type WorkerPresenceCheckStatus =
+  | "scheduled"
+  | "sent"
+  | "answered"
+  | "missed"
+  | "auto_clocked_out"
+  | "cancelled"
+  | "failed";
 
 export type Database = {
   public: {
@@ -83,6 +91,119 @@ export type Database = {
             columns: ["actor_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      worker_push_subscriptions: {
+        Row: {
+          id: string;
+          worker_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          expiration_time: string | null;
+          user_agent: string | null;
+          active: boolean;
+          last_seen_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          expiration_time?: string | null;
+          user_agent?: string | null;
+          active?: boolean;
+          last_seen_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string;
+          endpoint?: string;
+          p256dh?: string;
+          auth?: string;
+          expiration_time?: string | null;
+          user_agent?: string | null;
+          active?: boolean;
+          last_seen_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "worker_push_subscriptions_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      worker_presence_checks: {
+        Row: {
+          id: string;
+          worker_id: string;
+          time_entry_id: string;
+          status: WorkerPresenceCheckStatus;
+          scheduled_at: string;
+          sent_at: string | null;
+          expires_at: string;
+          responded_at: string | null;
+          auto_clock_out_at: string | null;
+          failure_reason: string | null;
+          metadata: Record<string, unknown>;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id: string;
+          time_entry_id: string;
+          status?: WorkerPresenceCheckStatus;
+          scheduled_at?: string;
+          sent_at?: string | null;
+          expires_at: string;
+          responded_at?: string | null;
+          auto_clock_out_at?: string | null;
+          failure_reason?: string | null;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string;
+          time_entry_id?: string;
+          status?: WorkerPresenceCheckStatus;
+          scheduled_at?: string;
+          sent_at?: string | null;
+          expires_at?: string;
+          responded_at?: string | null;
+          auto_clock_out_at?: string | null;
+          failure_reason?: string | null;
+          metadata?: Record<string, unknown>;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "worker_presence_checks_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "worker_presence_checks_time_entry_id_fkey";
+            columns: ["time_entry_id"];
+            isOneToOne: false;
+            referencedRelation: "time_entries";
             referencedColumns: ["id"];
           },
         ];
