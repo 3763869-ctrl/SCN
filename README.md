@@ -64,6 +64,9 @@ Worker Chrome check-in reminders use Web Push:
 - Put the private key in `VAPID_PRIVATE_KEY`.
 - Set `VAPID_SUBJECT` to a contact value such as `mailto:you@example.com`.
 - Set `CRON_SECRET` in Vercel so `/api/cron/worker-presence` is protected.
+- On Vercel Hobby, do not add an every-minute Vercel cron because Hobby only
+  supports daily cron schedules. Use an external scheduler for this endpoint,
+  or upgrade to Pro before enabling a per-minute Vercel cron.
 - Apply `0019_worker_presence_push.sql` before testing reminders.
 
 ## Project Structure
