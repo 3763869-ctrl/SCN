@@ -679,7 +679,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                           .join(" - ") || "Not recorded",
                       ],
                       [
-                        "Start Date",
+                        "First Day of Work",
                         selectedDetails?.start_date
                           ? getDateLabel(selectedDetails.start_date)
                           : "Not recorded",
@@ -799,7 +799,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                       />
                     </label>
                     <label className="text-sm font-medium">
-                      Start Date
+                      First Day of Work
                       <input
                         className="mt-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
                         defaultValue={selectedDetails?.start_date ?? ""}
