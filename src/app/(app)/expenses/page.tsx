@@ -1,4 +1,4 @@
-import { Download, Search } from "lucide-react";
+import { Download, ExternalLink, FileText, Search, X } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   softwareExamples,
   taxExamples,
 } from "@/features/admin/financial-data";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { FinancialExpenseCategory } from "@/types/database";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
@@ -35,6 +36,7 @@ type ExpensesPageProps = {
   searchParams?: Promise<{
     category?: string;
     end?: string;
+    expense?: string;
     partner?: string;
     q?: string;
     start?: string;
@@ -76,6 +78,7 @@ function getCsvHref(rows: Array<Record<string, string | number | boolean | null 
 
 export default async function ExpensesPage({ searchParams }: ExpensesPageProps) {
   const params = await searchParams;
+  const supabase = await createSupabaseServerClient();
   const currentParams = new URLSearchParams();
   Object.entries(params ?? {}).forEach(([key, value]) => {
     if (value) {
@@ -83,6 +86,19 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
     }
   });
   const currentPath = `/expenses${currentParams.toString() ? `?${currentParams.toString()}` : ""}`;
+  const pathWithoutSelectedExpenseParams = new URLSearchParams(currentParams);
+  pathWithoutSelectedExpenseParams.delete("expense");
+  const pathWithoutSelectedExpense = `/expenses${
+    pathWithoutSelectedExpenseParams.toString()
+      ? `?${pathWithoutSelectedExpenseParams.toString()}`
+      : ""
+  }`;
+  function getExpenseHref(expenseId: string) {
+    const nextParams = new URLSearchParams(currentParams);
+    nextParams.set("expense", expenseId);
+
+    return `/expenses?${nextParams.toString()}`;
+  }
   const data = await getFinancialManagementData({
     category: params?.category,
     endDate: params?.end,
@@ -100,6 +116,25 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
 
     return query ? haystack.includes(query) : true;
   });
+  const receiptUrls = new Map<string, string>();
+  await Promise.all(
+    rows
+      .filter((expense) => expense.receipt_storage_path)
+      .map(async (expense) => {
+        const { data: signedReceipt } = await supabase.storage
+          .from("expense-receipts")
+          .createSignedUrl(expense.receipt_storage_path!, 60 * 10);
+
+        if (signedReceipt?.signedUrl) {
+          receiptUrls.set(expense.id, signedReceipt.signedUrl);
+        }
+      }),
+  );
+  const selectedExpense =
+    rows.find((expense) => expense.id === params?.expense) ?? null;
+  const selectedReceiptUrl = selectedExpense
+    ? receiptUrls.get(selectedExpense.id)
+    : null;
   const categoryTotals = new Map(
     data.expenseByCategory.map((category) => [category.category, category.amount]),
   );
@@ -334,6 +369,94 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
           </div>
         </div>
 
+        {selectedExpense ? (
+          <article className="mt-5 rounded-lg border border-border bg-background p-5 shadow-sm">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 place-items-center rounded-md bg-surface-muted text-accent">
+                    <FileText className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <div>
+                    <h2 className="text-lg font-semibold">
+                      {selectedExpense.vendor}
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      {getDateLabel(selectedExpense.expense_date)} -{" "}
+                      {expenseCategoryLabels[selectedExpense.category]}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-4 text-sm leading-6">
+                  {selectedExpense.description}
+                </p>
+                <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-md border border-border bg-surface p-3">
+                    <dt className="text-xs font-semibold text-muted-foreground">
+                      Amount
+                    </dt>
+                    <dd className="mt-1 font-semibold">
+                      {moneyFormatter.format(Number(selectedExpense.amount))}
+                    </dd>
+                  </div>
+                  <div className="rounded-md border border-border bg-surface p-3">
+                    <dt className="text-xs font-semibold text-muted-foreground">
+                      Payment
+                    </dt>
+                    <dd className="mt-1 font-semibold">
+                      {selectedExpense.payment_method || "Not recorded"}
+                    </dd>
+                  </div>
+                  <div className="rounded-md border border-border bg-surface p-3">
+                    <dt className="text-xs font-semibold text-muted-foreground">
+                      Paid From
+                    </dt>
+                    <dd className="mt-1 font-semibold">
+                      {selectedExpense.paid_from_account || "Not recorded"}
+                    </dd>
+                  </div>
+                  <div className="rounded-md border border-border bg-surface p-3">
+                    <dt className="text-xs font-semibold text-muted-foreground">
+                      Receipt
+                    </dt>
+                    <dd className="mt-1 font-semibold">
+                      {selectedReceiptUrl ? (
+                        <a
+                          className="inline-flex items-center gap-1 text-accent hover:underline"
+                          href={selectedReceiptUrl}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Open receipt
+                          <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                        </a>
+                      ) : selectedExpense.receipt_file_name ? (
+                        <span className="text-muted-foreground">
+                          Receipt unavailable
+                        </span>
+                      ) : (
+                        "No receipt"
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+                {selectedExpense.notes ? (
+                  <p className="mt-4 rounded-md border border-border bg-surface p-3 text-sm text-muted-foreground">
+                    {selectedExpense.notes}
+                  </p>
+                ) : null}
+              </div>
+              <a
+                className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-3 text-sm font-semibold transition hover:bg-surface-muted"
+                href={pathWithoutSelectedExpense}
+              >
+                <X className="mr-2 h-4 w-4" aria-hidden="true" />
+                Close
+              </a>
+            </div>
+          </article>
+        ) : null}
+
         <div className="mt-5 overflow-x-auto rounded-md border border-border">
           <table className="w-full min-w-[1000px] border-collapse text-sm">
             <thead className="bg-background text-left text-muted-foreground">
@@ -351,32 +474,75 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
             </thead>
             <tbody className="divide-y divide-border bg-surface">
               {rows.map((expense) => (
-                <tr key={expense.id} className="align-top">
-                  <td className="px-3 py-3">{getDateLabel(expense.expense_date)}</td>
-                  <td className="px-3 py-3 font-medium">{expense.vendor}</td>
+                <tr
+                  key={expense.id}
+                  className={`align-top transition hover:bg-surface-muted ${
+                    selectedExpense?.id === expense.id ? "bg-surface-muted" : ""
+                  }`}
+                >
                   <td className="px-3 py-3">
-                    {expenseCategoryLabels[expense.category]}
-                    {expense.subcategory ? (
-                      <span className="block text-xs text-muted-foreground">
-                        {expense.subcategory}
+                    <a className="block" href={getExpenseHref(expense.id)}>
+                      {getDateLabel(expense.expense_date)}
+                    </a>
+                  </td>
+                  <td className="px-3 py-3 font-medium">
+                    <a className="block" href={getExpenseHref(expense.id)}>
+                      {expense.vendor}
+                    </a>
+                  </td>
+                  <td className="px-3 py-3">
+                    <a className="block" href={getExpenseHref(expense.id)}>
+                      {expenseCategoryLabels[expense.category]}
+                      {expense.subcategory ? (
+                        <span className="block text-xs text-muted-foreground">
+                          {expense.subcategory}
+                        </span>
+                      ) : null}
+                    </a>
+                  </td>
+                  <td className="px-3 py-3">
+                    <a className="block" href={getExpenseHref(expense.id)}>
+                      {expense.description}
+                    </a>
+                  </td>
+                  <td className="px-3 py-3">
+                    <a className="block" href={getExpenseHref(expense.id)}>
+                      {expense.partner_id
+                        ? partnerMap.get(expense.partner_id)?.full_name
+                        : "-"}
+                    </a>
+                  </td>
+                  <td className="px-3 py-3">
+                    <a className="block" href={getExpenseHref(expense.id)}>
+                      {expense.worker_id
+                        ? workerMap.get(expense.worker_id)?.full_name ??
+                          workerMap.get(expense.worker_id)?.email
+                        : "-"}
+                    </a>
+                  </td>
+                  <td className="px-3 py-3">
+                    {receiptUrls.get(expense.id) ? (
+                      <a
+                        className="inline-flex items-center gap-1 font-semibold text-accent hover:underline"
+                        href={receiptUrls.get(expense.id)}
+                        rel="noreferrer"
+                        target="_blank"
+                      >
+                        Receipt
+                        <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+                      </a>
+                    ) : expense.receipt_file_name ? (
+                      <span className="text-muted-foreground">
+                        Receipt unavailable
                       </span>
-                    ) : null}
-                  </td>
-                  <td className="px-3 py-3">{expense.description}</td>
-                  <td className="px-3 py-3">
-                    {expense.partner_id ? partnerMap.get(expense.partner_id)?.full_name : "-"}
-                  </td>
-                  <td className="px-3 py-3">
-                    {expense.worker_id
-                      ? workerMap.get(expense.worker_id)?.full_name ??
-                        workerMap.get(expense.worker_id)?.email
-                      : "-"}
-                  </td>
-                  <td className="px-3 py-3">
-                    {expense.receipt_file_name ? expense.receipt_file_name : "-"}
+                    ) : (
+                      "-"
+                    )}
                   </td>
                   <td className="px-3 py-3 text-right font-semibold">
-                    {moneyFormatter.format(Number(expense.amount))}
+                    <a className="block" href={getExpenseHref(expense.id)}>
+                      {moneyFormatter.format(Number(expense.amount))}
+                    </a>
                   </td>
                   <td className="px-3 py-3 text-right">
                     <details className="group">
