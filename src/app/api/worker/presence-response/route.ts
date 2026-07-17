@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
       responded_at: new Date().toISOString(),
       status: "answered",
     })
-    .eq("id", check.id);
+    .eq("id", check.id)
+    .eq("worker_id", profile.id);
 
   return NextResponse.json({ ok: true, status: "answered" });
 }

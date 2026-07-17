@@ -611,8 +611,16 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
   }
 
   if (targetTimeEntryId && !clockInAt && !clockOutAt && lunchMinutes === 0) {
-    await supabase.from("time_breaks").delete().eq("time_entry_id", targetTimeEntryId);
-    await supabase.from("time_entries").delete().eq("id", targetTimeEntryId);
+    await supabase
+      .from("time_breaks")
+      .delete()
+      .eq("time_entry_id", targetTimeEntryId)
+      .eq("worker_id", workerId);
+    await supabase
+      .from("time_entries")
+      .delete()
+      .eq("id", targetTimeEntryId)
+      .eq("worker_id", workerId);
     targetTimeEntryId = "";
   }
 
@@ -629,7 +637,8 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
       await supabase
         .from("time_entries")
         .update(timePayload)
-        .eq("id", targetTimeEntryId);
+        .eq("id", targetTimeEntryId)
+        .eq("worker_id", workerId);
     } else {
       const { data } = await supabase
         .from("time_entries")
@@ -656,12 +665,20 @@ export async function updateWorkerTimesheetDay(formData: FormData) {
       };
 
       if (breakId) {
-        await supabase.from("time_breaks").update(breakPayload).eq("id", breakId);
+        await supabase
+          .from("time_breaks")
+          .update(breakPayload)
+          .eq("id", breakId)
+          .eq("worker_id", workerId);
       } else {
         await supabase.from("time_breaks").insert(breakPayload);
       }
     } else if (breakId) {
-      await supabase.from("time_breaks").delete().eq("id", breakId);
+      await supabase
+        .from("time_breaks")
+        .delete()
+        .eq("id", breakId)
+        .eq("worker_id", workerId);
     }
   }
 

@@ -60,6 +60,7 @@ async function processExpiredChecks(now: Date) {
         .from("time_entries")
         .select("id, worker_id, clock_in_at, clock_out_at")
         .eq("id", check.time_entry_id)
+        .eq("worker_id", check.worker_id)
         .maybeSingle(),
       supabase
         .from("time_breaks")
@@ -106,6 +107,7 @@ async function processExpiredChecks(now: Date) {
         notes: "Auto clocked out after missed SCN presence check.",
       })
       .eq("id", entry.id)
+      .eq("worker_id", check.worker_id)
       .is("clock_out_at", null);
 
     await supabase

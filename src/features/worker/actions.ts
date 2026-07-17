@@ -95,7 +95,8 @@ export async function endLunch(): Promise<WorkerActionState> {
   await supabase
     .from("time_breaks")
     .update({ break_end_at: new Date().toISOString() })
-    .eq("id", openBreak.id);
+    .eq("id", openBreak.id)
+    .eq("worker_id", profile.id);
 
   revalidatePath("/worker");
   return { message: "Lunch pause ended.", success: true };
@@ -143,7 +144,8 @@ export async function clockOut(options?: {
     await supabase
       .from("time_entries")
       .update({ clock_out_at: new Date().toISOString() })
-      .eq("id", openEntry.id);
+      .eq("id", openEntry.id)
+      .eq("worker_id", profile.id);
   }
 
   revalidatePath("/worker");
@@ -158,9 +160,10 @@ export async function addUnits(
 
   const profile = await requireProfile();
   const quantity = Number(formData.get("quantity"));
+  const normalizedQuantity = Math.floor(quantity);
   const notes = String(formData.get("notes") ?? "").trim();
 
-  if (!Number.isFinite(quantity) || quantity < 0) {
+  if (!Number.isFinite(quantity) || normalizedQuantity < 0) {
     return { message: "Enter a valid unit quantity.", success: false };
   }
 
@@ -173,14 +176,23 @@ export async function addUnits(
     .eq("work_date", workDate);
   const previousUnits =
     existingUnits?.reduce((total, entry) => total + entry.quantity, 0) ?? 0;
-  const nextUnits = previousUnits + Math.floor(quantity);
+  const nextUnits = previousUnits + normalizedQuantity;
 
-  await supabase.from("production_units").insert({
-    worker_id: profile.id,
-    quantity: Math.floor(quantity),
-    work_date: workDate,
-    notes: notes || null,
-  });
+  if (normalizedQuantity > 0) {
+    const { error } = await supabase.from("production_units").insert({
+      worker_id: profile.id,
+      quantity: normalizedQuantity,
+      work_date: workDate,
+      notes: notes || null,
+    });
+
+    if (error) {
+      return {
+        message: "SCN could not save today's units. Please try again.",
+        success: false,
+      };
+    }
+  }
 
   const { data: tiers } = await supabase
     .from("bonus_tiers")
@@ -213,7 +225,7 @@ export async function addUnits(
 
   return {
     message:
-      Math.floor(quantity) === 0
+      normalizedQuantity === 0
         ? "Zero units submitted."
         : "Units submitted.",
     success: true,
