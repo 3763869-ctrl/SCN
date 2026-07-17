@@ -102,6 +102,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
       .from("profiles")
       .select("id, full_name, email, role, active, created_at")
       .in("role", ["admin", "worker"])
+      .is("deleted_at", null)
       .order("full_name", { ascending: true }),
     supabase
       .from("worker_pay_settings")
@@ -1082,7 +1083,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                       </h4>
                       <p className="mt-2 text-sm leading-6 text-muted-foreground">
                         Archive keeps all history and files but deactivates the worker.
-                        Delete permanently removes this worker and their history.
+                        Delete moves this worker to the deleted workers bin for 30 days.
                       </p>
                       <div className="mt-3 flex flex-col gap-2 sm:flex-row">
                         <form action={archiveWorker}>
@@ -1099,10 +1100,15 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                         {canCreateWorkers ? (
                           <form action={deleteWorker}>
                             <input name="id" type="hidden" value={selectedWorker.id} />
+                            <input
+                              name="delete_reason"
+                              type="hidden"
+                              value="Deleted from Workers page"
+                            />
                             <ConfirmSubmitButton
                               confirmLabel="Delete Worker"
-                              description="This permanently deletes this worker, their login, time entries, units, payroll records, payments, files, and history. This cannot be undone."
-                              title="Delete worker and all history?"
+                              description="This will remove the worker from active screens and place them in Settings > Deleted Workers Bin for 30 days. Their time tracking, payroll, files, and history will stay saved and can be restored."
+                              title="Do you want to delete this worker?"
                               variant="secondary"
                             >
                               Delete Worker

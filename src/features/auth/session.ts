@@ -9,6 +9,7 @@ export type AuthProfile = {
   email: string;
   role: AppRole;
   active: boolean;
+  deleted_at: string | null;
 };
 
 export async function getCurrentProfile() {
@@ -23,11 +24,11 @@ export async function getCurrentProfile() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role, active")
+    .select("id, full_name, email, role, active, deleted_at")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (!profile || !profile.active) {
+  if (!profile || !profile.active || profile.deleted_at) {
     await supabase.auth.signOut();
     return null;
   }

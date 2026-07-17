@@ -1354,6 +1354,10 @@ export type Database = {
           email: string;
           role: AppRole;
           active: boolean;
+          delete_reason: string | null;
+          deleted_at: string | null;
+          deleted_by: string | null;
+          deletion_expires_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -1363,6 +1367,10 @@ export type Database = {
           email: string;
           role?: AppRole;
           active?: boolean;
+          delete_reason?: string | null;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
+          deletion_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1372,6 +1380,10 @@ export type Database = {
           email?: string;
           role?: AppRole;
           active?: boolean;
+          delete_reason?: string | null;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
+          deletion_expires_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -1,10 +1,27 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { getPartnerOperationsData, getStatusLabel } from "@/features/admin/partner-data";
+import { restoreDeletedWorker } from "@/features/admin/worker-actions";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 export default async function SettingsPage() {
+  const supabase = await createSupabaseServerClient();
   const data = await getPartnerOperationsData();
+  const { data: deletedWorkers } = await supabase
+    .from("profiles")
+    .select(
+      "id, full_name, email, delete_reason, deleted_at, deletion_expires_at",
+    )
+    .eq("role", "worker")
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
 
   return (
     <div className="space-y-6">
@@ -45,6 +62,63 @@ export default async function SettingsPage() {
           {!data.clients.length ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">
               RM Support will appear here after the Partner migration is run.
+            </p>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <div>
+          <h2 className="text-base font-semibold">Deleted Workers Bin</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Deleted workers stay here for 30 days. Restore brings back the worker
+            profile with their time tracking, payroll, files, and history still attached.
+          </p>
+        </div>
+        <div className="mt-5 divide-y divide-border rounded-md border border-border bg-background">
+          {(deletedWorkers ?? []).map((worker) => (
+            <div
+              className="flex flex-col gap-4 px-4 py-4 text-sm lg:flex-row lg:items-center lg:justify-between"
+              key={worker.id}
+            >
+              <div>
+                <p className="font-semibold">
+                  {worker.full_name || worker.email}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{worker.email}</p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Deleted{" "}
+                  {worker.deleted_at
+                    ? dateFormatter.format(new Date(worker.deleted_at))
+                    : "recently"}
+                  {worker.deletion_expires_at
+                    ? ` - Restore until ${dateFormatter.format(
+                        new Date(worker.deletion_expires_at),
+                      )}`
+                    : ""}
+                </p>
+                {worker.delete_reason ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Reason: {worker.delete_reason}
+                  </p>
+                ) : null}
+              </div>
+              <form action={restoreDeletedWorker}>
+                <input name="id" type="hidden" value={worker.id} />
+                <ConfirmSubmitButton
+                  confirmLabel="Restore Worker"
+                  description="This will reactivate the worker profile and bring the worker back to the active worker list with their saved history."
+                  title="Restore this worker?"
+                  variant="secondary"
+                >
+                  Restore
+                </ConfirmSubmitButton>
+              </form>
+            </div>
+          ))}
+          {!deletedWorkers?.length ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">
+              No deleted workers.
             </p>
           ) : null}
         </div>

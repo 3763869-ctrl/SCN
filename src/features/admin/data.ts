@@ -7,6 +7,7 @@ type ProfileSummary = {
   email: string;
   role: "admin" | "worker";
   active: boolean;
+  deleted_at?: string | null;
 };
 
 export function getProfileLabel(
@@ -27,6 +28,7 @@ export async function getAdminOperationsData() {
     supabase
       .from("profiles")
       .select("id, full_name, email, role, active, created_at")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false }),
     supabase
       .from("time_entries")

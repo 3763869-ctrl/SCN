@@ -257,38 +257,89 @@ export async function deleteWorker(formData: FormData) {
   const admin = await requireAdminProfile();
 
   const id = String(formData.get("id") ?? "");
+  const reason = String(formData.get("delete_reason") ?? "").trim();
 
   if (!id) {
     return;
   }
 
   const adminSupabase = createSupabaseAdminClient();
-  const { data: files } = await adminSupabase
-    .from("worker_files")
-    .select("storage_path")
-    .eq("worker_id", id);
-  const storagePaths = (files ?? [])
-    .map((file) => file.storage_path)
-    .filter(Boolean);
+  const deletedAt = new Date();
+  const deletionExpiresAt = new Date(deletedAt);
+  deletionExpiresAt.setDate(deletionExpiresAt.getDate() + 30);
 
-  if (storagePaths.length) {
-    await adminSupabase.storage.from("worker-files").remove(storagePaths);
-  }
+  await adminSupabase
+    .from("profiles")
+    .update({
+      active: false,
+      delete_reason: reason || null,
+      deleted_at: deletedAt.toISOString(),
+      deleted_by: admin.id,
+      deletion_expires_at: deletionExpiresAt.toISOString(),
+    })
+    .eq("id", id)
+    .eq("role", "worker");
 
-  await adminSupabase.auth.admin.deleteUser(id);
-  await adminSupabase.from("profiles").delete().eq("id", id).eq("role", "worker");
+  await adminSupabase
+    .from("partner_worker_assignments")
+    .update({
+      ended_at: deletedAt.toISOString(),
+      status: "ended",
+    })
+    .eq("worker_id", id)
+    .eq("status", "active");
+
   await writeAdminAuditEvent({
     actorId: admin.id,
     entityId: id,
     entityType: "worker",
     eventType: "worker.delete",
-    summary: "Deleted worker and related auth account",
+    metadata: { deleteReason: reason || null, restoreUntil: deletionExpiresAt.toISOString() },
+    summary: "Moved worker to deleted workers bin",
   });
 
   revalidatePath("/workers");
+  revalidatePath("/settings");
   revalidatePath("/time-tracking");
   revalidatePath("/payroll");
   revalidatePath("/worker");
+}
+
+export async function restoreDeletedWorker(formData: FormData) {
+  const admin = await requireAdminProfile();
+
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) {
+    return;
+  }
+
+  const adminSupabase = createSupabaseAdminClient();
+
+  await adminSupabase
+    .from("profiles")
+    .update({
+      active: true,
+      delete_reason: null,
+      deleted_at: null,
+      deleted_by: null,
+      deletion_expires_at: null,
+    })
+    .eq("id", id)
+    .eq("role", "worker");
+
+  await writeAdminAuditEvent({
+    actorId: admin.id,
+    entityId: id,
+    entityType: "worker",
+    eventType: "worker.restore",
+    summary: "Restored worker from deleted workers bin",
+  });
+
+  revalidatePath("/workers");
+  revalidatePath("/settings");
+  revalidatePath("/time-tracking");
+  revalidatePath("/payroll");
 }
 
 export async function createWorker(formData: FormData) {

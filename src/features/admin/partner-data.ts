@@ -59,7 +59,8 @@ export async function getPartnerOperationsData() {
     supabase
       .from("profiles")
       .select("id, full_name, email, role, active")
-      .in("role", ["admin", "worker"]),
+      .in("role", ["admin", "worker"])
+      .is("deleted_at", null),
     supabase
       .from("production_units")
       .select("id, worker_id, quantity, work_date, status")

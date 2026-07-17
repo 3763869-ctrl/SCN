@@ -169,6 +169,7 @@ export default async function TimeTrackingPage({
     .from("profiles")
     .select("id, full_name, email, role, active")
     .in("role", ["admin", "worker"])
+    .is("deleted_at", null)
     .order("full_name", { ascending: true });
 
   const workers = profiles ?? [];
