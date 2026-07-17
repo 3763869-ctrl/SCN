@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   BadgeDollarSign,
-  BellRing,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -86,22 +85,11 @@ type WorkerDashboardData = {
     bonus_amount: number;
     label: string | null;
   } | null;
-  pushSubscriptionActive: boolean;
-  recentPresenceChecks: Array<{
-    id: string;
-    status: string;
-    scheduled_at: string;
-    sent_at: string | null;
-    expires_at: string;
-    responded_at: string | null;
-    auto_clock_out_at: string | null;
-  }>;
 };
 
 type WorkerDashboardProps = {
   workerName: string;
   data: WorkerDashboardData;
-  notificationPublicKey: string;
 };
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
@@ -153,59 +141,20 @@ function getSessionHours(start: string, end: string | null, now: number) {
   return Math.max(0, (endMs - startMs) / 36e5);
 }
 
-function getApplicationServerKey(publicKey: string) {
-  const padding = "=".repeat((4 - (publicKey.length % 4)) % 4);
-  const base64 = `${publicKey}${padding}`.replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let index = 0; index < rawData.length; index += 1) {
-    outputArray[index] = rawData.charCodeAt(index);
-  }
-
-  return outputArray;
-}
-
-function getPresenceStatusLabel(status: string) {
-  const labels: Record<string, string> = {
-    answered: "Answered",
-    auto_clocked_out: "Auto clocked out",
-    cancelled: "Cancelled",
-    failed: "Failed",
-    missed: "Clock paused",
-    scheduled: "Scheduled",
-    sent: "Waiting for answer",
-  };
-
-  return labels[status] ?? status;
-}
-
 export function WorkerDashboard({
   workerName,
   data,
-  notificationPublicKey,
 }: WorkerDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"clock" | "units">("clock");
   const [timeDisplayMode, setTimeDisplayMode] = useState<"12" | "24">("12");
   const [message, setMessage] = useState<string | null>(null);
-  const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
-  const [notificationState, setNotificationState] = useState<
-    "checking" | "unsupported" | "missing-key" | "denied" | "enabled" | "disabled"
-  >(
-    !notificationPublicKey
-      ? "missing-key"
-      : data.pushSubscriptionActive
-        ? "enabled"
-        : "disabled",
-  );
   const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
   const [endDayRequiresUnits, setEndDayRequiresUnits] = useState(false);
   const [clockOutComplete, setClockOutComplete] = useState(false);
   const [celebration, setCelebration] = useState<WorkerActionState | null>(null);
   const [isPending, startTransition] = useTransition();
   const [now, setNow] = useState(() => Date.now());
-  const notificationsRequired = Boolean(notificationPublicKey);
   const isPresencePause = data.openBreak?.break_type === "presence_pause";
 
   useEffect(() => {
@@ -276,78 +225,6 @@ export function WorkerDashboard({
       }
       router.refresh();
     });
-  }
-
-  async function enableNotifications() {
-    setNotificationMessage("Chrome should ask for permission now. Choose Allow.");
-
-    if (!notificationPublicKey) {
-      setNotificationMessage(
-        "Notifications are not configured on this site yet. Ask admin to add the VAPID keys in Vercel.",
-      );
-      setNotificationState("missing-key");
-      return;
-    }
-
-    if (
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window) ||
-      !("Notification" in window)
-    ) {
-      setNotificationMessage("This browser does not support SCN reminders.");
-      setNotificationState("unsupported");
-      return;
-    }
-
-    const permission = await Notification.requestPermission();
-
-    if (permission === "denied") {
-      setNotificationMessage(
-        "Chrome is blocking notifications. Click the lock icon near the address bar, allow notifications for SCN, then press this button again.",
-      );
-      setNotificationState("denied");
-      return;
-    }
-
-    if (permission !== "granted") {
-      setNotificationMessage("Notifications were not enabled.");
-      setNotificationState("disabled");
-      return;
-    }
-
-    const registration = await navigator.serviceWorker.register("/sw.js");
-    const existingSubscription = await registration.pushManager.getSubscription();
-    const subscription =
-      existingSubscription ??
-      (await registration.pushManager.subscribe({
-        applicationServerKey: getApplicationServerKey(notificationPublicKey),
-        userVisibleOnly: true,
-      }));
-    const response = await fetch("/api/worker/push-subscription", {
-      body: JSON.stringify(subscription.toJSON()),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      setNotificationMessage("SCN could not save this notification setup.");
-      setNotificationState("disabled");
-      return;
-    }
-
-    await registration.showNotification("SCN reminders enabled", {
-      body: "You will get a check-in every 30 minutes while clocked in.",
-      icon: "/window.svg",
-      tag: "scn-reminders-enabled",
-    });
-
-    setNotificationMessage(
-      "Notifications are enabled. A test notification was sent.",
-    );
-    setNotificationState("enabled");
-    router.refresh();
   }
 
   function continueClockOut() {
@@ -546,61 +423,6 @@ export function WorkerDashboard({
         </p>
       ) : null}
 
-      <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-md bg-surface-muted text-accent">
-              <BellRing className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-base font-semibold">Chrome Check-In Reminders</h2>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                SCN will send a Chrome notification every 30 minutes while you are
-                clocked in. Press Yes within 1 minute to stay clocked in. If you
-                miss it, your clock pauses until you resume.
-              </p>
-              {notificationMessage ? (
-                <p className="mt-2 text-sm font-medium text-muted-foreground">
-                  {notificationMessage}
-                </p>
-              ) : notificationState === "missing-key" ? (
-                <p className="mt-2 text-sm font-medium text-muted-foreground">
-                Reminder setup is not finished yet. Clock-in is still available.
-                Click Enable Notifications, then choose Allow in Chrome.
-                </p>
-              ) : null}
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <span
-              className={`rounded-md px-3 py-2 text-sm font-semibold ${
-                notificationState === "enabled"
-                  ? "bg-accent/10 text-accent"
-                  : "bg-amber-100 text-amber-800"
-              }`}
-            >
-              {notificationState === "enabled"
-                ? "Enabled"
-                : notificationState === "denied"
-                  ? "Blocked in Chrome"
-                  : notificationState === "missing-key"
-                    ? "Setup needed"
-                    : notificationState === "unsupported"
-                      ? "Unsupported browser"
-                      : "Not enabled"}
-            </span>
-            <Button
-              disabled={notificationState === "enabled" || isPending}
-              onClick={enableNotifications}
-              type="button"
-              variant="secondary"
-            >
-              Enable Notifications
-            </Button>
-          </div>
-        </div>
-      </section>
-
       {activeTab === "clock" ? (
         <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
           <div className="rounded-lg border border-border bg-surface p-6 shadow-sm">
@@ -651,8 +473,7 @@ export function WorkerDashboard({
                 className="h-12"
                 disabled={
                   Boolean(data.openEntry) ||
-                  isPending ||
-                  (notificationsRequired && notificationState !== "enabled")
+                  isPending
                 }
                 onClick={() => runAction(clockIn)}
               >
@@ -692,11 +513,6 @@ export function WorkerDashboard({
               {isPresencePause
                 ? "Your clock is paused. Press Resume Clock when you are back."
                 : `Lunch today: ${getDurationLabel(data.todayBreakHours)}`}
-              {notificationState !== "enabled" && !data.openEntry
-                ? notificationsRequired
-                  ? " Enable notifications before clocking in."
-                  : " Reminders are not configured yet."
-                : ""}
             </p>
 
             <div className="mt-5 rounded-md border border-border bg-background p-4">
@@ -808,34 +624,6 @@ export function WorkerDashboard({
                     </p>
                   </div>
                 ))}
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-semibold">Recent Check-Ins</h2>
-                <BellRing className="h-5 w-5 text-accent" />
-              </div>
-              <div className="mt-4 space-y-2">
-                {data.recentPresenceChecks.length ? (
-                  data.recentPresenceChecks.map((check) => (
-                    <div
-                      className="rounded-md border border-border bg-background px-3 py-2 text-sm"
-                      key={check.id}
-                    >
-                      <p className="font-semibold">
-                        {getPresenceStatusLabel(check.status)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {getSessionTimeLabel(check.sent_at ?? check.scheduled_at, timeDisplayMode)}
-                      </p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="rounded-md border border-dashed border-border px-3 py-4 text-center text-sm text-muted-foreground">
-                    No check-ins yet.
-                  </p>
-                )}
               </div>
             </div>
           </div>
