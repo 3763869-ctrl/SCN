@@ -53,12 +53,6 @@ export default async function DashboardPage() {
       icon: Handshake,
     },
     {
-      title: "Income Today",
-      value: moneyFormatter.format(finances.stats.todayIncome),
-      description: "Payments received today",
-      icon: BadgeDollarSign,
-    },
-    {
       title: "Income This Month",
       value: moneyFormatter.format(finances.stats.monthlyIncome),
       description: "Income received this month",
