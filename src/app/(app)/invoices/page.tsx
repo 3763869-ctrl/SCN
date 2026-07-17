@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CircleMinus } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -408,16 +409,17 @@ export default async function InvoicesPage() {
                               <input
                                 className="mb-2 h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
                                 name="void_reason"
-                                placeholder="Reason for void/delete"
+                                placeholder="Reason for voiding invoice"
                               />
                               <ConfirmSubmitButton
-                                className="w-full"
+                                className="h-10 w-10 rounded-full border-red-200 bg-red-50 px-0 text-red-700 hover:bg-red-100"
                                 confirmLabel="Void Invoice"
                                 description="This hides the invoice from active screens and releases its generated units so you can regenerate it. Payments must be voided first."
                                 title="Void this invoice?"
                                 variant="secondary"
                               >
-                                Void / Delete Invoice
+                                <CircleMinus className="h-5 w-5" />
+                                <span className="sr-only">Void invoice</span>
                               </ConfirmSubmitButton>
                             </form>
                           ) : (
@@ -495,13 +497,14 @@ export default async function InvoicesPage() {
                                   </p>
                                 </div>
                                 <ConfirmSubmitButton
-                                  className="h-9 px-3"
+                                  className="h-9 w-9 rounded-full border-red-200 bg-red-50 px-0 text-red-700 hover:bg-red-100"
                                   confirmLabel="Void Payment"
                                   description="This removes this payment from active totals and voids the connected income record."
                                   title="Void this payment?"
                                   variant="secondary"
                                 >
-                                  Void
+                                  <CircleMinus className="h-4 w-4" />
+                                  <span className="sr-only">Void payment</span>
                                 </ConfirmSubmitButton>
                               </div>
                               <input
