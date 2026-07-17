@@ -7,21 +7,25 @@ self.addEventListener("push", (event) => {
     payload = {};
   }
 
-  if (payload.type !== "presence-check") {
+  if (payload.type !== "presence-check" && payload.type !== "clock-paused") {
     return;
   }
+
+  const isPausedNotification = payload.type === "clock-paused";
 
   event.waitUntil(
     self.registration.showNotification(payload.title || "SCN check-in", {
       actions: [
         {
-          action: "still-here",
-          title: "Yes, still here",
+          action: isPausedNotification ? "resume-clock" : "still-here",
+          title: isPausedNotification ? "Resume Clock" : "Yes, still here",
         },
       ],
       body:
         payload.body ||
-        "Press Yes within 1 minute or you will be clocked out.",
+        (isPausedNotification
+          ? "Your clock is paused. Press Resume Clock when you are back."
+          : "Press Yes within 1 minute or your clock will be paused."),
       data: {
         checkId: payload.checkId,
         url: payload.url || "/worker",
@@ -29,7 +33,9 @@ self.addEventListener("push", (event) => {
       icon: "/window.svg",
       badge: "/window.svg",
       requireInteraction: true,
-      tag: payload.checkId ? `presence-${payload.checkId}` : "presence-check",
+      tag: payload.checkId
+        ? `${payload.type}-${payload.checkId}`
+        : payload.type,
     }),
   );
 });
@@ -49,6 +55,29 @@ self.addEventListener("notificationclick", (event) => {
         },
         body: JSON.stringify({ checkId }),
       }).then(() => undefined),
+    );
+    return;
+  }
+
+  if (event.action === "resume-clock") {
+    event.waitUntil(
+      fetch("/api/worker/resume-clock", {
+        method: "POST",
+      }).then(() =>
+        self.clients.matchAll({ type: "window" }).then((clientList) => {
+          for (const client of clientList) {
+            if ("focus" in client && client.url.includes(targetUrl)) {
+              return client.focus();
+            }
+          }
+
+          if (self.clients.openWindow) {
+            return self.clients.openWindow(targetUrl);
+          }
+
+          return undefined;
+        }),
+      ),
     );
     return;
   }

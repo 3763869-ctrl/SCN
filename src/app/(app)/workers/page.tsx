@@ -854,7 +854,9 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                         >
                           <div className="flex items-center justify-between gap-3">
                             <span className="font-semibold capitalize">
-                              {check.status.replaceAll("_", " ")}
+                              {check.status === "missed"
+                                ? "Clock paused"
+                                : check.status.replaceAll("_", " ")}
                             </span>
                             <span className="text-xs text-muted-foreground">
                               {getDateLabel(check.sent_at ?? check.scheduled_at)}
@@ -862,7 +864,9 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                           </div>
                           {check.auto_clock_out_at ? (
                             <p className="mt-1 text-xs text-muted-foreground">
-                              Auto clocked out at{" "}
+                              {check.status === "missed"
+                                ? "Clock paused at "
+                                : "Auto clocked out at "}
                               {timeFormatter.format(new Date(check.auto_clock_out_at))}
                             </p>
                           ) : null}

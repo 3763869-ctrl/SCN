@@ -30,7 +30,12 @@ import { formatHoursShort } from "@/lib/format/duration";
 
 type WorkerDashboardData = {
   openEntry: { id: string; clock_in_at: string; clock_out_at: string | null } | null;
-  openBreak: { id: string; break_start_at: string; break_end_at: string | null } | null;
+  openBreak: {
+    id: string;
+    break_start_at: string;
+    break_end_at: string | null;
+    break_type: string | null;
+  } | null;
   breakEntries: Array<{
     id: string;
     time_entry_id: string;
@@ -167,7 +172,7 @@ function getPresenceStatusLabel(status: string) {
     auto_clocked_out: "Auto clocked out",
     cancelled: "Cancelled",
     failed: "Failed",
-    missed: "Missed",
+    missed: "Clock paused",
     scheduled: "Scheduled",
     sent: "Waiting for answer",
   };
@@ -201,6 +206,7 @@ export function WorkerDashboard({
   const [isPending, startTransition] = useTransition();
   const [now, setNow] = useState(() => Date.now());
   const notificationsRequired = Boolean(notificationPublicKey);
+  const isPresencePause = data.openBreak?.break_type === "presence_pause";
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 1000);
@@ -273,10 +279,12 @@ export function WorkerDashboard({
   }
 
   async function enableNotifications() {
-    setNotificationMessage(null);
+    setNotificationMessage("Chrome should ask for permission now. Choose Allow.");
 
     if (!notificationPublicKey) {
-      setNotificationMessage("Notifications are not configured yet.");
+      setNotificationMessage(
+        "Notifications are not configured on this site yet. Ask admin to add the VAPID keys in Vercel.",
+      );
       setNotificationState("missing-key");
       return;
     }
@@ -295,7 +303,7 @@ export function WorkerDashboard({
 
     if (permission === "denied") {
       setNotificationMessage(
-        "Notifications are blocked. Please allow notifications for SCN in Chrome settings.",
+        "Chrome is blocking notifications. Click the lock icon near the address bar, allow notifications for SCN, then press this button again.",
       );
       setNotificationState("denied");
       return;
@@ -329,7 +337,15 @@ export function WorkerDashboard({
       return;
     }
 
-    setNotificationMessage("Notifications are enabled for check-ins.");
+    await registration.showNotification("SCN reminders enabled", {
+      body: "You will get a check-in every 30 minutes while clocked in.",
+      icon: "/window.svg",
+      tag: "scn-reminders-enabled",
+    });
+
+    setNotificationMessage(
+      "Notifications are enabled. A test notification was sent.",
+    );
     setNotificationState("enabled");
     router.refresh();
   }
@@ -539,8 +555,9 @@ export function WorkerDashboard({
             <div>
               <h2 className="text-base font-semibold">Chrome Check-In Reminders</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                SCN will send a Chrome notification every 50 minutes while you are
-                clocked in. Press Yes within 1 minute to stay clocked in.
+                SCN will send a Chrome notification every 30 minutes while you are
+                clocked in. Press Yes within 1 minute to stay clocked in. If you
+                miss it, your clock pauses until you resume.
               </p>
               {notificationMessage ? (
                 <p className="mt-2 text-sm font-medium text-muted-foreground">
@@ -548,7 +565,8 @@ export function WorkerDashboard({
                 </p>
               ) : notificationState === "missing-key" ? (
                 <p className="mt-2 text-sm font-medium text-muted-foreground">
-                  Reminder setup is not finished yet. Clock-in is still available.
+                Reminder setup is not finished yet. Clock-in is still available.
+                Click Enable Notifications, then choose Allow in Chrome.
                 </p>
               ) : null}
             </div>
@@ -666,12 +684,14 @@ export function WorkerDashboard({
                 variant="secondary"
               >
                 <Play className="mr-2 h-4 w-4" />
-                Back From Lunch
+                {isPresencePause ? "Resume Clock" : "Back From Lunch"}
               </Button>
             </div>
 
             <p className="mt-4 text-sm text-muted-foreground">
-              Lunch today: {getDurationLabel(data.todayBreakHours)}
+              {isPresencePause
+                ? "Your clock is paused. Press Resume Clock when you are back."
+                : `Lunch today: ${getDurationLabel(data.todayBreakHours)}`}
               {notificationState !== "enabled" && !data.openEntry
                 ? notificationsRequired
                   ? " Enable notifications before clocking in."

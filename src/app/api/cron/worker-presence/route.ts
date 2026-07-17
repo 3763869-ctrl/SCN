@@ -6,9 +6,8 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-const CHECK_INTERVAL_MS = 50 * 60 * 1000;
+const CHECK_INTERVAL_MS = 30 * 60 * 1000;
 const RESPONSE_WINDOW_MS = 60 * 1000;
-const MISSED_ADJUSTMENT_MS = 7.5 * 60 * 1000;
 
 type OpenTimeEntry = {
   id: string;
@@ -43,15 +42,57 @@ function configureWebPush() {
   return true;
 }
 
+async function sendPushToSubscriptions(
+  supabase: ReturnType<typeof createSupabaseAdminClient>,
+  subscriptions: Array<{
+    id: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+  }>,
+  payload: string,
+) {
+  let delivered = 0;
+
+  for (const subscription of subscriptions) {
+    const pushSubscription: PushSubscription = {
+      endpoint: subscription.endpoint,
+      keys: {
+        auth: subscription.auth,
+        p256dh: subscription.p256dh,
+      },
+    };
+
+    try {
+      await webPush.sendNotification(pushSubscription, payload);
+      delivered += 1;
+    } catch (error) {
+      const statusCode =
+        typeof error === "object" && error !== null && "statusCode" in error
+          ? Number(error.statusCode)
+          : 0;
+
+      if ([404, 410].includes(statusCode)) {
+        await supabase
+          .from("worker_push_subscriptions")
+          .update({ active: false })
+          .eq("id", subscription.id);
+      }
+    }
+  }
+
+  return delivered;
+}
+
 async function processExpiredChecks(now: Date) {
   const supabase = createSupabaseAdminClient();
   const { data: expiredChecks } = await supabase
     .from("worker_presence_checks")
     .select("id, worker_id, time_entry_id, expires_at")
     .in("status", ["scheduled", "sent"])
-    .lte("expires_at", now.toISOString())
-    .limit(100);
-  let autoClockedOut = 0;
+      .lte("expires_at", now.toISOString())
+      .limit(100);
+  let paused = 0;
   let cancelled = 0;
 
   for (const check of expiredChecks ?? []) {
@@ -94,46 +135,68 @@ async function processExpiredChecks(now: Date) {
       continue;
     }
 
-    const expiresAtMs = new Date(check.expires_at).getTime();
-    const clockInMs = new Date(entry.clock_in_at).getTime();
-    const adjustedClockOutAt = new Date(
-      Math.max(clockInMs, expiresAtMs - MISSED_ADJUSTMENT_MS),
+    const pauseStartedAt = new Date(
+      Math.max(
+        new Date(entry.clock_in_at).getTime(),
+        new Date(check.expires_at).getTime(),
+      ),
     );
 
     await supabase
-      .from("time_entries")
-      .update({
-        clock_out_at: adjustedClockOutAt.toISOString(),
-        notes: "Auto clocked out after missed SCN presence check.",
+      .from("time_breaks")
+      .insert({
+        break_start_at: pauseStartedAt.toISOString(),
+        break_type: "presence_pause",
+        time_entry_id: entry.id,
+        worker_id: check.worker_id,
       })
-      .eq("id", entry.id)
-      .eq("worker_id", check.worker_id)
-      .is("clock_out_at", null);
+      .select("id")
+      .maybeSingle();
 
     await supabase
       .from("worker_presence_checks")
       .update({
-        auto_clock_out_at: adjustedClockOutAt.toISOString(),
-        status: "auto_clocked_out",
+        auto_clock_out_at: pauseStartedAt.toISOString(),
+        failure_reason: "Worker missed check-in. Clock was paused.",
+        status: "missed",
       })
       .eq("id", check.id);
+
+    const { data: subscriptions } = await supabase
+      .from("worker_push_subscriptions")
+      .select("id, endpoint, p256dh, auth")
+      .eq("worker_id", check.worker_id)
+      .eq("active", true);
+
+    await sendPushToSubscriptions(
+      supabase,
+      subscriptions ?? [],
+      JSON.stringify({
+        body: "Your SCN clock is paused. Press Resume Clock when you are back.",
+        checkId: check.id,
+        title: "Your clock is paused",
+        type: "clock-paused",
+        url: "/worker",
+      }),
+    );
 
     await supabase.from("admin_audit_events").insert({
       actor_id: check.worker_id,
       entity_id: entry.id,
       entity_type: "time_entry",
-      event_type: "worker_presence.auto_clock_out",
+      event_type: "worker_presence.auto_pause",
       metadata: {
         checkId: check.id,
         expiresAt: check.expires_at,
+        pauseStartedAt: pauseStartedAt.toISOString(),
       },
-      summary: "Worker was auto clocked out after a missed presence check.",
+      summary: "Worker clock was paused after a missed presence check.",
     });
 
-    autoClockedOut += 1;
+    paused += 1;
   }
 
-  return { autoClockedOut, cancelled };
+  return { cancelled, paused };
 }
 
 async function getLastPresenceMoment(entry: OpenTimeEntry) {
@@ -240,42 +303,13 @@ async function sendPresenceChecks(now: Date) {
     }
 
     const payload = JSON.stringify({
-      body: "Press Yes within 1 minute or you will be clocked out.",
+      body: "Press Yes within 1 minute or your clock will be paused.",
       checkId: check.id,
       title: "Are you still here?",
       type: "presence-check",
       url: "/worker",
     });
-    let delivered = 0;
-
-    for (const subscription of subscriptions) {
-      const pushSubscription: PushSubscription = {
-        endpoint: subscription.endpoint,
-        keys: {
-          auth: subscription.auth,
-          p256dh: subscription.p256dh,
-        },
-      };
-
-      try {
-        await webPush.sendNotification(pushSubscription, payload);
-        delivered += 1;
-      } catch (error) {
-        const statusCode =
-          typeof error === "object" &&
-          error !== null &&
-          "statusCode" in error
-            ? Number(error.statusCode)
-            : 0;
-
-        if ([404, 410].includes(statusCode)) {
-          await supabase
-            .from("worker_push_subscriptions")
-            .update({ active: false })
-            .eq("id", subscription.id);
-        }
-      }
-    }
+    const delivered = await sendPushToSubscriptions(supabase, subscriptions, payload);
 
     if (delivered > 0) {
       sent += 1;

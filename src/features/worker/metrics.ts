@@ -88,7 +88,7 @@ export async function getWorkerDashboardData(workerId: string) {
       .maybeSingle(),
     supabase
       .from("time_breaks")
-      .select("id, break_start_at, break_end_at")
+      .select("id, break_start_at, break_end_at, break_type")
       .eq("worker_id", workerId)
       .is("break_end_at", null)
       .order("break_start_at", { ascending: false })
