@@ -508,34 +508,40 @@ export default async function TimeTrackingPage({
               </p>
             </div>
 
-            <div className="mt-5 grid gap-3 sm:grid-cols-4">
-              <div className="rounded-md border border-border bg-background p-3">
+            <div className="mt-5 grid gap-2 rounded-md border border-border bg-background p-3 text-sm sm:grid-cols-5">
+              <div>
                 <p className="text-xs font-semibold text-muted-foreground">
                   Total Hours
                 </p>
-                <p className="mt-2 text-xl font-semibold">
-                  {formatHoursShort(weekHours)}
-                </p>
+                <p className="mt-1 font-semibold">{formatHoursShort(weekHours)}</p>
               </div>
-              <div className="rounded-md border border-border bg-background p-3">
+              <div>
                 <p className="text-xs font-semibold text-muted-foreground">
                   Weekly Units
                 </p>
-                <p className="mt-2 text-xl font-semibold">{weekUnits}</p>
+                <p className="mt-1 font-semibold">{weekUnits}</p>
               </div>
-              <div className="rounded-md border border-border bg-background p-3">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground">
+                  Hourly Pay
+                </p>
+                <p className="mt-1 font-semibold">
+                  {moneyFormatter.format(hourlyPay)}
+                </p>
+              </div>
+              <div>
                 <p className="text-xs font-semibold text-muted-foreground">
                   Bonus Pay
                 </p>
-                <p className="mt-2 text-xl font-semibold">
+                <p className="mt-1 font-semibold">
                   {moneyFormatter.format(bonusPay)}
                 </p>
               </div>
-              <div className="rounded-md border border-border bg-background p-3">
+              <div>
                 <p className="text-xs font-semibold text-muted-foreground">
                   Full Pay
                 </p>
-                <p className="mt-2 text-xl font-semibold">
+                <p className="mt-1 font-semibold text-accent">
                   {moneyFormatter.format(totalPay)}
                 </p>
               </div>
