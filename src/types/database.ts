@@ -245,6 +245,7 @@ export type Database = {
           status: PartnerStatus;
           start_date: string | null;
           notes: string | null;
+          list_order: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -257,6 +258,7 @@ export type Database = {
           status?: PartnerStatus;
           start_date?: string | null;
           notes?: string | null;
+          list_order?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -269,6 +271,7 @@ export type Database = {
           status?: PartnerStatus;
           start_date?: string | null;
           notes?: string | null;
+          list_order?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1358,6 +1361,7 @@ export type Database = {
           deleted_at: string | null;
           deleted_by: string | null;
           deletion_expires_at: string | null;
+          list_order: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -1371,6 +1375,7 @@ export type Database = {
           deleted_at?: string | null;
           deleted_by?: string | null;
           deletion_expires_at?: string | null;
+          list_order?: number | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1384,6 +1389,7 @@ export type Database = {
           deleted_at?: string | null;
           deleted_by?: string | null;
           deletion_expires_at?: string | null;
+          list_order?: number | null;
           created_at?: string;
           updated_at?: string;
         };

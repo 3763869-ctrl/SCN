@@ -167,12 +167,23 @@ export default async function TimeTrackingPage({
 
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role, active")
+    .select("id, full_name, email, role, active, list_order")
     .in("role", ["admin", "worker"])
     .is("deleted_at", null)
     .order("full_name", { ascending: true });
 
-  const workers = profiles ?? [];
+  const workers = [...(profiles ?? [])].sort((left, right) => {
+    const leftOrder = left.list_order ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = right.list_order ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    return (left.full_name || left.email).localeCompare(
+      right.full_name || right.email,
+    );
+  });
   const selectedWorker =
     workers.find((worker) => worker.id === params?.worker) ?? workers[0] ?? null;
 

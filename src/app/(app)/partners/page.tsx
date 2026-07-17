@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { SaveSubmitButton } from "@/components/ui/save-submit-button";
+import { SortableEntityList } from "@/components/ui/sortable-entity-list";
 import {
   assignPartnerWorker,
   createPartner,
@@ -12,7 +13,9 @@ import {
   recordPartnerInvoicePayment,
   removePartnerWorkerAssignment,
   savePartnerBillingSettings,
+  savePartnerListOrder,
   savePartnerPaySettings,
+  sortPartnersByName,
   updatePartner,
   uploadPartnerDocument,
 } from "@/features/admin/partner-actions";
@@ -226,37 +229,21 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
             </Button>
           </form>
 
-          <div className="mt-5 space-y-2">
-            {filteredSummaries.map((summary) => {
-              const selected = summary.partner.id === selectedPartner?.id;
-
-              return (
-                <Link
-                  className={`block rounded-md border px-3 py-3 text-sm ${
-                    selected
-                      ? "border-accent bg-surface-muted"
-                      : "border-border bg-background"
-                  }`}
-                  href={getTabLink(summary.partner.id, activeTab, query, statusFilter)}
-                  key={summary.partner.id}
-                >
-                  <span className="block font-semibold">
-                    {getPartnerLabel(summary.partner)}
-                  </span>
-                  <span className="mt-1 block text-xs text-muted-foreground">
-                    {summary.worker
-                      ? `Worker: ${summary.worker.full_name ?? summary.worker.email}`
-                      : "No worker assigned"}
-                  </span>
-                </Link>
-              );
-            })}
-            {!filteredSummaries.length ? (
-              <p className="rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">
-                No Partners match that search.
-              </p>
-            ) : null}
-          </div>
+          <SortableEntityList
+            emptyMessage="No Partners match that search."
+            items={filteredSummaries.map((summary) => ({
+              href: getTabLink(summary.partner.id, activeTab, query, statusFilter),
+              id: summary.partner.id,
+              meta: summary.worker
+                ? `Worker: ${summary.worker.full_name ?? summary.worker.email}`
+                : "No worker assigned",
+              selected: summary.partner.id === selectedPartner?.id,
+              title: getPartnerLabel(summary.partner),
+            }))}
+            key={filteredSummaries.map((summary) => summary.partner.id).join("|")}
+            saveOrderAction={savePartnerListOrder}
+            sortByNameAction={sortPartnersByName}
+          />
         </aside>
 
         {selectedPartner && selectedSummary ? (

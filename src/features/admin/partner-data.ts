@@ -50,7 +50,7 @@ export async function getPartnerOperationsData() {
     supabase.from("clients").select("id, name, status, notes"),
     supabase
       .from("partners")
-      .select("id, client_id, full_name, email, phone, status, start_date, notes")
+      .select("id, client_id, full_name, email, phone, status, start_date, notes, list_order")
       .order("full_name", { ascending: true }),
     supabase
       .from("partner_worker_assignments")
@@ -139,7 +139,16 @@ export async function getPartnerOperationsData() {
       .select("id, partner_id, document_type, file_name, storage_path, notes, created_at"),
   ]);
 
-  const partnerList = partners ?? [];
+  const partnerList = [...(partners ?? [])].sort((left, right) => {
+    const leftOrder = left.list_order ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = right.list_order ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    return left.full_name.localeCompare(right.full_name);
+  });
   const assignmentList = assignments ?? [];
   const workerList = workers ?? [];
   const unitList = units ?? [];

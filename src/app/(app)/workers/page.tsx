@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { SaveSubmitButton } from "@/components/ui/save-submit-button";
+import { SortableEntityList } from "@/components/ui/sortable-entity-list";
 import { getProfileLabel } from "@/features/admin/data";
 import {
   addBonusTier,
@@ -14,6 +15,8 @@ import {
   deleteBonusTier,
   deleteWorker,
   deleteWorkerFile,
+  saveWorkerListOrder,
+  sortWorkersByName,
   updateBonusTier,
   updateWorkerFile,
   updateWorkerDetails,
@@ -100,7 +103,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
   ] = await Promise.all([
     supabase
       .from("profiles")
-      .select("id, full_name, email, role, active, created_at")
+      .select("id, full_name, email, role, active, created_at, list_order")
       .in("role", ["admin", "worker"])
       .is("deleted_at", null)
       .order("full_name", { ascending: true }),
@@ -157,7 +160,18 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
       .limit(250),
   ]);
 
-  const workers = profiles ?? [];
+  const workers = [...(profiles ?? [])].sort((left, right) => {
+    const leftOrder = left.list_order ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = right.list_order ?? Number.MAX_SAFE_INTEGER;
+
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+
+    return (left.full_name || left.email).localeCompare(
+      right.full_name || right.email,
+    );
+  });
   const detailsMap = new Map(
     (workerDetails ?? []).map((details) => [details.worker_id, details]),
   );
@@ -430,34 +444,19 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
             </Button>
           </form>
 
-          <div className="mt-5 space-y-2">
-            {filteredWorkers.map((worker) => {
-              const selected = worker.id === selectedWorkerId;
-              const href = getTabLink(worker.id, activeTab, query);
-
-              return (
-                <Link
-                  className={`block rounded-md border px-3 py-3 text-sm ${
-                    selected
-                      ? "border-accent bg-surface-muted"
-                      : "border-border bg-background"
-                  }`}
-                  href={href}
-                  key={worker.id}
-                >
-                  <span className="block font-semibold">{getProfileLabel(worker)}</span>
-                  <span className="mt-1 block text-xs text-muted-foreground">
-                    {worker.email}
-                  </span>
-                </Link>
-              );
-            })}
-            {!filteredWorkers.length ? (
-              <p className="rounded-md border border-border bg-background p-3 text-sm text-muted-foreground">
-                No workers match that search.
-              </p>
-            ) : null}
-          </div>
+          <SortableEntityList
+            emptyMessage="No workers match that search."
+            items={filteredWorkers.map((worker) => ({
+              href: getTabLink(worker.id, activeTab, query),
+              id: worker.id,
+              meta: worker.email,
+              selected: worker.id === selectedWorkerId,
+              title: getProfileLabel(worker),
+            }))}
+            key={filteredWorkers.map((worker) => worker.id).join("|")}
+            saveOrderAction={saveWorkerListOrder}
+            sortByNameAction={sortWorkersByName}
+          />
         </aside>
 
         {selectedWorker ? (

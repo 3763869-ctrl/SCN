@@ -127,6 +127,56 @@ export async function updateWorkerProfile(formData: FormData) {
   revalidatePath("/workers");
 }
 
+export async function saveWorkerListOrder(ids: string[]) {
+  await requireAdminProfile();
+
+  if (!ids.length) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await Promise.all(
+    ids.map((id, index) =>
+      supabase
+        .from("profiles")
+        .update({ list_order: index + 1 })
+        .eq("id", id)
+        .in("role", ["admin", "worker"])
+        .is("deleted_at", null),
+    ),
+  );
+
+  revalidatePath("/workers");
+  revalidatePath("/time-tracking");
+}
+
+export async function sortWorkersByName() {
+  await requireAdminProfile();
+
+  const supabase = await createSupabaseServerClient();
+  const { data: workers } = await supabase
+    .from("profiles")
+    .select("id, full_name, email")
+    .in("role", ["admin", "worker"])
+    .is("deleted_at", null);
+  const sortedWorkers = [...(workers ?? [])].sort((left, right) =>
+    (left.full_name || left.email).localeCompare(right.full_name || right.email),
+  );
+
+  await Promise.all(
+    sortedWorkers.map((worker, index) =>
+      supabase
+        .from("profiles")
+        .update({ list_order: index + 1 })
+        .eq("id", worker.id),
+    ),
+  );
+
+  revalidatePath("/workers");
+  revalidatePath("/time-tracking");
+}
+
 export async function updateWorkerDetails(formData: FormData) {
   const admin = await requireAdminProfile();
 

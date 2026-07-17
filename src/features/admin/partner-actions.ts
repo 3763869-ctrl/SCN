@@ -392,6 +392,54 @@ export async function updatePartner(formData: FormData) {
   revalidatePath("/dashboard");
 }
 
+export async function savePartnerListOrder(ids: string[]) {
+  await requireAdminProfile();
+
+  if (!ids.length) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await Promise.all(
+    ids.map((id, index) =>
+      supabase
+        .from("partners")
+        .update({ list_order: index + 1 })
+        .eq("id", id),
+    ),
+  );
+
+  revalidatePath("/partners");
+  revalidatePath("/dashboard");
+}
+
+export async function sortPartnersByName() {
+  await requireAdminProfile();
+
+  const supabase = await createSupabaseServerClient();
+  const { data: partners } = await supabase
+    .from("partners")
+    .select("id, full_name, email");
+  const sortedPartners = [...(partners ?? [])].sort((left, right) =>
+    (left.full_name || left.email || "").localeCompare(
+      right.full_name || right.email || "",
+    ),
+  );
+
+  await Promise.all(
+    sortedPartners.map((partner, index) =>
+      supabase
+        .from("partners")
+        .update({ list_order: index + 1 })
+        .eq("id", partner.id),
+    ),
+  );
+
+  revalidatePath("/partners");
+  revalidatePath("/dashboard");
+}
+
 export async function assignPartnerWorker(formData: FormData) {
   await requireAdminProfile();
 
