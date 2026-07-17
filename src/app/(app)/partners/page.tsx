@@ -21,6 +21,7 @@ import {
   getPartnerOperationsData,
   getStatusLabel,
 } from "@/features/admin/partner-data";
+import { formatHoursShort } from "@/lib/format/duration";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
   currency: "USD",
@@ -999,7 +1000,7 @@ function PayrollTab({
         items={payrolls.slice(0, 12).map((payroll) => ({
           id: payroll.id,
           label: `${getDateLabel(payroll.week_start)} - ${getDateLabel(payroll.week_end)}`,
-          meta: `${Number(payroll.total_hours).toFixed(2)} hrs, ${payroll.total_units} units, ${moneyFormatter.format(Number(payroll.total_owed))}`,
+          meta: `${formatHoursShort(Number(payroll.total_hours))}, ${payroll.total_units} units, ${moneyFormatter.format(Number(payroll.total_owed))}`,
         }))}
       />
     </section>

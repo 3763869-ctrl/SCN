@@ -22,6 +22,7 @@ import {
   getEasternDateKey,
   getUtcDateFromEasternDateTime,
 } from "@/lib/dates/eastern-time";
+import { formatHoursShort } from "@/lib/format/duration";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const displayDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -500,7 +501,9 @@ export default async function TimeTrackingPage({
                 <p className="text-xs font-semibold text-muted-foreground">
                   Total Hours
                 </p>
-                <p className="mt-2 text-xl font-semibold">{weekHours.toFixed(2)}</p>
+                <p className="mt-2 text-xl font-semibold">
+                  {formatHoursShort(weekHours)}
+                </p>
               </div>
               <div className="rounded-md border border-border bg-background p-3">
                 <p className="text-xs font-semibold text-muted-foreground">
@@ -605,7 +608,9 @@ export default async function TimeTrackingPage({
                             step="1"
                             type="number"
                           />
-                          <span className="font-medium">{row.totalHours.toFixed(2)}</span>
+                          <span className="font-medium">
+                            {formatHoursShort(row.totalHours)}
+                          </span>
                           <span className="font-medium">
                             {moneyFormatter.format(row.totalHours * hourlyRate)}
                           </span>

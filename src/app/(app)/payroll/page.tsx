@@ -6,6 +6,7 @@ import {
   recordPayrollPayment,
   updatePayrollPayment,
 } from "@/features/admin/payroll-actions";
+import { formatHoursShort } from "@/lib/format/duration";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { WorkerPayrollStatus } from "@/types/database";
 
@@ -177,7 +178,7 @@ function PayrollCard({
         <div className="rounded-md border border-border bg-background p-3">
           <p className="text-xs font-semibold text-muted-foreground">Hours</p>
           <p className="mt-2 text-lg font-semibold">
-            {Number(payroll.total_hours).toFixed(2)}
+            {formatHoursShort(Number(payroll.total_hours))}
           </p>
         </div>
         <div className="rounded-md border border-border bg-background p-3">
@@ -320,7 +321,7 @@ function PaidHistoryRow({
           <div className="mt-3 space-y-2 text-sm text-muted-foreground">
             <div className="flex justify-between gap-3">
               <span>Hours</span>
-              <span>{Number(payroll.total_hours).toFixed(2)}</span>
+              <span>{formatHoursShort(Number(payroll.total_hours))}</span>
             </div>
             <div className="flex justify-between gap-3">
               <span>Units</span>

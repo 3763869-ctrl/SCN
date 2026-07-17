@@ -25,6 +25,7 @@ import {
 import { getHoursBetween } from "@/features/worker/metrics";
 import { getAgeFromDateOfBirth } from "@/lib/dates/birthday";
 import { EASTERN_TIME_ZONE } from "@/lib/dates/eastern-time";
+import { formatHoursShort } from "@/lib/format/duration";
 import { hasSupabaseAdminConfig } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -249,7 +250,7 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
       id: `time-${entry.id}`,
       label: entry.clock_out_at ? "Clock entry closed" : "Clocked in",
       meta: timeFormatter.format(new Date(entry.clock_in_at)),
-      value: `${getHoursBetween(entry.clock_in_at, entry.clock_out_at).toFixed(2)} hrs`,
+      value: formatHoursShort(getHoursBetween(entry.clock_in_at, entry.clock_out_at)),
     })),
     ...selectedUnitEntries.slice(0, 8).map((entry) => ({
       id: `unit-${entry.id}`,
@@ -576,7 +577,9 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                   <p className="text-xs font-semibold text-muted-foreground">
                     Total Hours
                   </p>
-                  <p className="mt-2 text-xl font-semibold">{totalHours.toFixed(2)}</p>
+                  <p className="mt-2 text-xl font-semibold">
+                    {formatHoursShort(totalHours)}
+                  </p>
                 </div>
                 <div className="rounded-md border border-border bg-background p-3">
                   <p className="text-xs font-semibold text-muted-foreground">

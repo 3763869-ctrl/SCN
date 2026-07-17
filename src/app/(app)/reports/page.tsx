@@ -7,6 +7,7 @@ import {
   expenseCategoryLabels,
   getFinancialManagementData,
 } from "@/features/admin/financial-data";
+import { formatHoursShort } from "@/lib/format/duration";
 import { ReportCatalog } from "./report-catalog";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
@@ -242,7 +243,7 @@ function getReportOutput(
 ) {
   const payrollRows = data.workerProfitability.map((row) => ({
     Bonuses: amount(row.bonuses),
-    Hours: row.hours.toFixed(2),
+    Hours: formatHoursShort(row.hours),
     Payroll: amount(row.payroll),
     Partner: row.partner?.full_name ?? "-",
     Units: numberFormatter.format(row.units),

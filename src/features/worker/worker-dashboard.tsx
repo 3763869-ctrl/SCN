@@ -26,6 +26,7 @@ import {
   type WorkerActionState,
 } from "@/features/worker/actions";
 import { EASTERN_TIME_ZONE } from "@/lib/dates/eastern-time";
+import { formatHoursShort } from "@/lib/format/duration";
 
 type WorkerDashboardData = {
   openEntry: { id: string; clock_in_at: string; clock_out_at: string | null } | null;
@@ -783,9 +784,8 @@ export function WorkerDashboard({
                       {getShortDateLabel(day.date)}
                     </p>
                     <p className="mt-2 text-sm font-semibold">
-                      {day.hours.toFixed(1)}
+                      {formatHoursShort(day.hours)}
                     </p>
-                    <p className="text-xs text-muted-foreground">hrs</p>
                   </div>
                 ))}
               </div>
