@@ -17,13 +17,31 @@ export async function POST(request: Request) {
   const body = String(formData.get("Body") ?? "");
   const messageSid = String(formData.get("MessageSid") ?? "");
   const adminSupabase = createSupabaseAdminClient();
-  const { data: settings } = await adminSupabase
-    .from("worker_phone_settings")
+  const { data: existingThread } = await adminSupabase
+    .from("phone_message_threads")
     .select("worker_id")
-    .eq("phone_enabled", true)
-    .eq("texting_enabled", true)
-    .limit(1);
-  const workerId = settings?.[0]?.worker_id;
+    .eq("contact_number", from)
+    .order("last_message_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const { data: existingWorkerSettings } = existingThread
+    ? await adminSupabase
+        .from("worker_phone_settings")
+        .select("worker_id")
+        .eq("worker_id", existingThread.worker_id)
+        .eq("phone_enabled", true)
+        .eq("texting_enabled", true)
+        .maybeSingle()
+    : { data: null };
+  const { data: fallbackSettings } = existingWorkerSettings
+    ? { data: null }
+    : await adminSupabase
+        .from("worker_phone_settings")
+        .select("worker_id")
+        .eq("phone_enabled", true)
+        .eq("texting_enabled", true)
+        .limit(1);
+  const workerId = existingWorkerSettings?.worker_id ?? fallbackSettings?.[0]?.worker_id;
 
   if (workerId) {
     const { data: thread } = await adminSupabase
