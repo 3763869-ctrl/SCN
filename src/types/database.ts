@@ -208,6 +208,239 @@ export type Database = {
           },
         ];
       };
+      worker_phone_settings: {
+        Row: {
+          worker_id: string;
+          extension: string | null;
+          phone_enabled: boolean;
+          calling_enabled: boolean;
+          texting_enabled: boolean;
+          voicemail_greeting: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          worker_id: string;
+          extension?: string | null;
+          phone_enabled?: boolean;
+          calling_enabled?: boolean;
+          texting_enabled?: boolean;
+          voicemail_greeting?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          worker_id?: string;
+          extension?: string | null;
+          phone_enabled?: boolean;
+          calling_enabled?: boolean;
+          texting_enabled?: boolean;
+          voicemail_greeting?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "worker_phone_settings_worker_id_fkey";
+            columns: ["worker_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      phone_contacts: {
+        Row: {
+          id: string;
+          worker_id: string | null;
+          display_name: string | null;
+          phone_number: string;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id?: string | null;
+          display_name?: string | null;
+          phone_number: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string | null;
+          display_name?: string | null;
+          phone_number?: string;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      phone_message_threads: {
+        Row: {
+          id: string;
+          worker_id: string;
+          contact_number: string;
+          contact_name: string | null;
+          last_message_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id: string;
+          contact_number: string;
+          contact_name?: string | null;
+          last_message_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string;
+          contact_number?: string;
+          contact_name?: string | null;
+          last_message_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      phone_messages: {
+        Row: {
+          id: string;
+          thread_id: string;
+          worker_id: string;
+          direction: "inbound" | "outbound";
+          from_number: string;
+          to_number: string;
+          body: string;
+          status: string;
+          twilio_message_sid: string | null;
+          error_message: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          thread_id: string;
+          worker_id: string;
+          direction: "inbound" | "outbound";
+          from_number: string;
+          to_number: string;
+          body: string;
+          status?: string;
+          twilio_message_sid?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          thread_id?: string;
+          worker_id?: string;
+          direction?: "inbound" | "outbound";
+          from_number?: string;
+          to_number?: string;
+          body?: string;
+          status?: string;
+          twilio_message_sid?: string | null;
+          error_message?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      phone_call_logs: {
+        Row: {
+          id: string;
+          worker_id: string | null;
+          direction: "inbound" | "outbound";
+          from_number: string | null;
+          to_number: string | null;
+          caller_name: string | null;
+          status: string;
+          twilio_call_sid: string | null;
+          duration_seconds: number | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id?: string | null;
+          direction: "inbound" | "outbound";
+          from_number?: string | null;
+          to_number?: string | null;
+          caller_name?: string | null;
+          status?: string;
+          twilio_call_sid?: string | null;
+          duration_seconds?: number | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string | null;
+          direction?: "inbound" | "outbound";
+          from_number?: string | null;
+          to_number?: string | null;
+          caller_name?: string | null;
+          status?: string;
+          twilio_call_sid?: string | null;
+          duration_seconds?: number | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      phone_voicemails: {
+        Row: {
+          id: string;
+          worker_id: string | null;
+          call_log_id: string | null;
+          from_number: string | null;
+          recording_url: string | null;
+          recording_sid: string | null;
+          duration_seconds: number | null;
+          transcription: string | null;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          worker_id?: string | null;
+          call_log_id?: string | null;
+          from_number?: string | null;
+          recording_url?: string | null;
+          recording_sid?: string | null;
+          duration_seconds?: number | null;
+          transcription?: string | null;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          worker_id?: string | null;
+          call_log_id?: string | null;
+          from_number?: string | null;
+          recording_url?: string | null;
+          recording_sid?: string | null;
+          duration_seconds?: number | null;
+          transcription?: string | null;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       clients: {
         Row: {
           id: string;

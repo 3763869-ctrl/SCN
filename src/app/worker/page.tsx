@@ -3,6 +3,7 @@ import { requireProfile } from "@/features/auth/session";
 import { BirthdayCard } from "@/features/worker/birthday-card";
 import { WorkerDashboard } from "@/features/worker/worker-dashboard";
 import { getWorkerDashboardData } from "@/features/worker/metrics";
+import { getWorkerPhoneData } from "@/features/worker/phone-data";
 import { getBirthdayDue } from "@/lib/dates/birthday";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -28,7 +29,10 @@ export default async function WorkerPage() {
     );
   }
 
-  const dashboard = await getWorkerDashboardData(profile.id);
+  const [dashboard, phone] = await Promise.all([
+    getWorkerDashboardData(profile.id),
+    getWorkerPhoneData(profile.id),
+  ]);
 
   return (
     <main className="min-h-screen bg-background">
@@ -52,6 +56,7 @@ export default async function WorkerPage() {
       <section className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6">
         <WorkerDashboard
           data={dashboard}
+          phoneData={phone}
           workerName={profile.full_name ?? profile.email}
         />
       </section>

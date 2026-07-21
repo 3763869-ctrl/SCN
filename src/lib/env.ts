@@ -10,6 +10,13 @@ export const env = {
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
   vapidSubject: process.env.VAPID_SUBJECT ?? "mailto:admin@example.com",
   cronSecret: process.env.CRON_SECRET ?? "",
+  twilioAccountSid: process.env.TWILIO_ACCOUNT_SID ?? "",
+  twilioAuthToken: process.env.TWILIO_AUTH_TOKEN ?? "",
+  twilioApiKeySid: process.env.TWILIO_API_KEY_SID ?? "",
+  twilioApiKeySecret: process.env.TWILIO_API_KEY_SECRET ?? "",
+  twilioTwimlAppSid: process.env.TWILIO_TWIML_APP_SID ?? "",
+  twilioPhoneNumber: process.env.TWILIO_PHONE_NUMBER ?? "",
+  twilioWebhookSecret: process.env.TWILIO_WEBHOOK_SECRET ?? "",
 };
 
 export function hasSupabaseConfig() {

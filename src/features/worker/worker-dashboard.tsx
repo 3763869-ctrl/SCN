@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition, type ComponentProps } from "react";
 import { useRouter } from "next/navigation";
 import {
   BadgeDollarSign,
@@ -13,6 +13,7 @@ import {
   PartyPopper,
   Pause,
   Play,
+  Phone,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import {
   startLunch,
   type WorkerActionState,
 } from "@/features/worker/actions";
+import { WorkerPhone } from "@/features/worker/worker-phone";
 import { EASTERN_TIME_ZONE } from "@/lib/dates/eastern-time";
 import { formatHoursShort } from "@/lib/format/duration";
 
@@ -90,6 +92,7 @@ type WorkerDashboardData = {
 type WorkerDashboardProps = {
   workerName: string;
   data: WorkerDashboardData;
+  phoneData: ComponentProps<typeof WorkerPhone>["data"];
 };
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
@@ -144,9 +147,10 @@ function getSessionHours(start: string, end: string | null, now: number) {
 export function WorkerDashboard({
   workerName,
   data,
+  phoneData,
 }: WorkerDashboardProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"clock" | "units">("clock");
+  const [activeTab, setActiveTab] = useState<"clock" | "units" | "phone">("clock");
   const [timeDisplayMode, setTimeDisplayMode] = useState<"12" | "24">("12");
   const [message, setMessage] = useState<string | null>(null);
   const [showClockOutConfirm, setShowClockOutConfirm] = useState(false);
@@ -395,7 +399,7 @@ export function WorkerDashboard({
             Keep today simple: clock, lunch, units, done.
           </p>
         </div>
-        <div className="grid grid-cols-2 rounded-md border border-border bg-surface p-1">
+        <div className="grid grid-cols-3 rounded-md border border-border bg-surface p-1">
           <button
             className={`rounded px-4 py-2 text-sm font-semibold ${
               activeTab === "clock" ? "bg-surface-muted" : "text-muted-foreground"
@@ -414,6 +418,16 @@ export function WorkerDashboard({
           >
             Units
           </button>
+          <button
+            className={`rounded px-4 py-2 text-sm font-semibold ${
+              activeTab === "phone" ? "bg-surface-muted" : "text-muted-foreground"
+            }`}
+            onClick={() => setActiveTab("phone")}
+            type="button"
+          >
+            <Phone className="mr-1 inline h-4 w-4" />
+            Phone
+          </button>
         </div>
       </div>
 
@@ -423,7 +437,9 @@ export function WorkerDashboard({
         </p>
       ) : null}
 
-      {activeTab === "clock" ? (
+      {activeTab === "phone" ? (
+        <WorkerPhone data={phoneData} />
+      ) : activeTab === "clock" ? (
         <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
           <div className="rounded-lg border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between gap-4">

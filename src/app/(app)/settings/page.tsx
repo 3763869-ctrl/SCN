@@ -2,9 +2,12 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { SaveSubmitButton } from "@/components/ui/save-submit-button";
+import { updateWorkerPhoneSettings } from "@/features/admin/phone-actions";
 import { getPartnerOperationsData, getStatusLabel } from "@/features/admin/partner-data";
 import { restoreDeletedWorker } from "@/features/admin/worker-actions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { twilioConfigStatus } from "@/lib/twilio/server";
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   dateStyle: "medium",
@@ -14,6 +17,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 export default async function SettingsPage() {
   const supabase = await createSupabaseServerClient();
   const data = await getPartnerOperationsData();
+  const twilioStatus = twilioConfigStatus();
   const { data: deletedWorkers } = await supabase
     .from("profiles")
     .select(
@@ -22,6 +26,21 @@ export default async function SettingsPage() {
     .eq("role", "worker")
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });
+  const [{ data: workers }, { data: phoneSettings }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .eq("role", "worker")
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("full_name", { ascending: true }),
+    supabase
+      .from("worker_phone_settings")
+      .select("worker_id, extension, phone_enabled, calling_enabled, texting_enabled, voicemail_greeting"),
+  ]);
+  const phoneSettingsMap = new Map(
+    (phoneSettings ?? []).map((setting) => [setting.worker_id, setting] as const),
+  );
 
   return (
     <div className="space-y-6">
@@ -62,6 +81,95 @@ export default async function SettingsPage() {
           {!data.clients.length ? (
             <p className="px-4 py-3 text-sm text-muted-foreground">
               RM Support will appear here after the Partner migration is run.
+            </p>
+          ) : null}
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <div>
+          <h2 className="text-base font-semibold">Phone Settings</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Twilio secrets must be added in Vercel environment variables. SCN only
+            stores worker extensions and access settings here.
+          </p>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            ["Account SID", twilioStatus.accountSid],
+            ["Auth Token", twilioStatus.authToken],
+            ["API Key SID", twilioStatus.apiKeySid],
+            ["API Key Secret", twilioStatus.apiKeySecret],
+            ["TwiML App SID", twilioStatus.twimlAppSid],
+            ["Phone Number", twilioStatus.phoneNumber],
+            ["Voice Ready", twilioStatus.voiceReady],
+            ["Messaging Ready", twilioStatus.messagingReady],
+          ].map(([label, ready]) => (
+            <div className="rounded-md border border-border bg-background p-3 text-sm" key={String(label)}>
+              <p className="font-semibold">{label}</p>
+              <p className={`mt-1 text-xs font-semibold ${ready ? "text-accent" : "text-amber-700"}`}>
+                {ready ? "Configured" : "Missing"}
+              </p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 divide-y divide-border rounded-md border border-border bg-background">
+          {(workers ?? []).map((worker) => {
+            const setting = phoneSettingsMap.get(worker.id);
+
+            return (
+              <form
+                action={updateWorkerPhoneSettings}
+                className="grid gap-3 px-4 py-4 text-sm xl:grid-cols-[1fr_110px_120px_120px_120px_1.5fr_auto]"
+                key={worker.id}
+              >
+                <input name="worker_id" type="hidden" value={worker.id} />
+                <div>
+                  <p className="font-semibold">{worker.full_name || worker.email}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{worker.email}</p>
+                </div>
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold text-muted-foreground">Extension</span>
+                  <input
+                    className="h-10 w-full rounded-md border border-border bg-surface px-3"
+                    defaultValue={setting?.extension ?? ""}
+                    name="extension"
+                    placeholder="101"
+                  />
+                </label>
+                {[
+                  ["Phone", "phone_enabled", setting?.phone_enabled ?? false],
+                  ["Calls", "calling_enabled", setting?.calling_enabled ?? false],
+                  ["Texts", "texting_enabled", setting?.texting_enabled ?? false],
+                ].map(([label, name, checked]) => (
+                  <label
+                    className="flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-3"
+                    key={String(name)}
+                  >
+                    <input defaultChecked={Boolean(checked)} name={String(name)} type="checkbox" />
+                    <span className="text-sm font-semibold">{label}</span>
+                  </label>
+                ))}
+                <label className="space-y-1">
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    Voicemail Greeting
+                  </span>
+                  <input
+                    className="h-10 w-full rounded-md border border-border bg-surface px-3"
+                    defaultValue={setting?.voicemail_greeting ?? ""}
+                    name="voicemail_greeting"
+                    placeholder="Leave a message after the beep."
+                  />
+                </label>
+                <SaveSubmitButton className="h-10" successMessage="Phone settings saved.">
+                  Save
+                </SaveSubmitButton>
+              </form>
+            );
+          })}
+          {!workers?.length ? (
+            <p className="px-4 py-3 text-sm text-muted-foreground">
+              No active workers available for phone setup.
             </p>
           ) : null}
         </div>

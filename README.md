@@ -47,6 +47,13 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=
 VAPID_PRIVATE_KEY=
 VAPID_SUBJECT=
 CRON_SECRET=
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
+TWILIO_API_KEY_SID=
+TWILIO_API_KEY_SECRET=
+TWILIO_TWIML_APP_SID=
+TWILIO_PHONE_NUMBER=
+TWILIO_WEBHOOK_SECRET=
 ```
 
 `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are browser-safe.
@@ -68,6 +75,20 @@ Worker Chrome check-in reminders use Web Push:
   supports daily cron schedules. Use an external scheduler for this endpoint,
   or upgrade to Pro before enabling a per-minute Vercel cron.
 - Apply `0019_worker_presence_push.sql` before testing reminders.
+
+Worker Phone uses Twilio:
+
+- Store every Twilio value in `.env.local` locally and in Vercel Project
+  Environment Variables for production.
+- `TWILIO_AUTH_TOKEN`, `TWILIO_API_KEY_SECRET`, and `TWILIO_WEBHOOK_SECRET`
+  must stay server-only and must never be committed.
+- Configure Twilio Voice incoming calls to
+  `/api/twilio/voice/incoming`.
+- Configure the TwiML App voice request URL to
+  `/api/twilio/voice/outbound`.
+- Configure Twilio Messaging incoming SMS to
+  `/api/twilio/messages/incoming`.
+- Apply `0023_twilio_worker_phone.sql` before enabling phone access.
 
 ## Project Structure
 
