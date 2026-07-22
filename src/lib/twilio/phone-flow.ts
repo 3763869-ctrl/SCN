@@ -1,6 +1,7 @@
 type PhoneSystemSettings = {
   active: boolean;
   after_hours_greeting: string;
+  availability_mode: "business_hours" | "worker_clock";
   business_days: number[];
   business_end_time: string;
   business_start_time: string;
@@ -14,6 +15,7 @@ export const defaultPhoneSystemSettings: PhoneSystemSettings = {
   active: true,
   after_hours_greeting:
     "Thank you for calling S C N. We are currently closed. Please leave a message and we will call you back at the first opportunity.",
+  availability_mode: "business_hours",
   business_days: [0, 1, 2, 3, 4, 5],
   business_end_time: "17:00",
   business_start_time: "09:00",
@@ -61,12 +63,18 @@ export function isWithinBusinessHours(settings: PhoneSystemSettings, now = new D
   return currentMinutes >= startMinutes || currentMinutes < endMinutes;
 }
 
+export function usesBusinessHours(settings: PhoneSystemSettings) {
+  return settings.availability_mode === "business_hours";
+}
+
 export function normalizePhoneSystemSettings(
   settings: Partial<PhoneSystemSettings> | null | undefined,
 ): PhoneSystemSettings {
   return {
     ...defaultPhoneSystemSettings,
     ...settings,
+    availability_mode:
+      settings?.availability_mode === "worker_clock" ? "worker_clock" : "business_hours",
     business_days: settings?.business_days?.length
       ? settings.business_days
       : defaultPhoneSystemSettings.business_days,

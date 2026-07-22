@@ -1,6 +1,8 @@
 create table if not exists public.phone_system_settings (
   id boolean primary key default true check (id = true),
   active boolean not null default true,
+  availability_mode text not null default 'business_hours'
+    check (availability_mode in ('business_hours', 'worker_clock')),
   business_timezone text not null default 'America/New_York',
   business_days integer[] not null default array[0, 1, 2, 3, 4, 5],
   business_start_time time not null default '09:00',

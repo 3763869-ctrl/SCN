@@ -8,7 +8,20 @@ import {
 import {
   isWithinBusinessHours,
   normalizePhoneSystemSettings,
+  usesBusinessHours,
 } from "@/lib/twilio/phone-flow";
+
+async function isWorkerClockedIn(workerId: string) {
+  const adminSupabase = createSupabaseAdminClient();
+  const { data: openEntry } = await adminSupabase
+    .from("time_entries")
+    .select("id")
+    .eq("worker_id", workerId)
+    .is("clock_out_at", null)
+    .maybeSingle();
+
+  return Boolean(openEntry);
+}
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -31,7 +44,7 @@ export async function POST(request: Request) {
     .maybeSingle();
   const phoneSystem = normalizePhoneSystemSettings(phoneSystemData);
 
-  if (!isWithinBusinessHours(phoneSystem)) {
+  if (usesBusinessHours(phoneSystem) && !isWithinBusinessHours(phoneSystem)) {
     response.say(phoneSystem.after_hours_greeting);
     response.record({
       action: `${origin}/api/twilio/voicemail`,
@@ -74,6 +87,20 @@ export async function POST(request: Request) {
       recordingStatusCallback: `${origin}/api/twilio/voicemail?extension=${encodeURIComponent(digits)}`,
     });
     return twimlResponse(response.toString());
+  }
+
+  if (phoneSystem.availability_mode === "worker_clock") {
+    const workerIsClockedIn = await isWorkerClockedIn(setting.worker_id);
+
+    if (!workerIsClockedIn) {
+      response.say(phoneSystem.after_hours_greeting);
+      response.record({
+        action: `${origin}/api/twilio/voicemail?extension=${encodeURIComponent(digits)}`,
+        maxLength: 120,
+        recordingStatusCallback: `${origin}/api/twilio/voicemail?extension=${encodeURIComponent(digits)}`,
+      });
+      return twimlResponse(response.toString());
+    }
   }
 
   await adminSupabase.from("phone_call_logs").insert({

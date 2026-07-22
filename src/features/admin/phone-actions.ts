@@ -35,6 +35,14 @@ function getRingTimeout(formData: FormData) {
   return Math.min(120, Math.max(10, Math.round(value)));
 }
 
+function getAvailabilityMode(formData: FormData) {
+  const mode = String(formData.get("availability_mode") ?? "");
+
+  return mode === "worker_clock"
+    ? ("worker_clock" as const)
+    : ("business_hours" as const);
+}
+
 export async function updatePhoneSystemSettings(formData: FormData) {
   const admin = await requireAdminProfile();
   const supabase = createSupabaseAdminClient();
@@ -45,6 +53,7 @@ export async function updatePhoneSystemSettings(formData: FormData) {
       "after_hours_greeting",
       "Thank you for calling S C N. We are currently closed. Please leave a message and we will call you back at the first opportunity.",
     ),
+    availability_mode: getAvailabilityMode(formData),
     business_days: getBusinessDays(formData),
     business_end_time: requiredText(formData, "business_end_time", "17:00"),
     business_start_time: requiredText(formData, "business_start_time", "09:00"),

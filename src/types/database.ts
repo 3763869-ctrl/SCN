@@ -212,6 +212,7 @@ export type Database = {
         Row: {
           id: boolean;
           active: boolean;
+          availability_mode: "business_hours" | "worker_clock";
           business_timezone: string;
           business_days: number[];
           business_start_time: string;
@@ -226,6 +227,7 @@ export type Database = {
         Insert: {
           id?: boolean;
           active?: boolean;
+          availability_mode?: "business_hours" | "worker_clock";
           business_timezone?: string;
           business_days?: number[];
           business_start_time?: string;
@@ -240,6 +242,7 @@ export type Database = {
         Update: {
           id?: boolean;
           active?: boolean;
+          availability_mode?: "business_hours" | "worker_clock";
           business_timezone?: string;
           business_days?: number[];
           business_start_time?: string;

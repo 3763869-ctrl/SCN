@@ -60,6 +60,7 @@ export default async function SettingsPage() {
     active: true,
     after_hours_greeting:
       "Thank you for calling S C N. We are currently closed. Please leave a message and we will call you back at the first opportunity.",
+    availability_mode: "business_hours",
     business_days: [0, 1, 2, 3, 4, 5],
     business_end_time: "17:00",
     business_start_time: "09:00",
@@ -155,7 +156,23 @@ export default async function SettingsPage() {
                 <span className="text-sm font-semibold">Phone flow active</span>
               </label>
             </div>
-            <div className="grid gap-3 lg:grid-cols-[1fr_160px_160px_130px]">
+            <div className="grid gap-3 lg:grid-cols-[1fr_1fr_160px_160px_130px]">
+              <label className="space-y-1">
+                <span className="text-xs font-semibold text-muted-foreground">
+                  Availability Rule
+                </span>
+                <select
+                  className="h-10 w-full rounded-md border border-border bg-surface px-3"
+                  defaultValue={phoneFlow.availability_mode}
+                  name="availability_mode"
+                >
+                  <option value="business_hours">Use working hours</option>
+                  <option value="worker_clock">Use worker clock-in status</option>
+                </select>
+                <span className="block text-xs text-muted-foreground">
+                  Worker clock mode rings only after the caller enters an extension for a worker who is clocked in.
+                </span>
+              </label>
               <label className="space-y-1">
                 <span className="text-xs font-semibold text-muted-foreground">Timezone</span>
                 <input
