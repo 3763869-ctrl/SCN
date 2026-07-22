@@ -83,6 +83,7 @@ async function ensureServiceWorker() {
   }
 
   const registration = await navigator.serviceWorker.register("/sw.js");
+  await registration.update().catch(() => undefined);
 
   return registration;
 }
@@ -214,7 +215,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
         { action: "deny-call", title: "Deny" },
       ],
       body: `${caller} is calling RM Support. Click to answer in the worker workspace.`,
-      data: { type: "incoming-call", url: "/worker" },
+      data: { type: "incoming-call", url: window.location.href },
       icon: "/window.svg",
       requireInteraction: true,
       tag: "rm-support-incoming-call",
@@ -250,7 +251,10 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
 
   useEffect(() => {
     if ("serviceWorker" in navigator) {
-      void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+      void navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => registration.update())
+        .catch(() => undefined);
     }
   }, []);
 

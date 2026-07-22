@@ -1,3 +1,11 @@
+self.addEventListener("install", (event) => {
+  event.waitUntil(self.skipWaiting());
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
 self.addEventListener("push", (event) => {
   let payload = {};
 
@@ -47,12 +55,23 @@ self.addEventListener("notificationclick", (event) => {
   const targetUrl = event.notification.data?.url || "/worker";
   const notificationType = event.notification.data?.type;
 
+  function normalizePath(path) {
+    return path.replace(/\/+$/, "") || "/";
+  }
+
   function targetPathMatches(clientUrl) {
     try {
-      const clientPath = new URL(clientUrl).pathname;
-      const targetPath = new URL(targetUrl, self.location.origin).pathname;
+      const client = new URL(clientUrl);
+      const target = new URL(targetUrl, self.location.origin);
+      const clientPath = normalizePath(client.pathname);
+      const targetPath = normalizePath(target.pathname);
 
-      return clientPath === targetPath;
+      return (
+        client.origin === target.origin &&
+        (client.href === target.href ||
+          clientPath === targetPath ||
+          (targetPath === "/worker" && clientPath.startsWith("/worker")))
+      );
     } catch {
       return clientUrl.includes(targetUrl);
     }
@@ -62,6 +81,14 @@ self.addEventListener("notificationclick", (event) => {
     return self.clients
       .matchAll({ includeUncontrolled: true, type: "window" })
       .then((clientList) => {
+        const sameOriginClients = clientList.filter((client) => {
+          try {
+            return new URL(client.url).origin === self.location.origin;
+          } catch {
+            return false;
+          }
+        });
+
         for (const client of clientList) {
           if ("focus" in client && targetPathMatches(client.url)) {
             if (message && "postMessage" in client) {
@@ -70,6 +97,32 @@ self.addEventListener("notificationclick", (event) => {
 
             return client.focus();
           }
+        }
+
+        const workerClient = sameOriginClients.find((client) => {
+          try {
+            return normalizePath(new URL(client.url).pathname).startsWith("/worker");
+          } catch {
+            return false;
+          }
+        });
+
+        if (workerClient && "focus" in workerClient) {
+          if (message && "postMessage" in workerClient) {
+            workerClient.postMessage(message);
+          }
+
+          return workerClient.focus();
+        }
+
+        const visibleClient = sameOriginClients.find((client) => "focus" in client);
+
+        if (visibleClient) {
+          if (message && "postMessage" in visibleClient) {
+            visibleClient.postMessage(message);
+          }
+
+          return visibleClient.focus();
         }
 
         if (self.clients.openWindow) {
