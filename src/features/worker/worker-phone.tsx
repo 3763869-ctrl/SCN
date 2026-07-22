@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Bell, MessageSquare, Mic, Phone, PhoneOff, Send } from "lucide-react";
 import type { Call, Device } from "@twilio/voice-sdk";
 
@@ -67,6 +67,24 @@ function getDateTimeLabel(value: string) {
   }).format(new Date(value));
 }
 
+async function ensureServiceWorker() {
+  if (!("serviceWorker" in navigator)) {
+    return null;
+  }
+
+  const registration = await navigator.serviceWorker.register("/sw.js");
+
+  return registration;
+}
+
+function getInitialNotificationPermission(): NotificationPermission | "unsupported" {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "unsupported";
+  }
+
+  return Notification.permission;
+}
+
 export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [messageBody, setMessageBody] = useState("");
@@ -75,11 +93,15 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [deviceReady, setDeviceReady] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<
+    NotificationPermission | "unsupported"
+  >(getInitialNotificationPermission);
   const [isPending, startTransition] = useTransition();
   const deviceRef = useRef<Device | null>(null);
   const phoneNumberInputRef = useRef<HTMLInputElement | null>(null);
   const ringAudioContextRef = useRef<AudioContext | null>(null);
   const ringIntervalRef = useRef<number | null>(null);
+  const browserNotificationRef = useRef<Notification | null>(null);
   const selectedThread = data.threads.find((thread) => thread.id === selectedThreadId);
   const selectedMessages = useMemo(
     () => data.messages.filter((message) => message.thread_id === selectedThreadId),
@@ -97,6 +119,17 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
 
     void ringAudioContextRef.current?.close();
     ringAudioContextRef.current = null;
+    browserNotificationRef.current?.close();
+    browserNotificationRef.current = null;
+
+    if ("serviceWorker" in navigator) {
+      void navigator.serviceWorker.ready
+        .then((registration) => registration.getNotifications({ tag: "scn-incoming-call" }))
+        .then((notifications) => {
+          notifications.forEach((notification) => notification.close());
+        })
+        .catch(() => undefined);
+    }
   }
 
   function playRingTone() {
@@ -123,6 +156,58 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
     oscillator.stop(audioContext.currentTime + 0.7);
   }
 
+  async function requestChromeCallAlerts() {
+    if (!("Notification" in window)) {
+      setNotificationPermission("unsupported");
+      setStatusMessage("Chrome notifications are not supported in this browser.");
+      return;
+    }
+
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+
+    if (permission === "granted") {
+      await ensureServiceWorker().catch(() => null);
+      setStatusMessage("Chrome call alerts are enabled.");
+    } else {
+      setStatusMessage("Chrome call alerts are not enabled.");
+    }
+  }
+
+  const showChromeCallNotification = useCallback(async (call: Call) => {
+    if (!("Notification" in window) || Notification.permission !== "granted") {
+      return;
+    }
+
+    const caller = call.parameters.From || "Unknown caller";
+    const notificationOptions = {
+      body: `${caller} is calling SCN. Click to answer in the worker workspace.`,
+      data: { url: "/worker" },
+      icon: "/window.svg",
+      requireInteraction: true,
+      tag: "scn-incoming-call",
+    };
+
+    try {
+      const registration = await ensureServiceWorker();
+
+      if (registration?.showNotification) {
+        await registration.showNotification("Incoming SCN Call", notificationOptions);
+        return;
+      }
+    } catch {
+      // Fall back to the page notification API below.
+    }
+
+    browserNotificationRef.current?.close();
+    const notification = new Notification("Incoming SCN Call", notificationOptions);
+    browserNotificationRef.current = notification;
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+  }, []);
+
   function getPhoneErrorMessage(error: { code?: number; message?: string }) {
     if (error.code === 31000) {
       return "Twilio rejected the call setup. Check the Twilio Auth Token, TwiML App, phone number, and webhooks in Settings.";
@@ -130,6 +215,12 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
 
     return error.message || "Phone connection error.";
   }
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -172,6 +263,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
         device.on("incoming", (call) => {
           setIncomingCall(call);
           setStatusMessage("Incoming call.");
+          void showChromeCallNotification(call);
           call.on("cancel", () => setIncomingCall(null));
           call.on("disconnect", () => setIncomingCall(null));
           call.on("reject", () => setIncomingCall(null));
@@ -196,7 +288,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
       deviceRef.current = null;
       stopRinging();
     };
-  }, [canCall]);
+  }, [canCall, showChromeCallNotification]);
 
   useEffect(() => {
     if (!incomingCall) {
@@ -376,6 +468,28 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
             <p className="mt-2 text-xs text-muted-foreground">
               Browser calls require microphone permission in Chrome.
             </p>
+            <div className="mt-3 rounded-md border border-border bg-background p-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold">Chrome Call Alerts</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {notificationPermission === "granted"
+                      ? "Enabled. Incoming calls can show real Chrome notifications."
+                      : notificationPermission === "denied"
+                        ? "Blocked in Chrome. Allow notifications in site settings to use this."
+                        : notificationPermission === "default"
+                          ? "Enable this so calls alert you outside the SCN page."
+                          : "Not supported in this browser."}
+                  </p>
+                </div>
+                {notificationPermission === "default" ? (
+                  <Button onClick={requestChromeCallAlerts} type="button" variant="secondary">
+                    <Bell className="h-4 w-4" />
+                    Enable Alerts
+                  </Button>
+                ) : null}
+              </div>
+            </div>
           </div>
 
           <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
