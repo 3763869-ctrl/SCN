@@ -485,14 +485,16 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                     {voicemail.duration_seconds ? ` - ${voicemail.duration_seconds}s` : ""}
                   </p>
                   {voicemail.recording_url ? (
-                    <a
-                      className="mt-2 inline-flex text-sm font-semibold text-accent"
-                      href={voicemail.recording_url}
-                      rel="noreferrer"
-                      target="_blank"
+                    <audio
+                      className="mt-3 w-full"
+                      controls
+                      preload="none"
+                      src={`/api/phone/voicemails/${voicemail.id}/recording`}
                     >
-                      Play recording
-                    </a>
+                      <a href={`/api/phone/voicemails/${voicemail.id}/recording`}>
+                        Play recording
+                      </a>
+                    </audio>
                   ) : null}
                 </div>
               ))}
