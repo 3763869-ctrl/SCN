@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireProfile } from "@/features/auth/session";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { formatPhoneNumber } from "@/lib/twilio/server";
 
@@ -32,13 +33,21 @@ export async function POST(request: Request) {
     );
   }
 
-  await supabase.from("phone_call_logs").insert({
+  const adminSupabase = createSupabaseAdminClient();
+  const { error } = await adminSupabase.from("phone_call_logs").insert({
     direction: "outbound",
     from_number: profile.email,
     status: "initiated",
     to_number: to,
     worker_id: profile.id,
   });
+
+  if (error) {
+    return NextResponse.json(
+      { error: `Could not start call log: ${error.message}` },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({ ok: true, to });
 }

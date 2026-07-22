@@ -24,15 +24,23 @@ export function getTwilioClient() {
 }
 
 export function getWorkerTwilioIdentity(workerId: string) {
-  return `worker-${workerId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  return `worker_${Buffer.from(workerId, "utf8").toString("base64url")}`;
 }
 
 export function getWorkerIdFromTwilioIdentity(identity: string | null | undefined) {
-  if (!identity?.startsWith("worker-")) {
+  const normalizedIdentity = identity?.replace(/^client:/, "");
+
+  if (!normalizedIdentity?.startsWith("worker_")) {
     return null;
   }
 
-  return identity.slice("worker-".length);
+  try {
+    return Buffer.from(normalizedIdentity.slice("worker_".length), "base64url").toString(
+      "utf8",
+    );
+  } catch {
+    return null;
+  }
 }
 
 export function formatPhoneNumber(value: string) {

@@ -76,6 +76,7 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
   const [deviceReady, setDeviceReady] = useState(false);
   const [isPending, startTransition] = useTransition();
   const deviceRef = useRef<Device | null>(null);
+  const phoneNumberInputRef = useRef<HTMLInputElement | null>(null);
   const selectedThread = data.threads.find((thread) => thread.id === selectedThreadId);
   const selectedMessages = useMemo(
     () => data.messages.filter((message) => message.thread_id === selectedThreadId),
@@ -140,14 +141,20 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
   function makeCall() {
     startTransition(async () => {
       setStatusMessage(null);
+      const numberToCall = phoneNumberInputRef.current?.value.trim() || phoneNumber.trim();
 
-      if (!deviceRef.current || !phoneNumber.trim()) {
+      if (!numberToCall) {
         setStatusMessage("Enter a number before calling.");
         return;
       }
 
+      if (!deviceRef.current || !deviceReady) {
+        setStatusMessage("Phone is still connecting. Try again in a moment.");
+        return;
+      }
+
       const logResponse = await fetch("/api/phone/calls/outbound", {
-        body: JSON.stringify({ to: phoneNumber }),
+        body: JSON.stringify({ to: numberToCall }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
       });
@@ -160,7 +167,7 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
 
       const call = await deviceRef.current.connect({
         params: {
-          To: phoneNumber,
+          To: numberToCall,
         },
       });
 
@@ -259,6 +266,7 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
               className="mt-4 h-12 w-full rounded-md border border-border bg-background px-3 text-lg font-semibold"
               onChange={(event) => setPhoneNumber(event.target.value)}
               placeholder="+1 555 555 5555"
+              ref={phoneNumberInputRef}
               type="tel"
               value={phoneNumber}
             />
