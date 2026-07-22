@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { writeAdminAuditEvent } from "@/features/admin/audit";
 import { requireAdminProfile } from "@/features/auth/session";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 
 function optionalText(formData: FormData, name: string) {
   const value = String(formData.get(name) ?? "").trim();
@@ -21,9 +21,9 @@ export async function updateWorkerPhoneSettings(formData: FormData) {
     return;
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = createSupabaseAdminClient();
 
-  await supabase.from("worker_phone_settings").upsert(
+  const { error } = await supabase.from("worker_phone_settings").upsert(
     {
       calling_enabled: formData.get("calling_enabled") === "on",
       extension,
@@ -34,6 +34,10 @@ export async function updateWorkerPhoneSettings(formData: FormData) {
     },
     { onConflict: "worker_id" },
   );
+
+  if (error) {
+    throw new Error(`Could not save worker phone settings: ${error.message}`);
+  }
 
   await writeAdminAuditEvent({
     actorId: admin.id,

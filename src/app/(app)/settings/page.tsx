@@ -6,6 +6,7 @@ import { SaveSubmitButton } from "@/components/ui/save-submit-button";
 import { updateWorkerPhoneSettings } from "@/features/admin/phone-actions";
 import { getPartnerOperationsData, getStatusLabel } from "@/features/admin/partner-data";
 import { restoreDeletedWorker } from "@/features/admin/worker-actions";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { twilioConfigStatus } from "@/lib/twilio/server";
 
@@ -16,6 +17,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 
 export default async function SettingsPage() {
   const supabase = await createSupabaseServerClient();
+  const adminSupabase = createSupabaseAdminClient();
   const data = await getPartnerOperationsData();
   const twilioStatus = twilioConfigStatus();
   const { data: deletedWorkers } = await supabase
@@ -34,7 +36,7 @@ export default async function SettingsPage() {
       .eq("active", true)
       .is("deleted_at", null)
       .order("full_name", { ascending: true }),
-    supabase
+    adminSupabase
       .from("worker_phone_settings")
       .select("worker_id, extension, phone_enabled, calling_enabled, texting_enabled, voicemail_greeting"),
   ]);

@@ -118,6 +118,7 @@ alter table public.phone_messages enable row level security;
 alter table public.phone_call_logs enable row level security;
 alter table public.phone_voicemails enable row level security;
 
+drop policy if exists "Workers can read own phone settings and admins can manage all" on public.worker_phone_settings;
 create policy "Workers can read own phone settings and admins can manage all"
 on public.worker_phone_settings
 for select
@@ -126,12 +127,14 @@ using (
   or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true)
 );
 
+drop policy if exists "Admins can manage worker phone settings" on public.worker_phone_settings;
 create policy "Admins can manage worker phone settings"
 on public.worker_phone_settings
 for all
 using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true))
 with check (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true));
 
+drop policy if exists "Workers can read own phone contacts and admins can manage all" on public.phone_contacts;
 create policy "Workers can read own phone contacts and admins can manage all"
 on public.phone_contacts
 for select
@@ -140,18 +143,21 @@ using (
   or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true)
 );
 
+drop policy if exists "Workers can manage own phone contacts" on public.phone_contacts;
 create policy "Workers can manage own phone contacts"
 on public.phone_contacts
 for all
 using (worker_id = auth.uid())
 with check (worker_id = auth.uid());
 
+drop policy if exists "Admins can manage phone contacts" on public.phone_contacts;
 create policy "Admins can manage phone contacts"
 on public.phone_contacts
 for all
 using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true))
 with check (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true));
 
+drop policy if exists "Workers can read own message threads and admins can manage all" on public.phone_message_threads;
 create policy "Workers can read own message threads and admins can manage all"
 on public.phone_message_threads
 for select
@@ -160,18 +166,21 @@ using (
   or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true)
 );
 
+drop policy if exists "Workers can manage own message threads" on public.phone_message_threads;
 create policy "Workers can manage own message threads"
 on public.phone_message_threads
 for all
 using (worker_id = auth.uid())
 with check (worker_id = auth.uid());
 
+drop policy if exists "Admins can manage message threads" on public.phone_message_threads;
 create policy "Admins can manage message threads"
 on public.phone_message_threads
 for all
 using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true))
 with check (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true));
 
+drop policy if exists "Workers can read own messages and admins can manage all" on public.phone_messages;
 create policy "Workers can read own messages and admins can manage all"
 on public.phone_messages
 for select
@@ -180,17 +189,20 @@ using (
   or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true)
 );
 
+drop policy if exists "Workers can insert own outbound messages" on public.phone_messages;
 create policy "Workers can insert own outbound messages"
 on public.phone_messages
 for insert
 with check (worker_id = auth.uid() and direction = 'outbound');
 
+drop policy if exists "Admins can manage messages" on public.phone_messages;
 create policy "Admins can manage messages"
 on public.phone_messages
 for all
 using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true))
 with check (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true));
 
+drop policy if exists "Workers can read own call logs and admins can manage all" on public.phone_call_logs;
 create policy "Workers can read own call logs and admins can manage all"
 on public.phone_call_logs
 for select
@@ -199,17 +211,20 @@ using (
   or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true)
 );
 
+drop policy if exists "Workers can insert own outbound call logs" on public.phone_call_logs;
 create policy "Workers can insert own outbound call logs"
 on public.phone_call_logs
 for insert
 with check (worker_id = auth.uid() and direction = 'outbound');
 
+drop policy if exists "Admins can manage call logs" on public.phone_call_logs;
 create policy "Admins can manage call logs"
 on public.phone_call_logs
 for all
 using (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true))
 with check (exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true));
 
+drop policy if exists "Workers can read own voicemails and admins can manage all" on public.phone_voicemails;
 create policy "Workers can read own voicemails and admins can manage all"
 on public.phone_voicemails
 for select
@@ -218,6 +233,7 @@ using (
   or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin' and active = true)
 );
 
+drop policy if exists "Admins can manage voicemails" on public.phone_voicemails;
 create policy "Admins can manage voicemails"
 on public.phone_voicemails
 for all
