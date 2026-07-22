@@ -122,7 +122,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
   const canCall = Boolean(phoneEnabled && data.settings?.calling_enabled && data.config.voiceReady);
   const canText = Boolean(phoneEnabled && data.settings?.texting_enabled && data.config.messagingReady);
 
-  function stopRinging() {
+  const stopRinging = useCallback(() => {
     if (ringIntervalRef.current) {
       window.clearInterval(ringIntervalRef.current);
       ringIntervalRef.current = null;
@@ -141,7 +141,20 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
         })
         .catch(() => undefined);
     }
-  }
+  }, []);
+
+  const answerIncomingCall = useCallback((call: Call) => {
+    call.accept();
+    stopRinging();
+    setActiveCall(call);
+    setIncomingCall(null);
+  }, [stopRinging]);
+
+  const denyIncomingCall = useCallback((call: Call) => {
+    call.reject();
+    stopRinging();
+    setIncomingCall(null);
+  }, [stopRinging]);
 
   function playRingTone() {
     const AudioContextConstructor =
@@ -192,8 +205,12 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
 
     const caller = call.parameters.From || "Unknown caller";
     const notificationOptions = {
+      actions: [
+        { action: "answer-call", title: "Answer" },
+        { action: "deny-call", title: "Deny" },
+      ],
       body: `${caller} is calling RM Support. Click to answer in the worker workspace.`,
-      data: { url: "/worker" },
+      data: { type: "incoming-call", url: "/worker" },
       icon: "/window.svg",
       requireInteraction: true,
       tag: "rm-support-incoming-call",
@@ -232,6 +249,34 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
       void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
     }
   }, []);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) {
+      return;
+    }
+
+    function handleServiceWorkerMessage(event: MessageEvent) {
+      const message = event.data as { action?: string; type?: string } | undefined;
+
+      if (message?.type !== "incoming-call-action" || !incomingCall) {
+        return;
+      }
+
+      if (message.action === "answer-call") {
+        answerIncomingCall(incomingCall);
+      }
+
+      if (message.action === "deny-call") {
+        denyIncomingCall(incomingCall);
+      }
+    }
+
+    navigator.serviceWorker.addEventListener("message", handleServiceWorkerMessage);
+
+    return () => {
+      navigator.serviceWorker.removeEventListener("message", handleServiceWorkerMessage);
+    };
+  }, [answerIncomingCall, denyIncomingCall, incomingCall]);
 
   useEffect(() => {
     let mounted = true;
@@ -299,7 +344,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
       deviceRef.current = null;
       stopRinging();
     };
-  }, [canCall, showChromeCallNotification]);
+  }, [canCall, showChromeCallNotification, stopRinging]);
 
   useEffect(() => {
     if (!incomingCall) {
@@ -311,7 +356,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
     ringIntervalRef.current = window.setInterval(playRingTone, 2000);
 
     return stopRinging;
-  }, [incomingCall]);
+  }, [incomingCall, stopRinging]);
 
   function makeCall() {
     startTransition(async () => {
@@ -411,19 +456,14 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
             <div className="mt-6 grid grid-cols-2 gap-3">
               <Button
                 onClick={() => {
-                  incomingCall.accept();
-                  stopRinging();
-                  setActiveCall(incomingCall);
-                  setIncomingCall(null);
+                  answerIncomingCall(incomingCall);
                 }}
               >
                 Answer
               </Button>
               <Button
                 onClick={() => {
-                  incomingCall.reject();
-                  stopRinging();
-                  setIncomingCall(null);
+                  denyIncomingCall(incomingCall);
                 }}
                 variant="danger"
               >

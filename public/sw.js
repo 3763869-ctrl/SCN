@@ -45,6 +45,60 @@ self.addEventListener("notificationclick", (event) => {
 
   const checkId = event.notification.data?.checkId;
   const targetUrl = event.notification.data?.url || "/worker";
+  const notificationType = event.notification.data?.type;
+
+  function targetPathMatches(clientUrl) {
+    try {
+      const clientPath = new URL(clientUrl).pathname;
+      const targetPath = new URL(targetUrl, self.location.origin).pathname;
+
+      return clientPath === targetPath;
+    } catch {
+      return clientUrl.includes(targetUrl);
+    }
+  }
+
+  function focusOrOpenTarget(message) {
+    return self.clients
+      .matchAll({ includeUncontrolled: true, type: "window" })
+      .then((clientList) => {
+        for (const client of clientList) {
+          if ("focus" in client && targetPathMatches(client.url)) {
+            if (message && "postMessage" in client) {
+              client.postMessage(message);
+            }
+
+            return client.focus();
+          }
+        }
+
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl).then((client) => {
+            if (client && message && "postMessage" in client) {
+              client.postMessage(message);
+            }
+
+            return client;
+          });
+        }
+
+        return undefined;
+      });
+  }
+
+  if (notificationType === "incoming-call") {
+    event.waitUntil(
+      focusOrOpenTarget(
+        event.action
+          ? {
+              action: event.action === "deny-call" ? "deny-call" : "answer-call",
+              type: "incoming-call-action",
+            }
+          : undefined,
+      ),
+    );
+    return;
+  }
 
   if (event.action === "still-here" && checkId) {
     event.waitUntil(
@@ -63,38 +117,10 @@ self.addEventListener("notificationclick", (event) => {
     event.waitUntil(
       fetch("/api/worker/resume-clock", {
         method: "POST",
-      }).then(() =>
-        self.clients.matchAll({ type: "window" }).then((clientList) => {
-          for (const client of clientList) {
-            if ("focus" in client && client.url.includes(targetUrl)) {
-              return client.focus();
-            }
-          }
-
-          if (self.clients.openWindow) {
-            return self.clients.openWindow(targetUrl);
-          }
-
-          return undefined;
-        }),
-      ),
+      }).then(() => focusOrOpenTarget()),
     );
     return;
   }
 
-  event.waitUntil(
-    self.clients.matchAll({ type: "window" }).then((clientList) => {
-      for (const client of clientList) {
-        if ("focus" in client && client.url.includes(targetUrl)) {
-          return client.focus();
-        }
-      }
-
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
-
-      return undefined;
-    }),
-  );
+  event.waitUntil(focusOrOpenTarget());
 });
