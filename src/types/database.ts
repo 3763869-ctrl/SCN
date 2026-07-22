@@ -451,6 +451,7 @@ export type Database = {
         Row: {
           id: string;
           worker_id: string | null;
+          assigned_worker_id: string | null;
           call_log_id: string | null;
           from_number: string | null;
           recording_url: string | null;
@@ -458,12 +459,15 @@ export type Database = {
           duration_seconds: number | null;
           transcription: string | null;
           status: string;
+          completed_at: string | null;
+          completed_by: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           worker_id?: string | null;
+          assigned_worker_id?: string | null;
           call_log_id?: string | null;
           from_number?: string | null;
           recording_url?: string | null;
@@ -471,12 +475,15 @@ export type Database = {
           duration_seconds?: number | null;
           transcription?: string | null;
           status?: string;
+          completed_at?: string | null;
+          completed_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           worker_id?: string | null;
+          assigned_worker_id?: string | null;
           call_log_id?: string | null;
           from_number?: string | null;
           recording_url?: string | null;
@@ -484,6 +491,8 @@ export type Database = {
           duration_seconds?: number | null;
           transcription?: string | null;
           status?: string;
+          completed_at?: string | null;
+          completed_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };

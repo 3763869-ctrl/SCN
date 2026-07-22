@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Bell, MessageSquare, Mic, Phone, PhoneOff, Send } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { Call, Device } from "@twilio/voice-sdk";
 
 import { Button } from "@/components/ui/button";
+import { updateVoicemailWorkflow } from "@/features/worker/phone-actions";
 
 type WorkerPhoneData = {
   settings: {
@@ -46,12 +48,20 @@ type WorkerPhoneData = {
   }>;
   voicemails: Array<{
     id: string;
+    assigned_worker_id: string | null;
+    completed_at: string | null;
+    completed_by: string | null;
     from_number: string | null;
     recording_url: string | null;
     duration_seconds: number | null;
     transcription: string | null;
     status: string;
     created_at: string;
+  }>;
+  workers: Array<{
+    id: string;
+    full_name: string | null;
+    email: string;
   }>;
 };
 
@@ -86,6 +96,7 @@ function getInitialNotificationPermission(): NotificationPermission | "unsupport
 }
 
 export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
+  const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState("");
   const [messageBody, setMessageBody] = useState("");
   const [selectedThreadId, setSelectedThreadId] = useState(data.threads[0]?.id ?? "");
@@ -378,6 +389,15 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
     });
   }
 
+  function saveVoicemailWorkflow(formData: FormData) {
+    startTransition(async () => {
+      const result = await updateVoicemailWorkflow(formData);
+
+      setStatusMessage(result.message);
+      router.refresh();
+    });
+  }
+
   return (
     <section className={visible ? "space-y-4" : "contents"}>
       {incomingCall ? (
@@ -593,7 +613,20 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
             <div className="mt-3 space-y-2">
               {data.voicemails.map((voicemail) => (
                 <div className="rounded-md border border-border bg-background p-3 text-sm" key={voicemail.id}>
-                  <p className="font-semibold">{voicemail.from_number || "Unknown caller"}</p>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="font-semibold">{voicemail.from_number || "Unknown caller"}</p>
+                      {voicemail.completed_at ? (
+                        <p className="mt-1 text-xs font-semibold text-accent">
+                          Done
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                          Needs follow-up
+                        </p>
+                      )}
+                    </div>
+                  </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {getDateTimeLabel(voicemail.created_at)}
                     {voicemail.duration_seconds ? ` - ${voicemail.duration_seconds}s` : ""}
@@ -610,6 +643,36 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                       </a>
                     </audio>
                   ) : null}
+                  <form action={saveVoicemailWorkflow} className="mt-3 grid gap-3 rounded-md border border-border bg-surface p-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+                    <input name="voicemail_id" type="hidden" value={voicemail.id} />
+                    <label className="text-xs font-semibold text-muted-foreground">
+                      Assigned Worker
+                      <select
+                        className="mt-1 h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+                        defaultValue={voicemail.assigned_worker_id ?? ""}
+                        name="assigned_worker_id"
+                      >
+                        <option value="">Not assigned</option>
+                        {data.workers.map((worker) => (
+                          <option key={worker.id} value={worker.id}>
+                            {worker.full_name || worker.email}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold">
+                      <input
+                        className="h-4 w-4 accent-accent"
+                        defaultChecked={Boolean(voicemail.completed_at)}
+                        name="completed"
+                        type="checkbox"
+                      />
+                      Done
+                    </label>
+                    <Button disabled={isPending} type="submit">
+                      Save
+                    </Button>
+                  </form>
                 </div>
               ))}
               {!data.voicemails.length ? (

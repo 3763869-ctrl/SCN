@@ -9,6 +9,7 @@ export async function getWorkerPhoneData(workerId: string) {
     { data: threads },
     { data: messages },
     { data: voicemails },
+    { data: workers },
   ] = await Promise.all([
     supabase
       .from("worker_phone_settings")
@@ -42,11 +43,18 @@ export async function getWorkerPhoneData(workerId: string) {
     supabase
       .from("phone_voicemails")
       .select(
-        "id, from_number, recording_url, duration_seconds, transcription, status, created_at",
+        "id, assigned_worker_id, completed_at, completed_by, from_number, recording_url, duration_seconds, transcription, status, created_at",
       )
       .eq("worker_id", workerId)
       .order("created_at", { ascending: false })
       .limit(20),
+    supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .eq("role", "worker")
+      .eq("active", true)
+      .is("deleted_at", null)
+      .order("full_name", { ascending: true }),
   ]);
 
   return {
@@ -56,5 +64,6 @@ export async function getWorkerPhoneData(workerId: string) {
     settings,
     threads: threads ?? [],
     voicemails: voicemails ?? [],
+    workers: workers ?? [],
   };
 }
