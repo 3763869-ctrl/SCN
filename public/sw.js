@@ -14,7 +14,7 @@ self.addEventListener("push", (event) => {
   const isPausedNotification = payload.type === "clock-paused";
 
   event.waitUntil(
-    self.registration.showNotification(payload.title || "SCN check-in", {
+    self.registration.showNotification(payload.title || "RM Support check-in", {
       actions: [
         {
           action: isPausedNotification ? "resume-clock" : "still-here",

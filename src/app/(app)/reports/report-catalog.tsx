@@ -35,7 +35,7 @@ export function ReportCatalog({
       return [];
     }
 
-    const saved = window.localStorage.getItem("scn.favoriteReports");
+    const saved = window.localStorage.getItem("rm-support.favoriteReports");
 
     return saved ? JSON.parse(saved) : [];
   });
@@ -58,7 +58,7 @@ export function ReportCatalog({
         ? current.filter((id) => id !== reportId)
         : [...current, reportId];
 
-      window.localStorage.setItem("scn.favoriteReports", JSON.stringify(next));
+      window.localStorage.setItem("rm-support.favoriteReports", JSON.stringify(next));
       return next;
     });
   }

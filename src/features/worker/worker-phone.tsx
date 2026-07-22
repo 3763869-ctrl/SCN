@@ -135,7 +135,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
 
     if ("serviceWorker" in navigator) {
       void navigator.serviceWorker.ready
-        .then((registration) => registration.getNotifications({ tag: "scn-incoming-call" }))
+        .then((registration) => registration.getNotifications({ tag: "rm-support-incoming-call" }))
         .then((notifications) => {
           notifications.forEach((notification) => notification.close());
         })
@@ -192,18 +192,18 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
 
     const caller = call.parameters.From || "Unknown caller";
     const notificationOptions = {
-      body: `${caller} is calling SCN. Click to answer in the worker workspace.`,
+      body: `${caller} is calling RM Support. Click to answer in the worker workspace.`,
       data: { url: "/worker" },
       icon: "/window.svg",
       requireInteraction: true,
-      tag: "scn-incoming-call",
+      tag: "rm-support-incoming-call",
     };
 
     try {
       const registration = await ensureServiceWorker();
 
       if (registration?.showNotification) {
-        await registration.showNotification("Incoming SCN Call", notificationOptions);
+        await registration.showNotification("Incoming RM Support Call", notificationOptions);
         return;
       }
     } catch {
@@ -211,7 +211,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
     }
 
     browserNotificationRef.current?.close();
-    const notification = new Notification("Incoming SCN Call", notificationOptions);
+    const notification = new Notification("Incoming RM Support Call", notificationOptions);
     browserNotificationRef.current = notification;
     notification.onclick = () => {
       window.focus();
@@ -439,7 +439,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-base font-semibold">SCN Phone</h2>
+            <h2 className="text-base font-semibold">RM Support Phone</h2>
             <p className="mt-1 text-sm text-muted-foreground">
               Extension {data.settings?.extension || "not assigned"} -{" "}
               {phoneEnabled ? "Enabled" : "Disabled by admin"}
@@ -498,7 +498,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                       : notificationPermission === "denied"
                         ? "Blocked in Chrome. Allow notifications in site settings to use this."
                         : notificationPermission === "default"
-                          ? "Enable this so calls alert you outside the SCN page."
+                          ? "Enable this so calls alert you outside the RM Support page."
                           : "Not supported in this browser."}
                   </p>
                 </div>

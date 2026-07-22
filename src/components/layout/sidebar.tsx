@@ -14,10 +14,10 @@ export function Sidebar() {
       <div className="flex h-16 items-center border-b border-border px-5">
         <Link href="/dashboard" className="flex items-center gap-3">
           <span className="grid h-9 w-9 place-items-center rounded-md bg-foreground text-sm font-bold text-white shadow-sm">
-            SCN
+            RM
           </span>
           <span>
-            <span className="block text-sm font-semibold">SCN Operations</span>
+            <span className="block text-sm font-semibold">RM Support Operations</span>
             <span className="block text-xs text-muted-foreground">
               Internal workspace
             </span>

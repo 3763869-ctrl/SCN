@@ -1,6 +1,6 @@
-# SCN Contractor Manager
+# RM Support Operations
 
-SCN Contractor Manager is a professional Next.js application foundation for managing contractor operations. The initial build focuses on long-term structure, maintainability, and production readiness without implementing business logic yet.
+RM Support Operations is a professional Next.js application foundation for managing contractor operations. The initial build focuses on long-term structure, maintainability, and production readiness without implementing business logic yet.
 
 ## Stack
 
@@ -214,5 +214,5 @@ Git is initialized on the `main` branch. Create the initial commit before pushin
 
 ```bash
 git add .
-git commit -m "Initial SCN Contractor Manager foundation"
+git commit -m "Initial RM Support Operations foundation"
 ```

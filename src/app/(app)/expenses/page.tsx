@@ -157,7 +157,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
     <div className="space-y-6">
       <PageHeader
         title="Expenses"
-        description="Track the six SCN business expense categories with receipts, recurring costs, partner links, and tax flags."
+        description="Track the six RM Support business expense categories with receipts, recurring costs, partner links, and tax flags."
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
@@ -359,7 +359,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
           <div className="flex gap-2">
             <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-semibold"
-              download="scn-expenses.csv"
+              download="rm-support-expenses.csv"
               href={getCsvHref(exportRows)}
             >
               <Download className="mr-2 h-4 w-4" aria-hidden="true" />

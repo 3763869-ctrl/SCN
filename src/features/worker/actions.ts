@@ -188,7 +188,7 @@ export async function addUnits(
 
     if (error) {
       return {
-        message: "SCN could not save today's units. Please try again.",
+        message: "RM Support could not save today's units. Please try again.",
         success: false,
       };
     }

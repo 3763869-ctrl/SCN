@@ -44,7 +44,7 @@ export function BirthdayCard({ age, workerName }: BirthdayCardProps) {
         <div className="rounded-lg border border-white/15 bg-white p-8 text-foreground shadow-2xl">
           <PartyPopper className="mx-auto h-16 w-16 text-accent" />
           <p className="mt-5 text-sm font-semibold uppercase text-muted-foreground">
-            SCN Contractor Manager
+            RM Support Operations
           </p>
           <h1 className="mt-3 text-4xl font-semibold tracking-normal sm:text-5xl">
             Happy Birthday, {workerName}!

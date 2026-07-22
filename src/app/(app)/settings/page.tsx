@@ -59,7 +59,7 @@ export default async function SettingsPage() {
   const phoneFlow = phoneSystemSettings ?? {
     active: true,
     after_hours_greeting:
-      "Thank you for calling S C N. We are currently closed. Please leave a message and we will call you back at the first opportunity.",
+      "Thank you for calling RM Support. We are currently closed. Please leave a message and we will call you back at the first opportunity.",
     availability_mode: "business_hours",
     business_days: [0, 1, 2, 3, 4, 5],
     business_end_time: "17:00",
@@ -68,7 +68,7 @@ export default async function SettingsPage() {
     ring_timeout_seconds: 60,
     voicemail_greeting: "No one is available right now. Please leave a message after the beep.",
     working_hours_greeting:
-      "Thank you for calling S C N. Please enter the worker extension you are trying to reach.",
+      "Thank you for calling RM Support. Please enter the worker extension you are trying to reach.",
   };
 
   return (
@@ -119,7 +119,7 @@ export default async function SettingsPage() {
         <div>
           <h2 className="text-base font-semibold">Phone Settings</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Twilio secrets must be added in Vercel environment variables. SCN only
+            Twilio secrets must be added in Vercel environment variables. RM Support only
             stores worker extensions and access settings here.
           </p>
         </div>

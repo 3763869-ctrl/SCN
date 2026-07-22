@@ -246,7 +246,7 @@ export default async function IncomePage({ searchParams }: IncomePageProps) {
           <div className="flex gap-2">
             <a
               className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-semibold"
-              download="scn-income.csv"
+              download="rm-support-income.csv"
               href={getCsvHref(exportRows)}
             >
               <Download className="mr-2 h-4 w-4" aria-hidden="true" />

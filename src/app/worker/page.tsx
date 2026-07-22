@@ -40,7 +40,7 @@ export default async function WorkerPage() {
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <div className="flex items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-md bg-accent text-sm font-bold text-accent-foreground">
-              SCN
+              RM Support
             </span>
             <div>
               <p className="text-sm font-semibold">Worker Workspace</p>

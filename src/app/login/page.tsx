@@ -15,7 +15,7 @@ export default async function LoginPage() {
       <section className="flex items-center px-6 py-12 sm:px-10 lg:px-16">
         <div className="max-w-xl">
           <span className="grid h-12 w-12 place-items-center rounded-md bg-accent text-sm font-bold text-accent-foreground">
-            SCN
+            RM Support
           </span>
           <h1 className="mt-8 text-3xl font-semibold tracking-normal text-foreground sm:text-4xl">
             Contractor Manager

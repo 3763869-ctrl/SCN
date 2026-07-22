@@ -60,7 +60,7 @@ async function redisRateLimit({
   limit,
   windowSeconds,
 }: RateLimitOptions): Promise<RateLimitResult> {
-  const redisKey = `scn:rate-limit:${key}`;
+  const redisKey = `rm-support:rate-limit:${key}`;
   const count = await upstashCommand(["INCR", redisKey]);
 
   if (count === 1) {

@@ -54,7 +54,7 @@ export default async function WorkerOnboardingPage({
         <section className="w-full max-w-lg rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
           <h1 className="text-2xl font-semibold">This link is no longer active</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Please contact SCN for a new worker information link.
+            Please contact RM Support for a new worker information link.
           </p>
           <Link className="mt-5 inline-block text-sm font-semibold text-accent" href="/login">
             Go to login
@@ -84,7 +84,7 @@ export default async function WorkerOnboardingPage({
     <main className="min-h-screen bg-background px-4 py-8">
       <section className="mx-auto w-full max-w-3xl rounded-lg border border-border bg-surface p-6 shadow-sm">
         <p className="text-sm font-semibold text-muted-foreground">
-          SCN Contractor Manager
+          RM Support Operations
         </p>
         <h1 className="mt-2 text-2xl font-semibold">Worker Information</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">

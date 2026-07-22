@@ -172,7 +172,7 @@ async function processExpiredChecks(now: Date) {
       supabase,
       subscriptions ?? [],
       JSON.stringify({
-        body: "Your SCN clock is paused. Press Resume Clock when you are back.",
+        body: "Your RM Support clock is paused. Press Resume Clock when you are back.",
         checkId: check.id,
         title: "Your clock is paused",
         type: "clock-paused",

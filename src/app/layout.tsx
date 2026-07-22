@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SCN Contractor Manager",
+  title: "RM Support Operations",
   description: "A professional operations platform for contractor management.",
   manifest: "/manifest.webmanifest",
   robots: {

@@ -1,7 +1,7 @@
 {
-  "name": "SCN Operations",
-  "short_name": "SCN",
-  "description": "Private SCN operations workspace",
+  "name": "RM Support Operations",
+  "short_name": "RM Support",
+  "description": "Private RM Support operations workspace",
   "start_url": "/worker",
   "display": "standalone",
   "background_color": "#f7f9fb",

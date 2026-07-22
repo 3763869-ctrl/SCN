@@ -1,4 +1,4 @@
--- SCN Contractor Manager authentication roles and profiles.
+-- RM Support Operations authentication roles and profiles.
 -- Run this in the Supabase SQL editor or through Supabase migrations.
 
 create type public.app_role as enum ('admin', 'worker');

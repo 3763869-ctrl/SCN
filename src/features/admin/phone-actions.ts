@@ -51,7 +51,7 @@ export async function updatePhoneSystemSettings(formData: FormData) {
     after_hours_greeting: requiredText(
       formData,
       "after_hours_greeting",
-      "Thank you for calling S C N. We are currently closed. Please leave a message and we will call you back at the first opportunity.",
+      "Thank you for calling RM Support. We are currently closed. Please leave a message and we will call you back at the first opportunity.",
     ),
     availability_mode: getAvailabilityMode(formData),
     business_days: getBusinessDays(formData),
@@ -68,7 +68,7 @@ export async function updatePhoneSystemSettings(formData: FormData) {
     working_hours_greeting: requiredText(
       formData,
       "working_hours_greeting",
-      "Thank you for calling S C N. Please enter the worker extension you are trying to reach.",
+      "Thank you for calling RM Support. Please enter the worker extension you are trying to reach.",
     ),
   };
   const { error } = await supabase
