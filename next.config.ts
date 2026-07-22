@@ -14,9 +14,19 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
+  "media-src 'self' mediastream: https://media.twiliocdn.com https://sdk.twilio.com",
   "manifest-src 'self'",
   "worker-src 'self'",
-  `connect-src 'self' ${supabaseOrigin} https://*.supabase.co wss://*.supabase.co`,
+  [
+    "connect-src 'self'",
+    supabaseOrigin,
+    "https://*.supabase.co",
+    "wss://*.supabase.co",
+    "https://eventgw.twilio.com",
+    "https://media.twiliocdn.com",
+    "https://sdk.twilio.com",
+    "wss://voice-js.roaming.twilio.com",
+  ].join(" "),
   "upgrade-insecure-requests",
 ].join("; ");
 
@@ -46,7 +56,7 @@ const nextConfig: NextConfig = {
           {
             key: "Permissions-Policy",
             value:
-              "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()",
+              "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), interest-cohort=()",
           },
           {
             key: "Strict-Transport-Security",
