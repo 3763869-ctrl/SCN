@@ -208,6 +208,51 @@ export type Database = {
           },
         ];
       };
+      phone_system_settings: {
+        Row: {
+          id: boolean;
+          active: boolean;
+          business_timezone: string;
+          business_days: number[];
+          business_start_time: string;
+          business_end_time: string;
+          working_hours_greeting: string;
+          after_hours_greeting: string;
+          voicemail_greeting: string;
+          ring_timeout_seconds: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: boolean;
+          active?: boolean;
+          business_timezone?: string;
+          business_days?: number[];
+          business_start_time?: string;
+          business_end_time?: string;
+          working_hours_greeting?: string;
+          after_hours_greeting?: string;
+          voicemail_greeting?: string;
+          ring_timeout_seconds?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: boolean;
+          active?: boolean;
+          business_timezone?: string;
+          business_days?: number[];
+          business_start_time?: string;
+          business_end_time?: string;
+          working_hours_greeting?: string;
+          after_hours_greeting?: string;
+          voicemail_greeting?: string;
+          ring_timeout_seconds?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       worker_phone_settings: {
         Row: {
           worker_id: string;

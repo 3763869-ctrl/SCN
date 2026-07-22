@@ -5,6 +5,10 @@ import {
   validateTwilioRequest,
   twimlResponse,
 } from "@/lib/twilio/server";
+import {
+  isWithinBusinessHours,
+  normalizePhoneSystemSettings,
+} from "@/lib/twilio/phone-flow";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -19,6 +23,23 @@ export async function POST(request: Request) {
   const from = String(formData.get("From") ?? "");
   const callSid = String(formData.get("CallSid") ?? "");
   const response = createVoiceResponse();
+  const adminSupabase = createSupabaseAdminClient();
+  const { data: phoneSystemData } = await adminSupabase
+    .from("phone_system_settings")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
+  const phoneSystem = normalizePhoneSystemSettings(phoneSystemData);
+
+  if (!isWithinBusinessHours(phoneSystem)) {
+    response.say(phoneSystem.after_hours_greeting);
+    response.record({
+      action: `${origin}/api/twilio/voicemail`,
+      maxLength: 120,
+      recordingStatusCallback: `${origin}/api/twilio/voicemail`,
+    });
+    return twimlResponse(response.toString());
+  }
 
   if (!digits) {
     response
@@ -29,8 +50,8 @@ export async function POST(request: Request) {
         numDigits: 4,
         timeout: 8,
       })
-      .say("Welcome to S C N. Please enter the worker extension.");
-    response.say("No extension was entered. Please leave a voicemail after the beep.");
+      .say(phoneSystem.working_hours_greeting);
+    response.say(phoneSystem.voicemail_greeting);
     response.record({
       action: `${origin}/api/twilio/voicemail`,
       maxLength: 120,
@@ -39,7 +60,6 @@ export async function POST(request: Request) {
     return twimlResponse(response.toString());
   }
 
-  const adminSupabase = createSupabaseAdminClient();
   const { data: setting } = await adminSupabase
     .from("worker_phone_settings")
     .select("worker_id, phone_enabled, calling_enabled, voicemail_greeting")
@@ -47,7 +67,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (!setting?.phone_enabled || !setting.calling_enabled) {
-    response.say("That extension is not available. Please leave a voicemail after the beep.");
+    response.say(phoneSystem.voicemail_greeting);
     response.record({
       action: `${origin}/api/twilio/voicemail?extension=${encodeURIComponent(digits)}`,
       maxLength: 120,
@@ -68,7 +88,7 @@ export async function POST(request: Request) {
   const dial = response.dial({
     action: `${origin}/api/twilio/voice/voicemail?workerId=${setting.worker_id}`,
     method: "POST",
-    timeout: 20,
+    timeout: phoneSystem.ring_timeout_seconds,
   });
   dial.client(getWorkerTwilioIdentity(setting.worker_id));
 

@@ -1,4 +1,6 @@
 import { createVoiceResponse, validateTwilioRequest, twimlResponse } from "@/lib/twilio/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { normalizePhoneSystemSettings } from "@/lib/twilio/phone-flow";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -10,8 +12,15 @@ export async function POST(request: Request) {
   const url = new URL(request.url);
   const workerId = url.searchParams.get("workerId") ?? "";
   const response = createVoiceResponse();
+  const adminSupabase = createSupabaseAdminClient();
+  const { data: phoneSystemData } = await adminSupabase
+    .from("phone_system_settings")
+    .select("*")
+    .eq("id", true)
+    .maybeSingle();
+  const phoneSystem = normalizePhoneSystemSettings(phoneSystemData);
 
-  response.say("No one is available. Please leave a message after the beep.");
+  response.say(phoneSystem.voicemail_greeting);
   response.record({
     action: `${url.origin}/api/twilio/voicemail?workerId=${encodeURIComponent(workerId)}`,
     maxLength: 120,
