@@ -5,9 +5,11 @@ import { env } from "@/lib/env";
 export function hasTwilioVoiceConfig() {
   return Boolean(
     env.twilioAccountSid &&
+      env.twilioAuthToken &&
       env.twilioApiKeySid &&
       env.twilioApiKeySecret &&
-      env.twilioTwimlAppSid,
+      env.twilioTwimlAppSid &&
+      env.twilioPhoneNumber,
   );
 }
 

@@ -86,6 +86,14 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
   const canCall = Boolean(phoneEnabled && data.settings?.calling_enabled && data.config.voiceReady);
   const canText = Boolean(phoneEnabled && data.settings?.texting_enabled && data.config.messagingReady);
 
+  function getPhoneErrorMessage(error: { code?: number; message?: string }) {
+    if (error.code === 31000) {
+      return "Twilio rejected the call setup. Check the Twilio Auth Token, TwiML App, phone number, and webhooks in Settings.";
+    }
+
+    return error.message || "Phone connection error.";
+  }
+
   useEffect(() => {
     let mounted = true;
 
@@ -95,13 +103,15 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
       }
 
       try {
+        setStatusMessage("Connecting phone...");
         const [{ Device: VoiceDevice }, tokenResponse] = await Promise.all([
           import("@twilio/voice-sdk"),
           fetch("/api/phone/token"),
         ]);
 
         if (!tokenResponse.ok) {
-          setStatusMessage("Phone calling is not ready.");
+          const error = (await tokenResponse.json().catch(() => null)) as { error?: string } | null;
+          setStatusMessage(error?.error ?? "Phone calling is not ready.");
           return;
         }
 
@@ -113,6 +123,13 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
         device.on("registered", () => {
           if (mounted) {
             setDeviceReady(true);
+            setStatusMessage("Phone is ready for calls.");
+          }
+        });
+        device.on("unregistered", () => {
+          if (mounted) {
+            setDeviceReady(false);
+            setStatusMessage("Phone disconnected. Refresh this page before calling.");
           }
         });
         device.on("incoming", (call) => {
@@ -120,12 +137,14 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
           setStatusMessage("Incoming call.");
         });
         device.on("error", (error) => {
-          setStatusMessage(error.message || "Phone connection error.");
+          setStatusMessage(getPhoneErrorMessage(error));
         });
         await device.register();
         deviceRef.current = device;
-      } catch {
-        setStatusMessage("Could not start the phone.");
+      } catch (error) {
+        setStatusMessage(
+          error instanceof Error ? error.message : "Could not start the phone.",
+        );
       }
     }
 
@@ -165,15 +184,25 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
         return;
       }
 
-      const call = await deviceRef.current.connect({
-        params: {
-          To: numberToCall,
-        },
-      });
+      let call: Call;
+
+      try {
+        call = await deviceRef.current.connect({
+          params: {
+            To: numberToCall,
+          },
+        });
+      } catch (error) {
+        setStatusMessage(
+          getPhoneErrorMessage(error instanceof Error ? error : { message: "Call failed." }),
+        );
+        return;
+      }
 
       setActiveCall(call);
       call.on("disconnect", () => setActiveCall(null));
       call.on("cancel", () => setActiveCall(null));
+      call.on("error", (error) => setStatusMessage(getPhoneErrorMessage(error)));
       call.on("reject", () => setActiveCall(null));
     });
   }
@@ -271,9 +300,9 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
               value={phoneNumber}
             />
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <Button disabled={!canCall || isPending || Boolean(activeCall)} onClick={makeCall}>
+              <Button disabled={!canCall || !deviceReady || isPending || Boolean(activeCall)} onClick={makeCall}>
                 <Phone className="h-4 w-4" />
-                Call
+                {canCall && !deviceReady ? "Connecting..." : "Call"}
               </Button>
               <Button
                 disabled={!activeCall}
