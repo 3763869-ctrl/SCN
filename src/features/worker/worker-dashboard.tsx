@@ -437,9 +437,9 @@ export function WorkerDashboard({
         </p>
       ) : null}
 
-      {activeTab === "phone" ? (
-        <WorkerPhone data={phoneData} />
-      ) : activeTab === "clock" ? (
+      <WorkerPhone data={phoneData} visible={activeTab === "phone"} />
+
+      {activeTab === "clock" ? (
         <section className="grid gap-4 xl:grid-cols-[1fr_0.9fr]">
           <div className="rounded-lg border border-border bg-surface p-6 shadow-sm">
             <div className="flex items-center justify-between gap-4">
@@ -644,7 +644,7 @@ export function WorkerDashboard({
             </div>
           </div>
         </section>
-      ) : (
+      ) : activeTab === "units" ? (
         <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
           {endDayRequiresUnits ? (
             <form
@@ -758,7 +758,7 @@ export function WorkerDashboard({
             </div>
           </div>
         </section>
-      )}
+      ) : null}
     </div>
   );
 }

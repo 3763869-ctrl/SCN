@@ -57,6 +57,7 @@ type WorkerPhoneData = {
 
 type WorkerPhoneProps = {
   data: WorkerPhoneData;
+  visible?: boolean;
 };
 
 function getDateTimeLabel(value: string) {
@@ -66,7 +67,7 @@ function getDateTimeLabel(value: string) {
   }).format(new Date(value));
 }
 
-export function WorkerPhone({ data }: WorkerPhoneProps) {
+export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
   const [phoneNumber, setPhoneNumber] = useState("");
   const [messageBody, setMessageBody] = useState("");
   const [selectedThreadId, setSelectedThreadId] = useState(data.threads[0]?.id ?? "");
@@ -77,6 +78,8 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
   const [isPending, startTransition] = useTransition();
   const deviceRef = useRef<Device | null>(null);
   const phoneNumberInputRef = useRef<HTMLInputElement | null>(null);
+  const ringAudioContextRef = useRef<AudioContext | null>(null);
+  const ringIntervalRef = useRef<number | null>(null);
   const selectedThread = data.threads.find((thread) => thread.id === selectedThreadId);
   const selectedMessages = useMemo(
     () => data.messages.filter((message) => message.thread_id === selectedThreadId),
@@ -85,6 +88,40 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
   const phoneEnabled = Boolean(data.settings?.phone_enabled);
   const canCall = Boolean(phoneEnabled && data.settings?.calling_enabled && data.config.voiceReady);
   const canText = Boolean(phoneEnabled && data.settings?.texting_enabled && data.config.messagingReady);
+
+  function stopRinging() {
+    if (ringIntervalRef.current) {
+      window.clearInterval(ringIntervalRef.current);
+      ringIntervalRef.current = null;
+    }
+
+    void ringAudioContextRef.current?.close();
+    ringAudioContextRef.current = null;
+  }
+
+  function playRingTone() {
+    const AudioContextConstructor =
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!AudioContextConstructor) {
+      return;
+    }
+
+    const audioContext = ringAudioContextRef.current ?? new AudioContextConstructor();
+    ringAudioContextRef.current = audioContext;
+    const oscillator = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+
+    oscillator.frequency.value = 880;
+    gain.gain.setValueAtTime(0.001, audioContext.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.18, audioContext.currentTime + 0.03);
+    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.65);
+    oscillator.connect(gain);
+    gain.connect(audioContext.destination);
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 0.7);
+  }
 
   function getPhoneErrorMessage(error: { code?: number; message?: string }) {
     if (error.code === 31000) {
@@ -135,6 +172,9 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
         device.on("incoming", (call) => {
           setIncomingCall(call);
           setStatusMessage("Incoming call.");
+          call.on("cancel", () => setIncomingCall(null));
+          call.on("disconnect", () => setIncomingCall(null));
+          call.on("reject", () => setIncomingCall(null));
         });
         device.on("error", (error) => {
           setStatusMessage(getPhoneErrorMessage(error));
@@ -154,8 +194,21 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
       mounted = false;
       deviceRef.current?.destroy();
       deviceRef.current = null;
+      stopRinging();
     };
   }, [canCall]);
+
+  useEffect(() => {
+    if (!incomingCall) {
+      stopRinging();
+      return;
+    }
+
+    playRingTone();
+    ringIntervalRef.current = window.setInterval(playRingTone, 2000);
+
+    return stopRinging;
+  }, [incomingCall]);
 
   function makeCall() {
     startTransition(async () => {
@@ -234,7 +287,7 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
   }
 
   return (
-    <section className="space-y-4">
+    <section className={visible ? "space-y-4" : "contents"}>
       {incomingCall ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-foreground/75 px-4">
           <div className="w-full max-w-sm rounded-lg border border-border bg-surface p-6 text-center shadow-2xl">
@@ -247,6 +300,7 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
               <Button
                 onClick={() => {
                   incomingCall.accept();
+                  stopRinging();
                   setActiveCall(incomingCall);
                   setIncomingCall(null);
                 }}
@@ -256,6 +310,7 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
               <Button
                 onClick={() => {
                   incomingCall.reject();
+                  stopRinging();
                   setIncomingCall(null);
                 }}
                 variant="danger"
@@ -267,6 +322,8 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
         </div>
       ) : null}
 
+      {visible ? (
+        <>
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -446,6 +503,8 @@ export function WorkerPhone({ data }: WorkerPhoneProps) {
           </div>
         </div>
       </div>
+        </>
+      ) : null}
     </section>
   );
 }

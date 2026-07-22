@@ -11,8 +11,18 @@ import {
   usesBusinessHours,
 } from "@/lib/twilio/phone-flow";
 
-async function isWorkerClockedIn(workerId: string) {
-  const adminSupabase = createSupabaseAdminClient();
+type WorkerPhoneSetting = {
+  worker_id: string;
+  extension: string | null;
+  phone_enabled: boolean;
+  calling_enabled: boolean;
+  voicemail_greeting: string | null;
+};
+
+async function isWorkerClockedIn(
+  adminSupabase: ReturnType<typeof createSupabaseAdminClient>,
+  workerId: string,
+) {
   const { data: openEntry } = await adminSupabase
     .from("time_entries")
     .select("id")
@@ -21,6 +31,52 @@ async function isWorkerClockedIn(workerId: string) {
     .maybeSingle();
 
   return Boolean(openEntry);
+}
+
+async function getAvailableWorkerSettings(
+  adminSupabase: ReturnType<typeof createSupabaseAdminClient>,
+  settings: WorkerPhoneSetting[],
+  availabilityMode: "business_hours" | "worker_clock",
+) {
+  const enabledSettings = settings.filter(
+    (setting) => setting.phone_enabled && setting.calling_enabled,
+  );
+
+  if (availabilityMode === "business_hours") {
+    return enabledSettings;
+  }
+
+  const availability = await Promise.all(
+    enabledSettings.map(async (setting) => ({
+      setting,
+      clockedIn: await isWorkerClockedIn(adminSupabase, setting.worker_id),
+    })),
+  );
+
+  return availability
+    .filter((entry) => entry.clockedIn)
+    .map((entry) => entry.setting);
+}
+
+function sendToVoicemail({
+  extension,
+  greeting,
+  origin,
+  response,
+}: {
+  extension?: string;
+  greeting: string;
+  origin: string;
+  response: ReturnType<typeof createVoiceResponse>;
+}) {
+  const extensionQuery = extension ? `?extension=${encodeURIComponent(extension)}` : "";
+
+  response.say(greeting);
+  response.record({
+    action: `${origin}/api/twilio/voicemail${extensionQuery}`,
+    maxLength: 120,
+    recordingStatusCallback: `${origin}/api/twilio/voicemail${extensionQuery}`,
+  });
 }
 
 export async function POST(request: Request) {
@@ -45,79 +101,64 @@ export async function POST(request: Request) {
   const phoneSystem = normalizePhoneSystemSettings(phoneSystemData);
 
   if (usesBusinessHours(phoneSystem) && !isWithinBusinessHours(phoneSystem)) {
-    response.say(phoneSystem.after_hours_greeting);
-    response.record({
-      action: `${origin}/api/twilio/voicemail`,
-      maxLength: 120,
-      recordingStatusCallback: `${origin}/api/twilio/voicemail`,
+    sendToVoicemail({
+      greeting: phoneSystem.after_hours_greeting,
+      origin,
+      response,
     });
     return twimlResponse(response.toString());
   }
 
-  if (!digits) {
-    response
-      .gather({
-        action: `${origin}/api/twilio/voice/incoming`,
-        input: ["dtmf"],
-        method: "POST",
-        numDigits: 4,
-        timeout: 8,
-      })
-      .say(phoneSystem.working_hours_greeting);
-    response.say(phoneSystem.voicemail_greeting);
-    response.record({
-      action: `${origin}/api/twilio/voicemail`,
-      maxLength: 120,
-      recordingStatusCallback: `${origin}/api/twilio/voicemail`,
-    });
-    return twimlResponse(response.toString());
-  }
-
-  const { data: setting } = await adminSupabase
+  const { data: settings } = await adminSupabase
     .from("worker_phone_settings")
-    .select("worker_id, phone_enabled, calling_enabled, voicemail_greeting")
-    .eq("extension", digits)
-    .maybeSingle();
+    .select("worker_id, extension, phone_enabled, calling_enabled, voicemail_greeting")
+    .not("extension", "is", null);
+  const matchingSettings = digits
+    ? (settings ?? []).filter((setting) => setting.extension === digits)
+    : (settings ?? []);
+  const availableSettings = await getAvailableWorkerSettings(
+    adminSupabase,
+    matchingSettings,
+    phoneSystem.availability_mode,
+  );
 
-  if (!setting?.phone_enabled || !setting.calling_enabled) {
-    response.say(phoneSystem.voicemail_greeting);
-    response.record({
-      action: `${origin}/api/twilio/voicemail?extension=${encodeURIComponent(digits)}`,
-      maxLength: 120,
-      recordingStatusCallback: `${origin}/api/twilio/voicemail?extension=${encodeURIComponent(digits)}`,
+  if (!availableSettings.length) {
+    sendToVoicemail({
+      extension: digits || undefined,
+      greeting:
+        phoneSystem.availability_mode === "worker_clock"
+          ? phoneSystem.after_hours_greeting
+          : phoneSystem.voicemail_greeting,
+      origin,
+      response,
     });
     return twimlResponse(response.toString());
   }
 
-  if (phoneSystem.availability_mode === "worker_clock") {
-    const workerIsClockedIn = await isWorkerClockedIn(setting.worker_id);
+  response.say(phoneSystem.working_hours_greeting);
 
-    if (!workerIsClockedIn) {
-      response.say(phoneSystem.after_hours_greeting);
-      response.record({
-        action: `${origin}/api/twilio/voicemail?extension=${encodeURIComponent(digits)}`,
-        maxLength: 120,
-        recordingStatusCallback: `${origin}/api/twilio/voicemail?extension=${encodeURIComponent(digits)}`,
-      });
-      return twimlResponse(response.toString());
-    }
-  }
-
-  await adminSupabase.from("phone_call_logs").insert({
-    direction: "inbound",
-    from_number: from || null,
-    status: "ringing",
-    to_number: digits,
-    twilio_call_sid: callSid || null,
-    worker_id: setting.worker_id,
-  });
+  await adminSupabase.from("phone_call_logs").insert(
+    availableSettings.map((setting) => ({
+      direction: "inbound",
+      from_number: from || null,
+      status: "ringing",
+      to_number: digits || "main",
+      twilio_call_sid: callSid || null,
+      worker_id: setting.worker_id,
+    })),
+  );
 
   const dial = response.dial({
-    action: `${origin}/api/twilio/voice/voicemail?workerId=${setting.worker_id}`,
+    action:
+      availableSettings.length === 1
+        ? `${origin}/api/twilio/voice/voicemail?workerId=${availableSettings[0].worker_id}`
+        : `${origin}/api/twilio/voice/voicemail`,
     method: "POST",
     timeout: phoneSystem.ring_timeout_seconds,
   });
-  dial.client(getWorkerTwilioIdentity(setting.worker_id));
+  availableSettings.forEach((setting) => {
+    dial.client(getWorkerTwilioIdentity(setting.worker_id));
+  });
 
   return twimlResponse(response.toString());
 }
