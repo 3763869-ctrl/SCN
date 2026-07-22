@@ -107,6 +107,10 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
   const [notificationPermission, setNotificationPermission] = useState<
     NotificationPermission | "unsupported"
   >(getInitialNotificationPermission);
+  const [savingVoicemailId, setSavingVoicemailId] = useState<string | null>(null);
+  const [voicemailOverrides, setVoicemailOverrides] = useState<
+    Record<string, { assignedWorkerId: string | null; completed: boolean }>
+  >({});
   const [isPending, startTransition] = useTransition();
   const deviceRef = useRef<Device | null>(null);
   const phoneNumberInputRef = useRef<HTMLInputElement | null>(null);
@@ -434,11 +438,38 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
     });
   }
 
-  function saveVoicemailWorkflow(formData: FormData) {
+  function saveVoicemailWorkflow({
+    assignedWorkerId,
+    completed,
+    voicemailId,
+  }: {
+    assignedWorkerId: string | null;
+    completed: boolean;
+    voicemailId: string;
+  }) {
+    const formData = new FormData();
+
+    formData.set("voicemail_id", voicemailId);
+
+    if (assignedWorkerId) {
+      formData.set("assigned_worker_id", assignedWorkerId);
+    }
+
+    if (completed) {
+      formData.set("completed", "on");
+    }
+
+    setSavingVoicemailId(voicemailId);
+    setVoicemailOverrides((current) => ({
+      ...current,
+      [voicemailId]: { assignedWorkerId, completed },
+    }));
+
     startTransition(async () => {
       const result = await updateVoicemailWorkflow(formData);
 
       setStatusMessage(result.message);
+      setSavingVoicemailId(null);
       router.refresh();
     });
   }
@@ -653,10 +684,18 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
             <div className="mt-3 space-y-2">
               {data.voicemails.map((voicemail) => (
                 <div className="rounded-md border border-border bg-background p-3 text-sm" key={voicemail.id}>
+                  {(() => {
+                    const override = voicemailOverrides[voicemail.id];
+                    const assignedWorkerId =
+                      override?.assignedWorkerId ?? voicemail.assigned_worker_id ?? "";
+                    const completed = override?.completed ?? Boolean(voicemail.completed_at);
+
+                    return (
+                      <>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="font-semibold">{voicemail.from_number || "Unknown caller"}</p>
-                      {voicemail.completed_at ? (
+                      {completed ? (
                         <p className="mt-1 text-xs font-semibold text-accent">
                           Done
                         </p>
@@ -666,6 +705,11 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                         </p>
                       )}
                     </div>
+                    {savingVoicemailId === voicemail.id ? (
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        Saving...
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {getDateTimeLabel(voicemail.created_at)}
@@ -683,13 +727,20 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                       </a>
                     </audio>
                   ) : null}
-                  <form action={saveVoicemailWorkflow} className="mt-3 grid gap-3 rounded-md border border-border bg-surface p-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-                    <input name="voicemail_id" type="hidden" value={voicemail.id} />
+                  <div className="mt-3 grid gap-3 rounded-md border border-border bg-surface p-3 sm:grid-cols-[1fr_auto] sm:items-end">
                     <label className="text-xs font-semibold text-muted-foreground">
                       Assigned Worker
                       <select
                         className="mt-1 h-10 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
-                        defaultValue={voicemail.assigned_worker_id ?? ""}
+                        disabled={savingVoicemailId === voicemail.id}
+                        onChange={(event) =>
+                          saveVoicemailWorkflow({
+                            assignedWorkerId: event.target.value || null,
+                            completed,
+                            voicemailId: voicemail.id,
+                          })
+                        }
+                        value={assignedWorkerId}
                         name="assigned_worker_id"
                       >
                         <option value="">Not assigned</option>
@@ -703,16 +754,24 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                     <label className="flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold">
                       <input
                         className="h-4 w-4 accent-accent"
-                        defaultChecked={Boolean(voicemail.completed_at)}
+                        checked={completed}
+                        disabled={savingVoicemailId === voicemail.id}
                         name="completed"
+                        onChange={(event) =>
+                          saveVoicemailWorkflow({
+                            assignedWorkerId: assignedWorkerId || null,
+                            completed: event.target.checked,
+                            voicemailId: voicemail.id,
+                          })
+                        }
                         type="checkbox"
                       />
                       Done
                     </label>
-                    <Button disabled={isPending} type="submit">
-                      Save
-                    </Button>
-                  </form>
+                  </div>
+                      </>
+                    );
+                  })()}
                 </div>
               ))}
               {!data.voicemails.length ? (

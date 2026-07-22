@@ -75,6 +75,17 @@ export async function updateVoicemailWorkflow(
     .eq("id", voicemailId);
 
   if (error) {
+    if (
+      error.message.includes("assigned_worker_id") ||
+      error.message.includes("completed_at") ||
+      error.message.includes("completed_by")
+    ) {
+      return {
+        message: "Voicemail workflow is not installed yet. Run Supabase migration 0026.",
+        success: false,
+      };
+    }
+
     return { message: "Voicemail could not be saved.", success: false };
   }
 

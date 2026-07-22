@@ -45,7 +45,7 @@ export async function getWorkerPhoneData(workerId: string) {
       .select(
         "id, assigned_worker_id, completed_at, completed_by, from_number, recording_url, duration_seconds, transcription, status, created_at",
       )
-      .eq("worker_id", workerId)
+      .or(`worker_id.eq.${workerId},assigned_worker_id.eq.${workerId}`)
       .order("created_at", { ascending: false })
       .limit(20),
     supabase
