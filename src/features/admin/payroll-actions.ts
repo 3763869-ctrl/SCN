@@ -30,7 +30,7 @@ function getWeekDates(value: string) {
 }
 
 function getPayrollStatus(totalOwed: number, totalPaid: number): WorkerPayrollStatus {
-  if (totalPaid >= totalOwed && totalOwed > 0) {
+  if (totalOwed <= 0 || totalPaid >= totalOwed) {
     return "paid";
   }
 
@@ -256,6 +256,7 @@ export async function recordPayrollPayment(formData: FormData) {
   const amount = Number(formData.get("amount") ?? 0);
   const paidAt = String(formData.get("paid_at") ?? "");
   const notes = String(formData.get("notes") ?? "").trim();
+  const receiptNotes = String(formData.get("receipt_notes") ?? "").trim();
 
   if (!payrollId || !workerId || !Number.isFinite(amount) || amount <= 0 || !paidAt) {
     return;
@@ -263,14 +264,27 @@ export async function recordPayrollPayment(formData: FormData) {
 
   const supabase = await createSupabaseServerClient();
 
-  await supabase.from("payroll_payments").insert({
-    amount,
-    created_by: admin.id,
-    notes: notes || null,
-    paid_at: paidAt,
-    payroll_id: payrollId,
-    worker_id: workerId,
-  });
+  const { data: payment } = await supabase
+    .from("payroll_payments")
+    .insert({
+      amount,
+      created_by: admin.id,
+      notes: notes || null,
+      paid_at: paidAt,
+      payroll_id: payrollId,
+      receipt_generated_at: new Date().toISOString(),
+      receipt_notes: receiptNotes || null,
+      worker_id: workerId,
+    })
+    .select("id")
+    .single();
+
+  if (payment?.id) {
+    await supabase
+      .from("payroll_payments")
+      .update({ receipt_number: `WPR-${payment.id.slice(0, 8).toUpperCase()}` })
+      .eq("id", payment.id);
+  }
 
   await refreshPayrollPaymentTotals(payrollId);
   await writeAdminAuditEvent({
@@ -296,6 +310,7 @@ export async function updatePayrollPayment(formData: FormData) {
   const amount = Number(formData.get("amount") ?? 0);
   const paidAt = String(formData.get("paid_at") ?? "");
   const notes = String(formData.get("notes") ?? "").trim();
+  const receiptNotes = String(formData.get("receipt_notes") ?? "").trim();
 
   if (!paymentId || !Number.isFinite(amount) || amount <= 0 || !paidAt) {
     return;
@@ -318,6 +333,7 @@ export async function updatePayrollPayment(formData: FormData) {
       amount,
       notes: notes || null,
       paid_at: paidAt,
+      receipt_notes: receiptNotes || null,
     })
     .eq("id", paymentId);
 

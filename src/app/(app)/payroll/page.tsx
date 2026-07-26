@@ -88,7 +88,7 @@ function PaymentHistoryEditor({ payment }: { payment: PaymentRecord }) {
           />
         </label>
         <label className="text-sm font-medium">
-          Note
+          Payment Note
           <input
             className="mt-2 h-10 w-full rounded-md border border-border bg-surface px-3"
             defaultValue={payment.notes ?? ""}
@@ -97,9 +97,25 @@ function PaymentHistoryEditor({ payment }: { payment: PaymentRecord }) {
             type="text"
           />
         </label>
+        <label className="text-sm font-medium md:col-span-3">
+          Receipt Note for Worker
+          <textarea
+            className="mt-2 min-h-20 w-full rounded-md border border-border bg-surface px-3 py-2"
+            defaultValue={payment.receipt_notes ?? ""}
+            name="receipt_notes"
+            placeholder="Optional message or details to show on the worker receipt..."
+          />
+        </label>
         <SaveSubmitButton className="mt-7 h-10" successMessage="Payroll payment saved.">
           Save
         </SaveSubmitButton>
+        <a
+          className="inline-flex h-10 items-center justify-center rounded-md border border-border px-3 text-sm font-semibold text-accent md:col-span-4"
+          href={`/payroll/payments/${payment.id}/receipt`}
+          target="_blank"
+        >
+          Open Receipt PDF
+        </a>
       </form>
     </details>
   );
@@ -128,6 +144,8 @@ type PaymentRecord = {
   amount: number;
   paid_at: string;
   notes: string | null;
+  receipt_notes: string | null;
+  receipt_number: string | null;
 };
 
 function PayrollCard({
@@ -261,12 +279,20 @@ function PayrollCard({
             />
           </label>
           <label className="text-sm font-medium">
-            Note
+            Payment Note
             <input
               className="mt-2 h-10 w-full rounded-md border border-border bg-surface px-3"
               name="notes"
               placeholder="Check, cash, memo..."
               type="text"
+            />
+          </label>
+          <label className="text-sm font-medium md:col-span-3">
+            Receipt Note for Worker
+            <textarea
+              className="mt-2 min-h-20 w-full rounded-md border border-border bg-surface px-3 py-2"
+              name="receipt_notes"
+              placeholder="Optional message or details to show on the worker receipt..."
             />
           </label>
           <Button className="mt-7 h-10" type="submit">
@@ -373,7 +399,7 @@ export default async function PayrollPage() {
       supabase.from("profiles").select("id, full_name, email, role, active"),
       supabase
         .from("payroll_payments")
-        .select("id, payroll_id, amount, paid_at, notes")
+        .select("id, payroll_id, amount, paid_at, notes, receipt_notes, receipt_number")
         .order("paid_at", { ascending: false }),
     ]);
 
@@ -388,7 +414,9 @@ export default async function PayrollPage() {
 
   const records = (payrolls ?? []) as PayrollRecord[];
   const dueRecords = records.filter(
-    (payroll) => payroll.status === "due" || payroll.status === "reopened",
+    (payroll) =>
+      (payroll.status === "due" && Number(payroll.balance_remaining) > 0) ||
+      payroll.status === "reopened",
   );
   const partialRecords = records.filter((payroll) => payroll.status === "partial");
   const paidRecords = records.filter((payroll) => payroll.status === "paid");

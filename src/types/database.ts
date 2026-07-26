@@ -2138,6 +2138,9 @@ export type Database = {
           amount: number;
           paid_at: string;
           notes: string | null;
+          receipt_generated_at: string | null;
+          receipt_notes: string | null;
+          receipt_number: string | null;
           created_by: string | null;
           created_at: string;
         };
@@ -2148,6 +2151,9 @@ export type Database = {
           amount: number;
           paid_at?: string;
           notes?: string | null;
+          receipt_generated_at?: string | null;
+          receipt_notes?: string | null;
+          receipt_number?: string | null;
           created_by?: string | null;
           created_at?: string;
         };
@@ -2158,6 +2164,9 @@ export type Database = {
           amount?: number;
           paid_at?: string;
           notes?: string | null;
+          receipt_generated_at?: string | null;
+          receipt_notes?: string | null;
+          receipt_number?: string | null;
           created_by?: string | null;
           created_at?: string;
         };
