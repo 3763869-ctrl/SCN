@@ -1213,7 +1213,11 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                   <div className="mt-4 space-y-3">
                     {selectedBonusTiers.map((tier) => (
                       <div
-                        className="rounded-md border border-border bg-background p-3"
+                        className={`rounded-md border p-3 ${
+                          tier.active
+                            ? "border-border bg-background"
+                            : "border-red-200 bg-red-50"
+                        }`}
                         key={tier.id}
                       >
                         <form action={updateBonusTier} className="grid gap-2 text-sm">
@@ -1227,42 +1231,60 @@ export default async function WorkersPage({ searchParams }: WorkersPageProps) {
                             <span className="rounded-md bg-surface-muted px-2 py-1 text-xs font-semibold">
                               {tier.worker_id ? "Worker" : "Global"}
                             </span>
-                            <select
-                              className="h-9 rounded-md border border-border bg-surface px-2 text-sm"
-                              defaultValue={String(tier.active)}
-                              name="active"
-                            >
-                              <option value="true">Active</option>
-                              <option value="false">Inactive</option>
-                            </select>
+                            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                              Bonus Status
+                              <select
+                                className="h-9 rounded-md border border-border bg-surface px-2 text-sm text-foreground"
+                                defaultValue={String(tier.active)}
+                                disabled={!tier.worker_id}
+                                name="active"
+                              >
+                                <option value="true">Active</option>
+                                <option value="false">Inactive</option>
+                              </select>
+                            </label>
                           </div>
                           <div className="grid gap-2 sm:grid-cols-2">
-                            <input
-                              className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                              defaultValue={tier.threshold_units}
-                              disabled={!tier.worker_id}
-                              min="1"
-                              name="threshold_units"
-                              step="1"
-                              type="number"
-                            />
-                            <input
-                              className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                              defaultValue={Number(tier.bonus_amount)}
-                              disabled={!tier.worker_id}
-                              min="0"
-                              name="bonus_amount"
-                              step="0.01"
-                              type="number"
-                            />
+                            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                              Unit Goal
+                              <input
+                                className="h-10 rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                                defaultValue={tier.threshold_units}
+                                disabled={!tier.worker_id}
+                                min="1"
+                                name="threshold_units"
+                                step="1"
+                                type="number"
+                              />
+                            </label>
+                            <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                              Bonus Amount ($)
+                              <input
+                                className="h-10 rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                                defaultValue={Number(tier.bonus_amount)}
+                                disabled={!tier.worker_id}
+                                min="0"
+                                name="bonus_amount"
+                                step="0.01"
+                                type="number"
+                              />
+                            </label>
                           </div>
-                          <input
-                            className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                            defaultValue={tier.label ?? ""}
-                            disabled={!tier.worker_id}
-                            name="label"
-                            placeholder="Label"
-                          />
+                          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                            Popup Message
+                            <input
+                              className="h-10 rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                              defaultValue={tier.label ?? ""}
+                              disabled={!tier.worker_id}
+                              name="label"
+                              placeholder="Shown only when the worker reaches this bonus"
+                            />
+                          </label>
+                          {!tier.active ? (
+                            <p className="text-xs font-semibold text-red-700">
+                              Inactive. This tier will not count toward worker bonuses.
+                            </p>
+                          ) : null}
                           {tier.worker_id ? (
                             <div className="flex justify-end gap-2">
                               <SaveSubmitButton

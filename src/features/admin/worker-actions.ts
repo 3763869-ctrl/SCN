@@ -28,6 +28,12 @@ function getOptionalText(formData: FormData, name: string) {
   return value || null;
 }
 
+function getBooleanValue(formData: FormData, name: string) {
+  const value = formData.get(name);
+
+  return value === "true" || value === "on" || value === "1";
+}
+
 function getWorkerDetailsPayload(formData: FormData, workerId: string) {
   return {
     address_line1: getOptionalText(formData, "address_line1"),
@@ -960,7 +966,7 @@ export async function updateBonusTier(formData: FormData) {
   const thresholdUnits = Number(formData.get("threshold_units"));
   const bonusAmount = Number(formData.get("bonus_amount"));
   const label = String(formData.get("label") ?? "").trim();
-  const active = formData.get("active") === "true";
+  const active = getBooleanValue(formData, "active");
 
   if (
     !id ||
@@ -974,7 +980,7 @@ export async function updateBonusTier(formData: FormData) {
 
   const supabase = await createSupabaseServerClient();
 
-  await supabase
+  const { error } = await supabase
     .from("bonus_tiers")
     .update({
       worker_id: workerId,
@@ -984,6 +990,10 @@ export async function updateBonusTier(formData: FormData) {
       active,
     })
     .eq("id", id);
+
+  if (error) {
+    throw new Error(`Could not save bonus tier: ${error.message}`);
+  }
 
   revalidatePath("/workers");
   revalidatePath("/worker");
