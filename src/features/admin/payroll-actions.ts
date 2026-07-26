@@ -71,6 +71,52 @@ async function refreshPayrollPaymentTotals(payrollId: string) {
     .eq("id", payrollId);
 }
 
+async function syncPayrollPaymentExpense(paymentId: string) {
+  const supabase = await createSupabaseServerClient();
+  const { data: payment } = await supabase
+    .from("payroll_payments")
+    .select("id, payroll_id, worker_id, amount, paid_at, notes, created_by")
+    .eq("id", paymentId)
+    .single();
+
+  if (!payment) {
+    return;
+  }
+
+  const [{ data: payroll }, { data: worker }] = await Promise.all([
+    supabase
+      .from("worker_payrolls")
+      .select("week_start, week_end")
+      .eq("id", payment.payroll_id)
+      .single(),
+    supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", payment.worker_id)
+      .single(),
+  ]);
+
+  await supabase.from("financial_expenses").upsert(
+    {
+      amount: payment.amount,
+      category: "payroll",
+      created_by: payment.created_by,
+      description: payroll
+        ? `Worker payroll payment for week ${payroll.week_start} to ${payroll.week_end}`
+        : "Worker payroll payment",
+      expense_date: payment.paid_at,
+      notes: payment.notes,
+      payroll_payment_id: payment.id,
+      recurring: false,
+      subcategory: "Philippines Payroll",
+      tax_deductible: true,
+      vendor: worker?.full_name || worker?.email || "Worker Payroll",
+      worker_id: payment.worker_id,
+    },
+    { onConflict: "payroll_payment_id" },
+  );
+}
+
 async function calculateWeeklyPayroll(workerId: string, weekStartValue: string) {
   const supabase = await createSupabaseServerClient();
   const {
@@ -284,6 +330,7 @@ export async function recordPayrollPayment(formData: FormData) {
       .from("payroll_payments")
       .update({ receipt_number: `WPR-${payment.id.slice(0, 8).toUpperCase()}` })
       .eq("id", payment.id);
+    await syncPayrollPaymentExpense(payment.id);
   }
 
   await refreshPayrollPaymentTotals(payrollId);
@@ -337,6 +384,7 @@ export async function updatePayrollPayment(formData: FormData) {
     })
     .eq("id", paymentId);
 
+  await syncPayrollPaymentExpense(paymentId);
   await refreshPayrollPaymentTotals(payment.payroll_id);
   await writeAdminAuditEvent({
     actorId: admin.id,

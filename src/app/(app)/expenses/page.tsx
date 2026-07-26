@@ -145,6 +145,7 @@ export default async function ExpensesPage({ searchParams }: ExpensesPageProps) 
     Description: expense.description,
     Notes: expense.notes,
     "Paid From Account": expense.paid_from_account,
+    "Payroll Payment ID": expense.payroll_payment_id,
     Partner: expense.partner_id ? partnerMap.get(expense.partner_id)?.full_name : "",
     "Payment Method": expense.payment_method,
     Recurring: expense.recurring,

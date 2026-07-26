@@ -116,7 +116,7 @@ export async function getFinancialManagementData(filters?: {
     supabase
       .from("financial_expenses")
       .select(
-        "id, expense_date, vendor, category, subcategory, description, amount, payment_method, paid_from_account, partner_id, worker_id, receipt_file_name, receipt_storage_path, tax_deductible, notes, recurring, recurring_frequency, recurring_next_date, created_at",
+        "id, expense_date, vendor, category, subcategory, description, amount, payment_method, paid_from_account, partner_id, worker_id, payroll_payment_id, receipt_file_name, receipt_storage_path, tax_deductible, notes, recurring, recurring_frequency, recurring_next_date, created_at",
       )
       .order("expense_date", { ascending: false }),
     supabase

@@ -1465,6 +1465,7 @@ export type Database = {
           paid_from_account: string | null;
           partner_id: string | null;
           worker_id: string | null;
+          payroll_payment_id: string | null;
           receipt_file_name: string | null;
           receipt_storage_path: string | null;
           tax_deductible: boolean;
@@ -1488,6 +1489,7 @@ export type Database = {
           paid_from_account?: string | null;
           partner_id?: string | null;
           worker_id?: string | null;
+          payroll_payment_id?: string | null;
           receipt_file_name?: string | null;
           receipt_storage_path?: string | null;
           tax_deductible?: boolean;
@@ -1511,6 +1513,7 @@ export type Database = {
           paid_from_account?: string | null;
           partner_id?: string | null;
           worker_id?: string | null;
+          payroll_payment_id?: string | null;
           receipt_file_name?: string | null;
           receipt_storage_path?: string | null;
           tax_deductible?: boolean;
@@ -1523,6 +1526,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "financial_expenses_payroll_payment_id_fkey";
+            columns: ["payroll_payment_id"];
+            isOneToOne: true;
+            referencedRelation: "payroll_payments";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "financial_expenses_partner_id_fkey";
             columns: ["partner_id"];
