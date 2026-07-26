@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { GripVertical } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -27,29 +27,39 @@ export function SortableEntityList({
   saveOrderAction,
   sortByNameAction,
 }: SortableEntityListProps) {
-  const [orderedItems, setOrderedItems] = useState(items);
+  const [orderedIds, setOrderedIds] = useState(() => items.map((item) => item.id));
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const orderedItems = useMemo(() => {
+    const itemsById = new Map(items.map((item) => [item.id, item]));
+    const orderedExistingItems = orderedIds
+      .map((id) => itemsById.get(id))
+      .filter((item): item is SortableEntityItem => Boolean(item));
+    const newItems = items.filter((item) => !orderedIds.includes(item.id));
+
+    return [...orderedExistingItems, ...newItems];
+  }, [items, orderedIds]);
 
   function moveItem(targetId: string) {
     if (!draggedId || draggedId === targetId) {
       return;
     }
 
-    setOrderedItems((currentItems) => {
-      const draggedIndex = currentItems.findIndex((item) => item.id === draggedId);
-      const targetIndex = currentItems.findIndex((item) => item.id === targetId);
+    setOrderedIds((currentIds) => {
+      const draggedIndex = currentIds.findIndex((id) => id === draggedId);
+      const targetIndex = currentIds.findIndex((id) => id === targetId);
 
       if (draggedIndex < 0 || targetIndex < 0) {
-        return currentItems;
+        return currentIds;
       }
 
-      const nextItems = [...currentItems];
-      const [draggedItem] = nextItems.splice(draggedIndex, 1);
-      nextItems.splice(targetIndex, 0, draggedItem);
+      const nextIds = [...currentIds];
+      const [draggedItemId] = nextIds.splice(draggedIndex, 1);
+      nextIds.splice(targetIndex, 0, draggedItemId);
 
-      return nextItems;
+      return nextIds;
     });
   }
 
