@@ -87,7 +87,7 @@ export default async function PayrollReceiptPage({ params }: PayrollReceiptPageP
 
   const queryStart = getUtcDateFromEasternDateTime(payroll.week_start);
   const queryEnd = getUtcDateFromEasternDateTime(addDaysToDateKey(payroll.week_end, 1));
-  const [{ data: timeEntries }, { data: breaks }, { data: units }] = await Promise.all([
+  const [{ data: timeEntries }, { data: breaks }, { data: units }, { data: assignment }] = await Promise.all([
     supabase
       .from("time_entries")
       .select("id, clock_in_at, clock_out_at")
@@ -108,7 +108,19 @@ export default async function PayrollReceiptPage({ params }: PayrollReceiptPageP
       .gte("work_date", payroll.week_start)
       .lte("work_date", payroll.week_end)
       .order("work_date", { ascending: true }),
+    supabase
+      .from("partner_worker_assignments")
+      .select("partners(full_name, email, phone)")
+      .eq("worker_id", payment.worker_id)
+      .lte("assigned_at", payroll.week_end)
+      .or(`ended_at.is.null,ended_at.gte.${payroll.week_start}`)
+      .order("assigned_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
+  const partner = Array.isArray(assignment?.partners)
+    ? assignment?.partners[0]
+    : assignment?.partners;
 
   const breaksByEntry = new Map<string, typeof breaks>();
 
@@ -185,7 +197,15 @@ export default async function PayrollReceiptPage({ params }: PayrollReceiptPageP
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Paid By
               </p>
-              <p className="mt-2 text-xl font-bold">RM Support</p>
+              <p className="mt-2 text-xl font-bold">
+                {partner?.full_name ?? "Assigned Partner"}
+              </p>
+              {partner?.email ? (
+                <p className="text-sm text-slate-700">{partner.email}</p>
+              ) : null}
+              {partner?.phone ? (
+                <p className="text-sm text-slate-700">{partner.phone}</p>
+              ) : null}
             </div>
           </div>
 
