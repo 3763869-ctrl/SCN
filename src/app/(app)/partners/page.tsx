@@ -273,6 +273,7 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                   <form
                     action={updatePartner}
                     className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-2"
+                    key={`partner-edit-${selectedPartner.id}`}
                   >
                     <input name="id" type="hidden" value={selectedPartner.id} />
                     <input
@@ -525,7 +526,11 @@ function InvoicesTab({
         <p className="mt-1 text-sm text-muted-foreground">
           This rate is used when the invoice page generates invoices automatically.
         </p>
-        <form action={savePartnerBillingSettings} className="mt-4 space-y-4">
+        <form
+          action={savePartnerBillingSettings}
+          className="mt-4 space-y-4"
+          key={`billing-${partnerId}`}
+        >
           <input name="partner_id" type="hidden" value={partnerId} />
           <input name="client_id" type="hidden" value={clientId} />
           <div className="grid gap-4 lg:grid-cols-[1fr_1fr_1fr_220px]">
@@ -600,7 +605,11 @@ function InvoicesTab({
       </div>
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
         <h3 className="text-base font-semibold">Invoices</h3>
-        <form action={createPartnerInvoice} className="mt-4 grid gap-3 md:grid-cols-4">
+        <form
+          action={createPartnerInvoice}
+          className="mt-4 grid gap-3 md:grid-cols-4"
+          key={`manual-invoice-${partnerId}`}
+        >
           <input name="partner_id" type="hidden" value={partnerId} />
           <input name="client_id" type="hidden" value={clientId} />
           <label className="space-y-2">
@@ -811,7 +820,11 @@ function PartnerPayrollTab({
             </p>
           ) : null}
         </div>
-        <form action={savePartnerPaySettings} className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <form
+          action={savePartnerPaySettings}
+          className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-5"
+          key={`partner-pay-${partnerId}`}
+        >
           <input name="partner_id" type="hidden" value={partnerId} />
           <label className="space-y-1 text-sm font-semibold">
             <span>Pay type</span>
