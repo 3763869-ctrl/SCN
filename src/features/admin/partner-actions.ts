@@ -574,9 +574,7 @@ export async function generatePartnerInvoices(formData: FormData) {
         .eq("active", true),
       supabase
         .from("partner_worker_assignments")
-        .select("partner_id, worker_id, assigned_at, ended_at, status")
-        .lte("assigned_at", periodEnd)
-        .or(`ended_at.is.null,ended_at.gte.${periodStart}`),
+        .select("partner_id, worker_id, assigned_at, ended_at, status"),
       supabase
         .from("profiles")
         .select("id, full_name, email, role, active")
@@ -678,12 +676,14 @@ export async function generatePartnerInvoices(formData: FormData) {
         const belongsToAssignedWorker = partnerAssignments.some((assignment) => {
           const assignedAt = getDateKey(assignment.assigned_at);
           const endedAt = getDateKey(assignment.ended_at);
+          const isCurrentAssignment = assignment.status === "active" && !endedAt;
 
           return (
             assignment.worker_id === unit.worker_id &&
-            assignedAt !== null &&
-            assignedAt <= unit.work_date &&
-            (!endedAt || endedAt >= unit.work_date)
+            (isCurrentAssignment ||
+              (assignedAt !== null &&
+                assignedAt <= unit.work_date &&
+                (!endedAt || endedAt >= unit.work_date)))
           );
         });
         const belongsToPartnerOwnWorkerProfile = partnerOwnWorkerIds.has(unit.worker_id);
