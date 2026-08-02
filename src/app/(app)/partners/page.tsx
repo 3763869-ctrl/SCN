@@ -185,11 +185,6 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
               />
               <input
                 className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
-                name="address_line1"
-                placeholder="Invoice address"
-              />
-              <input
-                className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
                 name="start_date"
                 type="date"
               />
@@ -311,60 +306,6 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                       defaultValue={selectedPartner.start_date ?? ""}
                       name="start_date"
                       type="date"
-                    />
-                    <input
-                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm sm:col-span-2"
-                      defaultValue={selectedPartner.address_line1 ?? ""}
-                      name="address_line1"
-                      placeholder="Invoice address"
-                    />
-                    <input
-                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm sm:col-span-2"
-                      defaultValue={selectedPartner.address_line2 ?? ""}
-                      name="address_line2"
-                      placeholder="Address line 2"
-                    />
-                    <input
-                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                      defaultValue={selectedPartner.city ?? ""}
-                      name="city"
-                      placeholder="City"
-                    />
-                    <input
-                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                      defaultValue={selectedPartner.state ?? ""}
-                      name="state"
-                      placeholder="State"
-                    />
-                    <input
-                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                      defaultValue={selectedPartner.country ?? ""}
-                      name="country"
-                      placeholder="Country"
-                    />
-                    <input
-                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                      defaultValue={selectedPartner.zip_code ?? ""}
-                      name="zip_code"
-                      placeholder="ZIP"
-                    />
-                    <input
-                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                      defaultValue={selectedPartner.bank_account_number ?? ""}
-                      name="bank_account_number"
-                      placeholder="Account number"
-                    />
-                    <input
-                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
-                      defaultValue={selectedPartner.bank_routing_number ?? ""}
-                      name="bank_routing_number"
-                      placeholder="Routing number"
-                    />
-                    <textarea
-                      className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm sm:col-span-2"
-                      defaultValue={selectedPartner.invoice_notes ?? ""}
-                      name="invoice_notes"
-                      placeholder="Invoice notes shown on invoice"
                     />
                     <textarea
                       className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm sm:col-span-2"

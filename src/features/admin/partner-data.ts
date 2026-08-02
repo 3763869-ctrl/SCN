@@ -47,16 +47,10 @@ export async function getPartnerOperationsData() {
     { data: settlements },
     { data: documents },
   ] = await Promise.all([
-    supabase
-      .from("clients")
-      .select(
-        "id, name, email, phone, address_line1, address_line2, city, state, country, zip_code, status, notes",
-      ),
+    supabase.from("clients").select("id, name, status, notes"),
     supabase
       .from("partners")
-      .select(
-        "id, client_id, full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_account_number, bank_routing_number, invoice_notes, status, start_date, notes, list_order",
-      )
+      .select("id, client_id, full_name, email, phone, status, start_date, notes, list_order")
       .order("full_name", { ascending: true }),
     supabase
       .from("partner_worker_assignments")
