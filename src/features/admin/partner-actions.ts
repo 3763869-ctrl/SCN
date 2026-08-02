@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { writeAdminAuditEvent } from "@/features/admin/audit";
 import { requireAdminProfile } from "@/features/auth/session";
@@ -40,6 +41,10 @@ function addDaysToDateKey(value: string, days: number) {
   date.setUTCDate(date.getUTCDate() + days);
 
   return date.toISOString().slice(0, 10);
+}
+
+function getDateKey(value: string | null | undefined) {
+  return value ? value.slice(0, 10) : null;
 }
 
 function getInvoicePrefix(clientName: string | null | undefined) {
@@ -647,12 +652,17 @@ export async function generatePartnerInvoices(formData: FormData) {
 
         return (
           (!invoicedUnitIds.has(unit.id) || activeLink?.invoice_id === existingInvoice?.id) &&
-        partnerAssignments.some(
-        (assignment) =>
-          assignment.worker_id === unit.worker_id &&
-          assignment.assigned_at <= unit.work_date &&
-          (!assignment.ended_at || assignment.ended_at >= unit.work_date),
-          )
+          partnerAssignments.some((assignment) => {
+            const assignedAt = getDateKey(assignment.assigned_at);
+            const endedAt = getDateKey(assignment.ended_at);
+
+            return (
+              assignment.worker_id === unit.worker_id &&
+              assignedAt !== null &&
+              assignedAt <= unit.work_date &&
+              (!endedAt || endedAt >= unit.work_date)
+            );
+          })
         );
       },
     );
@@ -861,6 +871,9 @@ export async function generatePartnerInvoices(formData: FormData) {
   revalidatePath("/partners");
   revalidatePath("/invoices");
   revalidatePath("/dashboard");
+  redirect(
+    `/invoices?client=${clientId}&generated=${invoiceCount}&units=${totalUnits}`,
+  );
 }
 
 export async function addPartnerInvoiceLine(formData: FormData) {

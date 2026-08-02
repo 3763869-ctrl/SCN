@@ -78,12 +78,47 @@ function statusClass(status: string) {
   return "border-orange-200 bg-orange-50 text-orange-800";
 }
 
-export default async function InvoicesPage() {
+type InvoicesPageProps = {
+  searchParams?: Promise<{
+    client?: string;
+    generated?: string;
+    units?: string;
+  }>;
+};
+
+export default async function InvoicesPage({ searchParams }: InvoicesPageProps) {
+  const params = await searchParams;
   const data = await getPartnerOperationsData();
   const partnerMap = new Map(data.partners.map((partner) => [partner.id, partner]));
-  const clientId = data.clients[0]?.id ?? "";
+  const activeBillingClientIds = new Set(
+    data.billingSettings
+      .filter((setting) => setting.active)
+      .map((setting) => setting.client_id),
+  );
+  const preferredClientId =
+    data.clients.find((client) =>
+      data.partners.some(
+        (partner) =>
+          partner.client_id === client.id &&
+          partner.status === "active" &&
+          activeBillingClientIds.has(client.id),
+      ),
+    )?.id ??
+    data.clients.find((client) =>
+      data.partners.some(
+        (partner) => partner.client_id === client.id && partner.status === "active",
+      ),
+    )?.id ??
+    data.clients[0]?.id ??
+    "";
+  const clientId = data.clients.some((client) => client.id === params?.client)
+    ? String(params?.client)
+    : preferredClientId;
   const clientName = data.clients.find((client) => client.id === clientId)?.name ?? "Client";
   const currentPeriod = getCurrentBillingPeriod();
+  const generatedCount =
+    params?.generated === undefined ? null : Number(params.generated);
+  const generatedUnits = params?.units === undefined ? null : Number(params.units);
   const totalOutstanding = data.invoices
     .filter((invoice) => !["paid", "cancelled"].includes(invoice.status))
     .reduce(
@@ -117,6 +152,19 @@ export default async function InvoicesPage() {
       </section>
 
       <section className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        {generatedCount !== null ? (
+          <div
+            className={`mb-4 rounded-md border px-4 py-3 text-sm ${
+              generatedCount > 0
+                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                : "border-amber-200 bg-amber-50 text-amber-800"
+            }`}
+          >
+            {generatedCount > 0
+              ? `Generated ${generatedCount} invoice preview${generatedCount === 1 ? "" : "s"} with ${generatedUnits ?? 0} approved unit${generatedUnits === 1 ? "" : "s"}.`
+              : "No invoice preview was generated. Check that this client has active Partners, active billing settings, assigned workers, and approved units in this date range that were not already invoiced."}
+          </div>
+        ) : null}
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-lg font-semibold">Generate {clientName} Invoices</h2>
@@ -129,28 +177,50 @@ export default async function InvoicesPage() {
             Set Partner rates
           </Link>
         </div>
-        <form action={generatePartnerInvoices} className="mt-4 grid gap-3 md:grid-cols-5">
-          <input name="client_id" type="hidden" value={clientId} />
+        <form action={generatePartnerInvoices} className="mt-4 grid gap-3 md:grid-cols-6">
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+            Client
+            <select
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+              defaultValue={clientId}
+              name="client_id"
+              required
+            >
+              {data.clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+            Period Start
+            <input
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+              defaultValue={currentPeriod.start}
+              name="billing_period_start"
+              required
+              type="date"
+            />
+          </label>
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+            Period End
+            <input
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+              defaultValue={currentPeriod.end}
+              name="billing_period_end"
+              required
+              type="date"
+            />
+          </label>
           <input
-            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-            defaultValue={currentPeriod.start}
-            name="billing_period_start"
-            required
-            type="date"
-          />
-          <input
-            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-            defaultValue={currentPeriod.end}
-            name="billing_period_end"
-            required
-            type="date"
-          />
-          <input
-            className="h-10 rounded-md border border-border bg-background px-3 text-sm md:col-span-2"
+            className="h-10 rounded-md border border-border bg-background px-3 text-sm md:col-span-2 md:mt-5"
             name="notes"
             placeholder="Run notes"
           />
-          <Button type="submit">Generate Preview</Button>
+          <Button className="md:mt-5" type="submit">
+            Generate Preview
+          </Button>
         </form>
       </section>
 
