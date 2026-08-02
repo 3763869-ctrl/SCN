@@ -275,7 +275,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                 <div className="border-t border-border bg-background px-4 py-4">
                   <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
                     <div className="space-y-4">
-                      <p className="text-sm font-semibold">Invoice details</p>
+                      <p className="text-sm font-semibold">Invoice lines</p>
                       <div className="mt-3 divide-y divide-border rounded-md border border-border bg-surface">
                         {lines.map((line) => (
                           <div
@@ -285,12 +285,15 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                             {canEdit ? (
                             <form
                               action={updatePartnerInvoiceLine}
-                              className="grid gap-2 lg:grid-cols-[1.3fr_120px_90px_100px_110px_auto]"
+                              className="grid gap-2 lg:grid-cols-[1.4fr_110px_110px_120px_auto]"
                             >
                               <input name="line_id" type="hidden" value={line.id} />
                               <div>
+                                <span className="text-xs font-semibold text-muted-foreground">
+                                  Item
+                                </span>
                                 <input
-                                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+                                  className="mt-1 h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
                                   defaultValue={line.description}
                                   name="description"
                                 />
@@ -298,20 +301,14 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                                   {line.source === "manual" ? "Manual line" : "Generated line"}
                                 </p>
                               </div>
+                              <input
+                                defaultValue={line.work_date ?? ""}
+                                name="work_date"
+                                type="hidden"
+                              />
                               <label className="space-y-1">
                                 <span className="text-xs font-semibold text-muted-foreground">
-                                  Date
-                                </span>
-                                <input
-                                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-                                  defaultValue={line.work_date ?? ""}
-                                  name="work_date"
-                                  type="date"
-                                />
-                              </label>
-                              <label className="space-y-1">
-                                <span className="text-xs font-semibold text-muted-foreground">
-                                  Units
+                                  Quantity
                                 </span>
                                 <input
                                   className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
@@ -323,7 +320,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                               </label>
                               <label className="space-y-1">
                                 <span className="text-xs font-semibold text-muted-foreground">
-                                  Rate
+                                  Price
                                 </span>
                                 <input
                                   className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
@@ -336,7 +333,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                               </label>
                               <label className="space-y-1">
                                 <span className="text-xs font-semibold text-muted-foreground">
-                                  Total
+                                  Line Total
                                 </span>
                                 <input
                                   className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
@@ -348,22 +345,21 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                                 />
                               </label>
                               <SaveSubmitButton
-                                className="h-9 px-3"
+                              className="mt-5 h-9 px-3"
                                 successMessage="Invoice line saved."
                               >
                                 Save
                               </SaveSubmitButton>
                             </form>
                             ) : (
-                              <div className="grid gap-2 lg:grid-cols-[1.3fr_120px_90px_100px_110px_auto]">
+                              <div className="grid gap-2 lg:grid-cols-[1.4fr_110px_110px_120px_auto]">
                                 <div>
                                   <p className="font-semibold">{line.description}</p>
                                   <p className="mt-1 text-xs text-muted-foreground">
                                     {line.source === "manual" ? "Manual line" : "Generated line"}
                                   </p>
                                 </div>
-                                <span>{getDateLabel(line.work_date)}</span>
-                                <span>{line.units} units</span>
+                                <span>{line.units}</span>
                                 <span>{moneyFormatter.format(Number(line.rate_per_unit))}</span>
                                 <span>{moneyFormatter.format(Number(line.line_total))}</span>
                                 <span className="text-xs font-semibold text-muted-foreground">
@@ -389,7 +385,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                         ))}
                         {!lines.length ? (
                           <p className="px-3 py-2 text-sm text-muted-foreground">
-                            No daily lines saved for this invoice.
+                            No invoice lines saved yet.
                           </p>
                         ) : null}
                       </div>
@@ -399,43 +395,51 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                       >
                         <h3 className="font-semibold">Add Manual Line</h3>
                         <input name="invoice_id" type="hidden" value={invoice.id} />
-                        <div className="mt-3 grid gap-3 md:grid-cols-5">
-                          <input
-                            className="h-10 rounded-md border border-border bg-background px-3 text-sm md:col-span-2"
-                            name="description"
-                            placeholder="Description"
-                            required
-                          />
-                          <input
-                            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                            name="work_date"
-                            type="date"
-                          />
-                          <input
-                            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                            min="0"
-                            name="units"
-                            placeholder="Units"
-                            step="1"
-                            type="number"
-                          />
-                          <input
-                            className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                            min="0"
-                            name="rate_per_unit"
-                            placeholder="Rate"
-                            step="0.01"
-                            type="number"
-                          />
-                          <input
-                            className="h-10 rounded-md border border-border bg-background px-3 text-sm md:col-span-4"
-                            min="0"
-                            name="line_total"
-                            placeholder="Line total override"
-                            step="0.01"
-                            type="number"
-                          />
-                          <Button disabled={!canEdit} type="submit">
+                        <div className="mt-3 grid gap-3 md:grid-cols-[1.4fr_100px_110px_130px_auto]">
+                          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                            Item
+                            <input
+                              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+                              name="description"
+                              placeholder="Description"
+                              required
+                            />
+                          </label>
+                          <input name="work_date" type="hidden" />
+                          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                            Quantity
+                            <input
+                              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+                              min="0"
+                              name="units"
+                              placeholder="0"
+                              step="1"
+                              type="number"
+                            />
+                          </label>
+                          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                            Price
+                            <input
+                              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+                              min="0"
+                              name="rate_per_unit"
+                              placeholder="0.00"
+                              step="0.01"
+                              type="number"
+                            />
+                          </label>
+                          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+                            Line Total
+                            <input
+                              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+                              min="0"
+                              name="line_total"
+                              placeholder="Optional"
+                              step="0.01"
+                              type="number"
+                            />
+                          </label>
+                          <Button className="mt-5" disabled={!canEdit} type="submit">
                             Add Line
                           </Button>
                         </div>

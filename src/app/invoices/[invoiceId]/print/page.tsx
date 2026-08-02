@@ -26,6 +26,31 @@ function getDateLabel(value: string | null | undefined) {
   return value ? dateFormatter.format(new Date(`${value}T00:00:00Z`)) : "";
 }
 
+function getAddressLines(
+  entity:
+    | {
+        address_line1?: string | null;
+        address_line2?: string | null;
+        city?: string | null;
+        state?: string | null;
+        country?: string | null;
+        zip_code?: string | null;
+      }
+    | null
+    | undefined,
+) {
+  const cityStateZip = [entity?.city, entity?.state, entity?.zip_code]
+    .filter(Boolean)
+    .join(", ");
+
+  return [
+    entity?.address_line1,
+    entity?.address_line2,
+    cityStateZip,
+    entity?.country,
+  ].filter(Boolean);
+}
+
 export default async function PrintInvoicePage({ params }: PrintInvoicePageProps) {
   const { invoiceId } = await params;
   const supabase = await createSupabaseServerClient();
@@ -44,10 +69,16 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
   const [{ data: partner }, { data: client }, { data: lines }] = await Promise.all([
     supabase
       .from("partners")
-      .select("full_name, email, phone")
+      .select(
+        "full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_account_number, bank_routing_number, invoice_notes",
+      )
       .eq("id", invoice.partner_id)
       .single(),
-    supabase.from("clients").select("name").eq("id", invoice.client_id).single(),
+    supabase
+      .from("clients")
+      .select("name, email, phone, address_line1, address_line2, city, state, country, zip_code")
+      .eq("id", invoice.client_id)
+      .single(),
     supabase
       .from("partner_invoice_lines")
       .select("id, description, work_date, units, rate_per_unit, line_total")
@@ -55,9 +86,11 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
       .order("work_date", { ascending: true }),
   ]);
   const balanceRemaining = Number(invoice.balance_remaining ?? invoice.invoice_total);
+  const partnerAddress = getAddressLines(partner);
+  const clientAddress = getAddressLines(client);
 
   return (
-    <main className="min-h-screen bg-white px-4 py-6 text-slate-950 print:p-0">
+    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 print:bg-white print:p-0">
       <div className="mx-auto max-w-4xl">
         <div className="mb-5 flex flex-wrap justify-end gap-2 print:hidden">
           {balanceRemaining > 0 ? (
@@ -91,64 +124,99 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
           <PrintButton />
         </div>
 
-        <section className="bg-white p-8 print:p-0">
-          <div className="flex flex-col gap-8 border-b border-slate-300 pb-8 sm:flex-row sm:items-start sm:justify-between">
+        <section className="bg-white p-8 shadow-sm print:p-0 print:shadow-none">
+          <div className="flex flex-col gap-8 border-b-2 border-slate-900 pb-8 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-4xl font-bold tracking-tight">Invoice</h1>
-              <p className="mt-2 text-lg font-semibold">{invoice.invoice_number}</p>
-              <p className="mt-1 text-sm text-slate-600">
-                Billing Period: {getDateLabel(invoice.billing_period_start)} -{" "}
-                {getDateLabel(invoice.billing_period_end)}
+              <h1 className="text-4xl font-bold uppercase tracking-tight">Invoice</h1>
+              <p className="mt-4 text-2xl font-bold">
+                {partner?.full_name ?? "Partner"}
               </p>
+              <div className="mt-2 space-y-1 text-sm text-slate-700">
+                <p>{partner?.email}</p>
+                <p>{partner?.phone}</p>
+                {partnerAddress.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
             </div>
-            <div className="text-sm sm:text-right">
-              <p>
-                <span className="font-semibold">Due:</span>{" "}
-                {getDateLabel(invoice.due_date) || "Not set"}
+            <div className="min-w-56 text-sm sm:text-right">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Invoice Number
               </p>
-              <p>
-                <span className="font-semibold">Status:</span> {invoice.status}
-              </p>
+              <p className="text-lg font-bold">{invoice.invoice_number}</p>
+              <dl className="mt-4 space-y-2">
+                <div>
+                  <dt className="font-semibold">Period</dt>
+                  <dd>
+                    {getDateLabel(invoice.billing_period_start)} -{" "}
+                    {getDateLabel(invoice.billing_period_end)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="font-semibold">Due Date</dt>
+                  <dd>{getDateLabel(invoice.due_date) || "Not set"}</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold">Status</dt>
+                  <dd>{invoice.status}</dd>
+                </div>
+              </dl>
             </div>
           </div>
 
           <div className="grid gap-8 border-b border-slate-200 py-8 sm:grid-cols-2">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                From
-              </p>
-              <p className="mt-2 text-xl font-bold">{partner?.full_name ?? "Partner"}</p>
-              <p className="text-sm text-slate-700">{partner?.email}</p>
-              <p className="text-sm text-slate-700">{partner?.phone}</p>
-            </div>
-            <div>
+            <div className="rounded-md border border-slate-200 p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Bill To
               </p>
               <p className="mt-2 text-xl font-bold">{client?.name ?? "Client"}</p>
+              <div className="mt-2 space-y-1 text-sm text-slate-700">
+                <p>{client?.email}</p>
+                <p>{client?.phone}</p>
+                {clientAddress.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-md border border-slate-200 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Payment Information
+              </p>
+              <div className="mt-2 space-y-1 text-sm text-slate-700">
+                <p>
+                  <span className="font-semibold">Account:</span>{" "}
+                  {partner?.bank_account_number || "Not provided"}
+                </p>
+                <p>
+                  <span className="font-semibold">Routing:</span>{" "}
+                  {partner?.bank_routing_number || "Not provided"}
+                </p>
+                <p>
+                  <span className="font-semibold">Phone:</span>{" "}
+                  {partner?.phone || "Not provided"}
+                </p>
+              </div>
             </div>
           </div>
 
           <table className="mt-8 w-full border-collapse text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-300">
-                <th className="py-3 pr-3">Description</th>
-                <th className="py-3 pr-3">Date</th>
-                <th className="py-3 pr-3 text-right">Units</th>
-                <th className="py-3 pr-3 text-right">Rate</th>
-                <th className="py-3 text-right">Amount</th>
+              <tr className="bg-slate-900 text-white">
+                <th className="px-3 py-3">Item</th>
+                <th className="px-3 py-3 text-right">Quantity</th>
+                <th className="px-3 py-3 text-right">Price</th>
+                <th className="px-3 py-3 text-right">Line Total</th>
               </tr>
             </thead>
             <tbody>
               {(lines ?? []).map((line) => (
                 <tr className="border-b border-slate-100" key={line.id}>
-                  <td className="py-3 pr-3">{line.description}</td>
-                  <td className="py-3 pr-3">{getDateLabel(line.work_date)}</td>
-                  <td className="py-3 pr-3 text-right">{line.units}</td>
-                  <td className="py-3 pr-3 text-right">
+                  <td className="px-3 py-3">{line.description}</td>
+                  <td className="px-3 py-3 text-right">{line.units}</td>
+                  <td className="px-3 py-3 text-right">
                     {moneyFormatter.format(Number(line.rate_per_unit))}
                   </td>
-                  <td className="py-3 text-right">
+                  <td className="px-3 py-3 text-right">
                     {moneyFormatter.format(Number(line.line_total))}
                   </td>
                 </tr>
@@ -174,6 +242,15 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
               </div>
             </div>
           </div>
+
+          {partner?.invoice_notes ? (
+            <div className="mt-8 rounded-md border border-slate-200 p-4 text-sm">
+              <p className="font-bold">Notes</p>
+              <p className="mt-2 whitespace-pre-wrap text-slate-700">
+                {partner.invoice_notes}
+              </p>
+            </div>
+          ) : null}
         </section>
       </div>
     </main>

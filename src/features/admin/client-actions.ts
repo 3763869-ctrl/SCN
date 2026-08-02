@@ -32,9 +32,17 @@ export async function createClient(formData: FormData) {
   const { data: client } = await supabase
     .from("clients")
     .insert({
-    name,
-    notes: cleanText(formData, "notes"),
-    status: getClientStatus(formData),
+      address_line1: cleanText(formData, "address_line1"),
+      address_line2: cleanText(formData, "address_line2"),
+      city: cleanText(formData, "city"),
+      country: cleanText(formData, "country"),
+      email: cleanText(formData, "email"),
+      name,
+      notes: cleanText(formData, "notes"),
+      phone: cleanText(formData, "phone"),
+      state: cleanText(formData, "state"),
+      status: getClientStatus(formData),
+      zip_code: cleanText(formData, "zip_code"),
     })
     .select("id")
     .single();
@@ -69,9 +77,17 @@ export async function updateClient(formData: FormData) {
   await supabase
     .from("clients")
     .update({
+      address_line1: cleanText(formData, "address_line1"),
+      address_line2: cleanText(formData, "address_line2"),
+      city: cleanText(formData, "city"),
+      country: cleanText(formData, "country"),
+      email: cleanText(formData, "email"),
       name,
       notes: cleanText(formData, "notes"),
+      phone: cleanText(formData, "phone"),
+      state: cleanText(formData, "state"),
       status: getClientStatus(formData),
+      zip_code: cleanText(formData, "zip_code"),
     })
     .eq("id", id);
 

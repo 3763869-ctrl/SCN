@@ -341,13 +341,22 @@ export async function createPartner(formData: FormData) {
   const { data: partner } = await supabase
     .from("partners")
     .insert({
-    client_id: clientId,
-    email: optionalText(formData, "email"),
-    full_name: fullName,
-    notes: optionalText(formData, "notes"),
-    phone: optionalText(formData, "phone"),
-    start_date: optionalDate(formData, "start_date"),
-    status: (String(formData.get("status") ?? "active") as PartnerStatus) || "active",
+      address_line1: optionalText(formData, "address_line1"),
+      address_line2: optionalText(formData, "address_line2"),
+      bank_account_number: optionalText(formData, "bank_account_number"),
+      bank_routing_number: optionalText(formData, "bank_routing_number"),
+      city: optionalText(formData, "city"),
+      client_id: clientId,
+      country: optionalText(formData, "country"),
+      email: optionalText(formData, "email"),
+      full_name: fullName,
+      invoice_notes: optionalText(formData, "invoice_notes"),
+      notes: optionalText(formData, "notes"),
+      phone: optionalText(formData, "phone"),
+      start_date: optionalDate(formData, "start_date"),
+      state: optionalText(formData, "state"),
+      status: (String(formData.get("status") ?? "active") as PartnerStatus) || "active",
+      zip_code: optionalText(formData, "zip_code"),
     })
     .select("id")
     .single();
@@ -381,12 +390,21 @@ export async function updatePartner(formData: FormData) {
   await supabase
     .from("partners")
     .update({
+      address_line1: optionalText(formData, "address_line1"),
+      address_line2: optionalText(formData, "address_line2"),
+      bank_account_number: optionalText(formData, "bank_account_number"),
+      bank_routing_number: optionalText(formData, "bank_routing_number"),
+      city: optionalText(formData, "city"),
+      country: optionalText(formData, "country"),
       email: optionalText(formData, "email"),
       full_name: fullName,
+      invoice_notes: optionalText(formData, "invoice_notes"),
       notes: optionalText(formData, "notes"),
       phone: optionalText(formData, "phone"),
       start_date: optionalDate(formData, "start_date"),
+      state: optionalText(formData, "state"),
       status: String(formData.get("status") ?? "active") as PartnerStatus,
+      zip_code: optionalText(formData, "zip_code"),
     })
     .eq("id", id);
   await writeAdminAuditEvent({
@@ -694,39 +712,8 @@ export async function generatePartnerInvoices(formData: FormData) {
         );
       },
     );
-    const unitsByDate = new Map<
-      string,
-      {
-        units: number;
-        workerId: string | null;
-        unitRows: Array<{ id: string; quantity: number; worker_id: string; work_date: string }>;
-      }
-    >();
-
-    for (const unit of billableUnits) {
-      const existing = unitsByDate.get(unit.work_date) ?? {
-        units: 0,
-        workerId: unit.worker_id,
-        unitRows: [],
-      };
-
-      unitsByDate.set(unit.work_date, {
-        units: existing.units + unit.quantity,
-        workerId: existing.workerId ?? unit.worker_id,
-        unitRows: [
-          ...existing.unitRows,
-          {
-            id: unit.id,
-            quantity: unit.quantity,
-            work_date: unit.work_date,
-            worker_id: unit.worker_id,
-          },
-        ],
-      });
-    }
-
-    const unitsTotal = Array.from(unitsByDate.values()).reduce(
-      (total, value) => total + value.units,
+    const unitsTotal = billableUnits.reduce(
+      (total, unit) => total + unit.quantity,
       0,
     );
 
@@ -812,38 +799,36 @@ export async function generatePartnerInvoices(formData: FormData) {
       .eq("invoice_id", invoice.id)
       .eq("source", "generated");
 
-    for (const [workDate, value] of unitsByDate.entries()) {
-      const { data: line } = await supabase
-        .from("partner_invoice_lines")
-        .insert({
-        description: `Units completed on ${workDate}`,
+    const { data: line } = await supabase
+      .from("partner_invoice_lines")
+      .insert({
+        description: `Units completed ${periodStart} to ${periodEnd}`,
         invoice_id: invoice.id,
-        line_total: Math.round(value.units * ratePerUnit * 100) / 100,
+        line_total: invoiceTotal,
         partner_id: partner.id,
         rate_per_unit: ratePerUnit,
-        units: value.units,
-        work_date: workDate,
-        worker_id: value.workerId,
         source: "generated",
-        })
-        .select("id")
-        .single();
+        units: unitsTotal,
+        work_date: periodEnd,
+        worker_id: null,
+      })
+      .select("id")
+      .single();
 
-      if (line) {
-        await supabase.from("production_unit_invoice_links").insert(
-          value.unitRows.map((unit) => ({
-            created_by: admin.id,
-            invoice_id: invoice.id,
-            invoice_line_id: line.id,
-            invoice_run_id: invoiceRun.id,
-            partner_id: partner.id,
-            production_unit_id: unit.id,
-            quantity: unit.quantity,
-            work_date: unit.work_date,
-            worker_id: unit.worker_id,
-          })),
-        );
-      }
+    if (line) {
+      await supabase.from("production_unit_invoice_links").insert(
+        billableUnits.map((unit) => ({
+          created_by: admin.id,
+          invoice_id: invoice.id,
+          invoice_line_id: line.id,
+          invoice_run_id: invoiceRun.id,
+          partner_id: partner.id,
+          production_unit_id: unit.id,
+          quantity: unit.quantity,
+          work_date: unit.work_date,
+          worker_id: unit.worker_id,
+        })),
+      );
     }
 
     const [{ data: allInvoiceLines }, { data: invoicePayments }] = await Promise.all([
