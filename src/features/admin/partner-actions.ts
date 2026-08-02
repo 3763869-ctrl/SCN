@@ -47,6 +47,10 @@ function getDateKey(value: string | null | undefined) {
   return value ? value.slice(0, 10) : null;
 }
 
+function normalizeIdentity(value: string | null | undefined) {
+  return (value ?? "").trim().toLowerCase();
+}
+
 function getInvoicePrefix(clientName: string | null | undefined) {
   const firstWord = (clientName ?? "")
     .trim()
@@ -553,13 +557,14 @@ export async function generatePartnerInvoices(formData: FormData) {
     { data: partners },
     { data: settings },
     { data: assignments },
+    { data: workers },
     { data: units },
   ] =
     await Promise.all([
       supabase.from("clients").select("name").eq("id", clientId).maybeSingle(),
       supabase
         .from("partners")
-        .select("id, client_id, full_name, status")
+        .select("id, client_id, full_name, email, status")
         .eq("client_id", clientId)
         .eq("status", "active"),
       supabase
@@ -573,6 +578,11 @@ export async function generatePartnerInvoices(formData: FormData) {
         .lte("assigned_at", periodEnd)
         .or(`ended_at.is.null,ended_at.gte.${periodStart}`),
       supabase
+        .from("profiles")
+        .select("id, full_name, email, role, active")
+        .in("role", ["admin", "worker"])
+        .is("deleted_at", null),
+      supabase
         .from("production_units")
         .select("id, worker_id, quantity, work_date, status")
         .gte("work_date", periodStart)
@@ -584,6 +594,7 @@ export async function generatePartnerInvoices(formData: FormData) {
   const partnerList = partners ?? [];
   const settingMap = new Map((settings ?? []).map((setting) => [setting.partner_id, setting]));
   const assignmentList = assignments ?? [];
+  const workerList = workers ?? [];
   const unitList = units ?? [];
   const { data: activeUnitLinks } = unitList.length
     ? await supabase
@@ -646,23 +657,40 @@ export async function generatePartnerInvoices(formData: FormData) {
     const partnerAssignments = assignmentList.filter(
       (assignment) => assignment.partner_id === partner.id,
     );
+    const partnerEmail = normalizeIdentity(partner.email);
+    const partnerName = normalizeIdentity(partner.full_name);
+    const partnerOwnWorkerIds = new Set(
+      workerList
+        .filter((worker) => {
+          const workerEmail = normalizeIdentity(worker.email);
+          const workerName = normalizeIdentity(worker.full_name);
+
+          return (
+            (partnerEmail && workerEmail === partnerEmail) ||
+            (partnerName && workerName === partnerName)
+          );
+        })
+        .map((worker) => worker.id),
+    );
     const billableUnits = unitList.filter(
       (unit) => {
         const activeLink = activeLinkByUnitId.get(unit.id);
+        const belongsToAssignedWorker = partnerAssignments.some((assignment) => {
+          const assignedAt = getDateKey(assignment.assigned_at);
+          const endedAt = getDateKey(assignment.ended_at);
+
+          return (
+            assignment.worker_id === unit.worker_id &&
+            assignedAt !== null &&
+            assignedAt <= unit.work_date &&
+            (!endedAt || endedAt >= unit.work_date)
+          );
+        });
+        const belongsToPartnerOwnWorkerProfile = partnerOwnWorkerIds.has(unit.worker_id);
 
         return (
           (!invoicedUnitIds.has(unit.id) || activeLink?.invoice_id === existingInvoice?.id) &&
-          partnerAssignments.some((assignment) => {
-            const assignedAt = getDateKey(assignment.assigned_at);
-            const endedAt = getDateKey(assignment.ended_at);
-
-            return (
-              assignment.worker_id === unit.worker_id &&
-              assignedAt !== null &&
-              assignedAt <= unit.work_date &&
-              (!endedAt || endedAt >= unit.work_date)
-            );
-          })
+          (belongsToAssignedWorker || belongsToPartnerOwnWorkerProfile)
         );
       },
     );
