@@ -89,7 +89,7 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
   const extendedPartner = await supabase
     .from("partners")
     .select(
-      "full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_name, bank_account_holder_name, bank_account_number, bank_routing_number, invoice_notes, notes",
+      "full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_name, bank_account_holder_name, bank_account_number, bank_routing_number, zelle_payment_info, invoice_notes, notes",
     )
     .eq("id", invoice.partner_id)
     .single();
@@ -126,6 +126,7 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
         invoice_notes?: string | null;
         state?: string | null;
         zip_code?: string | null;
+        zelle_payment_info?: string | null;
       })
     | null;
   const partnerAddress = getAddressLines(partner);
@@ -259,6 +260,10 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
                 <p>
                   <span className="font-semibold">Routing:</span>{" "}
                   {partner?.bank_routing_number || "Not provided"}
+                </p>
+                <p>
+                  <span className="font-semibold">Zelle:</span>{" "}
+                  {partner?.zelle_payment_info || "Not provided"}
                 </p>
               </div>
             </div>

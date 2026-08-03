@@ -128,6 +128,7 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
         invoice_notes?: string | null;
         state?: string | null;
         zip_code?: string | null;
+        zelle_payment_info?: string | null;
       })
     | null;
   const selectedInvoices = selectedPartner
@@ -213,6 +214,11 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                 className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
                 name="bank_account_holder_name"
                 placeholder="Name on account"
+              />
+              <input
+                className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                name="zelle_payment_info"
+                placeholder="Zelle email / phone"
               />
               <input
                 className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
@@ -398,6 +404,12 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                       defaultValue={selectedPartnerInvoiceProfile?.bank_routing_number ?? ""}
                       name="bank_routing_number"
                       placeholder="Routing number"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm sm:col-span-2"
+                      defaultValue={selectedPartnerInvoiceProfile?.zelle_payment_info ?? ""}
+                      name="zelle_payment_info"
+                      placeholder="Zelle email / phone"
                     />
                     <textarea
                       className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm sm:col-span-2"

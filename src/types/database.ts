@@ -570,6 +570,7 @@ export type Database = {
           start_date: string | null;
           notes: string | null;
           zip_code: string | null;
+          zelle_payment_info: string | null;
           list_order: number | null;
           created_at: string;
           updated_at: string;
@@ -594,6 +595,7 @@ export type Database = {
           start_date?: string | null;
           notes?: string | null;
           zip_code?: string | null;
+          zelle_payment_info?: string | null;
           list_order?: number | null;
           created_at?: string;
           updated_at?: string;
@@ -618,6 +620,7 @@ export type Database = {
           start_date?: string | null;
           notes?: string | null;
           zip_code?: string | null;
+          zelle_payment_info?: string | null;
           list_order?: number | null;
           created_at?: string;
           updated_at?: string;

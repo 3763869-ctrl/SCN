@@ -60,6 +60,7 @@ function isMissingInvoiceProfileColumn(error: { message?: string } | null) {
     "bank_routing_number",
     "invoice_notes",
     "zip_code",
+    "zelle_payment_info",
   ].some((column) => message.includes(column));
 }
 
@@ -369,6 +370,7 @@ export async function createPartner(formData: FormData) {
     state: optionalText(formData, "state"),
     status: (String(formData.get("status") ?? "active") as PartnerStatus) || "active",
     zip_code: optionalText(formData, "zip_code"),
+    zelle_payment_info: optionalText(formData, "zelle_payment_info"),
   };
   const basePartnerPayload = {
     client_id: clientId,
@@ -444,6 +446,7 @@ export async function updatePartner(formData: FormData) {
     state: optionalText(formData, "state"),
     status: String(formData.get("status") ?? "active") as PartnerStatus,
     zip_code: optionalText(formData, "zip_code"),
+    zelle_payment_info: optionalText(formData, "zelle_payment_info"),
   };
   const basePartnerPayload = {
     email: partnerPayload.email,
