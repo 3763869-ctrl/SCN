@@ -91,18 +91,22 @@ type InvoicesPageProps = {
 const invoiceGenerationReasons: Record<string, string> = {
   "existing-locked-invoice":
     "There is already a sent, paid, or otherwise locked invoice for that Partner and date range. Void or reopen it before regenerating.",
+  "invalid-period": "Choose a valid invoice start and end date.",
+  "invoice-save-failed": "The invoice could not be saved. Try again or contact support.",
   "missing-billing":
-    "At least one active Partner has no active billing rule for this client.",
+    "This Partner has no active billing rule. Open the Partner, go to Invoices, and save the billing rate.",
   "missing-worker-match":
-    "At least one active Partner has no assigned worker and no matching Partner worker login.",
+    "This Partner has no assigned worker and no matching Partner worker login.",
   "no-approved-or-completed-units":
     "No approved units or completed unit periods were found in the selected date range.",
   "no-active-partners-for-client":
     "No active Partners were found for the selected client. Choose the Partner directly or check the Partner's linked client.",
   "no-matching-units":
     "Units were found in the date range, but none matched the Partner's assigned worker or matching Partner login.",
+  "no-partner-selected": "Choose one Partner before generating an invoice.",
+  "partner-inactive": "The selected Partner is inactive.",
   "partner-not-found":
-    "The selected Partner was not found as an active Partner.",
+    "The selected Partner was not found.",
 };
 
 export default async function InvoicesPage({ searchParams }: InvoicesPageProps) {
@@ -195,10 +199,10 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
         ) : null}
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-lg font-semibold">Generate {clientName} Invoices</h2>
+            <h2 className="text-lg font-semibold">Generate Partner Invoice</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Creates draft invoice previews per active Partner using approved
-              worker units and the Partner rate per unit.
+              Creates one draft invoice preview for the selected Partner using
+              that Partner&apos;s units and assigned worker units.
             </p>
           </div>
           <Link className="text-sm font-semibold text-accent" href="/partners?tab=invoices">
@@ -227,8 +231,9 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
               className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
               defaultValue={selectedPartnerId}
               name="partner_id"
+              required
             >
-              <option value="">All active Partners</option>
+              <option value="">Select Partner</option>
               {data.partners
                 .filter((partner) => partner.status === "active")
                 .map((partner) => (
