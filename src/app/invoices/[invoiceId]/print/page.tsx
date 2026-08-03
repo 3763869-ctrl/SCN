@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 import { Button } from "@/components/ui/button";
 import { recordPartnerInvoicePayment } from "@/features/admin/partner-actions";
@@ -21,6 +22,22 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
 type PrintInvoicePageProps = {
   params: Promise<{ invoiceId: string }>;
 };
+
+export async function generateMetadata({
+  params,
+}: PrintInvoicePageProps): Promise<Metadata> {
+  const { invoiceId } = await params;
+  const supabase = await createSupabaseServerClient();
+  const { data: invoice } = await supabase
+    .from("partner_invoices")
+    .select("invoice_number")
+    .eq("id", invoiceId)
+    .maybeSingle();
+
+  return {
+    title: invoice?.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice",
+  };
+}
 
 function getDateLabel(value: string | null | undefined) {
   return value ? dateFormatter.format(new Date(`${value}T00:00:00Z`)) : "";
@@ -57,7 +74,7 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
   const { data: invoice } = await supabase
     .from("partner_invoices")
     .select(
-      "id, invoice_number, billing_period_start, billing_period_end, units, rate_per_unit, invoice_total, total_paid, balance_remaining, due_date, status, partner_id, client_id",
+      "id, invoice_number, billing_period_start, billing_period_end, units, rate_per_unit, invoice_total, total_paid, balance_remaining, due_date, partner_id, client_id",
     )
     .eq("id", invoiceId)
     .single();
@@ -80,14 +97,19 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
         .eq("id", invoice.partner_id)
         .single()
     : extendedPartner;
-  const [{ data: client }, { data: lines }] = await Promise.all([
-    supabase.from("clients").select("name, notes").eq("id", invoice.client_id).single(),
-    supabase
-      .from("partner_invoice_lines")
-      .select("id, description, work_date, units, rate_per_unit, line_total")
-      .eq("invoice_id", invoice.id)
-      .order("work_date", { ascending: true }),
-  ]);
+  const extendedClient = await supabase
+    .from("clients")
+    .select("name, email, phone, address_line1, address_line2, city, state, country, zip_code")
+    .eq("id", invoice.client_id)
+    .single();
+  const clientResult = extendedClient.error
+    ? await supabase.from("clients").select("name").eq("id", invoice.client_id).single()
+    : extendedClient;
+  const { data: lines } = await supabase
+    .from("partner_invoice_lines")
+    .select("id, description, work_date, units, rate_per_unit, line_total")
+    .eq("invoice_id", invoice.id)
+    .order("work_date", { ascending: true });
   const partner = partnerResult.data as
     | (NonNullable<typeof partnerResult.data> & {
         address_line1?: string | null;
@@ -101,14 +123,37 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
         zip_code?: string | null;
       })
     | null;
-  const balanceRemaining = Number(invoice.balance_remaining ?? invoice.invoice_total);
   const partnerAddress = getAddressLines(partner);
+  const client = clientResult.data as
+    | (NonNullable<typeof clientResult.data> & {
+        address_line1?: string | null;
+        address_line2?: string | null;
+        city?: string | null;
+        country?: string | null;
+        email?: string | null;
+        phone?: string | null;
+        state?: string | null;
+        zip_code?: string | null;
+      })
+    | null;
+  const clientAddress = getAddressLines(client);
+  const lineInvoiceTotal = Math.round(
+    (lines ?? []).reduce((total, line) => total + Number(line.line_total), 0) * 100,
+  ) / 100;
+  const invoiceTotal = (lines ?? []).length ? lineInvoiceTotal : Number(invoice.invoice_total);
+  const totalPaid = Number(invoice.total_paid);
+  const displayBalance = Math.max(0, invoiceTotal - totalPaid);
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 print:bg-white print:p-0">
+      <style media="print">{`
+        @page {
+          margin: 0.4in;
+        }
+      `}</style>
       <div className="mx-auto max-w-4xl">
         <div className="mb-5 flex flex-wrap justify-end gap-2 print:hidden">
-          {balanceRemaining > 0 ? (
+          {displayBalance > 0 ? (
             <form
               action={recordPartnerInvoicePayment}
               className="flex flex-wrap items-center gap-2 rounded-md border border-slate-200 bg-slate-50 p-2"
@@ -116,7 +161,7 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
               <input name="invoice_id" type="hidden" value={invoice.id} />
               <input
                 className="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm"
-                max={balanceRemaining}
+                max={displayBalance}
                 min="0"
                 name="amount_received"
                 placeholder="Payment amount"
@@ -171,10 +216,6 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
                   <dt className="font-semibold">Due Date</dt>
                   <dd>{getDateLabel(invoice.due_date) || "Not set"}</dd>
                 </div>
-                <div>
-                  <dt className="font-semibold">Status</dt>
-                  <dd>{invoice.status}</dd>
-                </div>
               </dl>
             </div>
           </div>
@@ -186,7 +227,11 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
               </p>
               <p className="mt-2 text-xl font-bold">{client?.name ?? "Client"}</p>
               <div className="mt-2 space-y-1 text-sm text-slate-700">
-                <p>{client?.notes}</p>
+                {client?.email ? <p>{client.email}</p> : null}
+                {client?.phone ? <p>{client.phone}</p> : null}
+                {clientAddress.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
               </div>
             </div>
             <div className="rounded-md border border-slate-200 p-4">
@@ -240,16 +285,16 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
               <div className="flex justify-between">
                 <span>Total</span>
                 <span className="font-semibold">
-                  {moneyFormatter.format(Number(invoice.invoice_total))}
+                  {moneyFormatter.format(invoiceTotal)}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Paid</span>
-                <span>{moneyFormatter.format(Number(invoice.total_paid))}</span>
+                <span>{moneyFormatter.format(totalPaid)}</span>
               </div>
               <div className="flex justify-between text-lg font-bold">
                 <span>Balance</span>
-                <span>{moneyFormatter.format(balanceRemaining)}</span>
+                <span>{moneyFormatter.format(displayBalance)}</span>
               </div>
             </div>
           </div>
