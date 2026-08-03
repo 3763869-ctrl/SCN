@@ -118,7 +118,9 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
     | (typeof selectedPartner & {
         address_line1?: string | null;
         address_line2?: string | null;
+        bank_account_holder_name?: string | null;
         bank_account_number?: string | null;
+        bank_name?: string | null;
         bank_routing_number?: string | null;
         city?: string | null;
         country?: string | null;
@@ -200,6 +202,16 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                 className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
                 name="address_line1"
                 placeholder="Invoice address"
+              />
+              <input
+                className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                name="bank_name"
+                placeholder="Bank name"
+              />
+              <input
+                className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                name="bank_account_holder_name"
+                placeholder="Name on account"
               />
               <input
                 className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
@@ -361,6 +373,18 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                       defaultValue={selectedPartnerInvoiceProfile?.zip_code ?? ""}
                       name="zip_code"
                       placeholder="ZIP"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartnerInvoiceProfile?.bank_name ?? ""}
+                      name="bank_name"
+                      placeholder="Bank name"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartnerInvoiceProfile?.bank_account_holder_name ?? ""}
+                      name="bank_account_holder_name"
+                      placeholder="Name on account"
                     />
                     <input
                       className="h-10 rounded-md border border-border bg-surface px-3 text-sm"

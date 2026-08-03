@@ -553,7 +553,9 @@ export type Database = {
         Row: {
           address_line1: string | null;
           address_line2: string | null;
+          bank_account_holder_name: string | null;
           bank_account_number: string | null;
+          bank_name: string | null;
           bank_routing_number: string | null;
           city: string | null;
           id: string;
@@ -575,7 +577,9 @@ export type Database = {
         Insert: {
           address_line1?: string | null;
           address_line2?: string | null;
+          bank_account_holder_name?: string | null;
           bank_account_number?: string | null;
+          bank_name?: string | null;
           bank_routing_number?: string | null;
           city?: string | null;
           id?: string;
@@ -597,7 +601,9 @@ export type Database = {
         Update: {
           address_line1?: string | null;
           address_line2?: string | null;
+          bank_account_holder_name?: string | null;
           bank_account_number?: string | null;
+          bank_name?: string | null;
           bank_routing_number?: string | null;
           city?: string | null;
           id?: string;

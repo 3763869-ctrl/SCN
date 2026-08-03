@@ -86,7 +86,7 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
   const extendedPartner = await supabase
     .from("partners")
     .select(
-      "full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_account_number, bank_routing_number, invoice_notes, notes",
+      "full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_name, bank_account_holder_name, bank_account_number, bank_routing_number, invoice_notes, notes",
     )
     .eq("id", invoice.partner_id)
     .single();
@@ -114,7 +114,9 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
     | (NonNullable<typeof partnerResult.data> & {
         address_line1?: string | null;
         address_line2?: string | null;
+        bank_account_holder_name?: string | null;
         bank_account_number?: string | null;
+        bank_name?: string | null;
         bank_routing_number?: string | null;
         city?: string | null;
         country?: string | null;
@@ -240,16 +242,20 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
               </p>
               <div className="mt-2 space-y-1 text-sm text-slate-700">
                 <p>
+                  <span className="font-semibold">Bank:</span>{" "}
+                  {partner?.bank_name || "Not provided"}
+                </p>
+                <p>
+                  <span className="font-semibold">Name on account:</span>{" "}
+                  {partner?.bank_account_holder_name || partner?.full_name || "Not provided"}
+                </p>
+                <p>
                   <span className="font-semibold">Account:</span>{" "}
                   {partner?.bank_account_number || "Not provided"}
                 </p>
                 <p>
                   <span className="font-semibold">Routing:</span>{" "}
                   {partner?.bank_routing_number || "Not provided"}
-                </p>
-                <p>
-                  <span className="font-semibold">Phone:</span>{" "}
-                  {partner?.phone || "Not provided"}
                 </p>
               </div>
             </div>

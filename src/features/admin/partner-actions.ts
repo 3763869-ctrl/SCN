@@ -53,7 +53,9 @@ function isMissingInvoiceProfileColumn(error: { message?: string } | null) {
   return [
     "address_line1",
     "address_line2",
+    "bank_account_holder_name",
     "bank_account_number",
+    "bank_name",
     "bank_routing_number",
     "invoice_notes",
     "zip_code",
@@ -350,7 +352,9 @@ export async function createPartner(formData: FormData) {
   const partnerPayload = {
     address_line1: optionalText(formData, "address_line1"),
     address_line2: optionalText(formData, "address_line2"),
+    bank_account_holder_name: optionalText(formData, "bank_account_holder_name"),
     bank_account_number: optionalText(formData, "bank_account_number"),
+    bank_name: optionalText(formData, "bank_name"),
     bank_routing_number: optionalText(formData, "bank_routing_number"),
     city: optionalText(formData, "city"),
     client_id: clientId,
@@ -424,7 +428,9 @@ export async function updatePartner(formData: FormData) {
   const partnerPayload = {
     address_line1: optionalText(formData, "address_line1"),
     address_line2: optionalText(formData, "address_line2"),
+    bank_account_holder_name: optionalText(formData, "bank_account_holder_name"),
     bank_account_number: optionalText(formData, "bank_account_number"),
+    bank_name: optionalText(formData, "bank_name"),
     bank_routing_number: optionalText(formData, "bank_routing_number"),
     city: optionalText(formData, "city"),
     country: optionalText(formData, "country"),

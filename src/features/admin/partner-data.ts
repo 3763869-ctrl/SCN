@@ -26,7 +26,7 @@ export function getPartnerLabel(
 export async function getPartnerOperationsData() {
   const supabase = await createSupabaseServerClient();
   const partnerSelect =
-    "id, client_id, full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_account_number, bank_routing_number, invoice_notes, status, start_date, notes, list_order";
+    "id, client_id, full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_name, bank_account_holder_name, bank_account_number, bank_routing_number, invoice_notes, status, start_date, notes, list_order";
   const basePartnerSelect =
     "id, client_id, full_name, email, phone, status, start_date, notes, list_order";
   const extendedPartners = await supabase
