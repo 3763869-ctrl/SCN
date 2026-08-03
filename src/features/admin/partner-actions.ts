@@ -621,6 +621,7 @@ export async function generatePartnerInvoices(formData: FormData) {
   const admin = await requireAdminProfile();
 
   const clientId = String(formData.get("client_id") ?? "") || (await getDefaultClientId());
+  const requestedPartnerId = String(formData.get("partner_id") ?? "");
   const periodStart = String(formData.get("billing_period_start") ?? "");
   const periodEnd = String(formData.get("billing_period_end") ?? "");
   const notes = optionalText(formData, "notes");
@@ -630,6 +631,19 @@ export async function generatePartnerInvoices(formData: FormData) {
   }
 
   const supabase = await createSupabaseServerClient();
+  const { data: requestedPartner } = requestedPartnerId
+    ? await supabase
+        .from("partners")
+        .select("id, client_id")
+        .eq("id", requestedPartnerId)
+        .eq("status", "active")
+        .maybeSingle()
+    : { data: null };
+  const effectiveClientId = requestedPartner?.client_id ?? clientId;
+  const partnersQuery = supabase
+    .from("partners")
+    .select("id, client_id, full_name, email, status")
+    .eq("status", "active");
   const [
     { data: client },
     { data: partners },
@@ -640,16 +654,14 @@ export async function generatePartnerInvoices(formData: FormData) {
     { data: units },
   ] =
     await Promise.all([
-      supabase.from("clients").select("name").eq("id", clientId).maybeSingle(),
-      supabase
-        .from("partners")
-        .select("id, client_id, full_name, email, status")
-        .eq("client_id", clientId)
-        .eq("status", "active"),
+      supabase.from("clients").select("name").eq("id", effectiveClientId).maybeSingle(),
+      requestedPartnerId && requestedPartner
+        ? partnersQuery.eq("id", requestedPartnerId)
+        : partnersQuery.eq("client_id", effectiveClientId),
       supabase
         .from("partner_billing_settings")
         .select("partner_id, client_id, rate_per_unit, payment_terms_days, active")
-        .eq("client_id", clientId)
+        .eq("client_id", effectiveClientId)
         .eq("active", true),
       supabase
         .from("partner_worker_assignments")
@@ -711,7 +723,7 @@ export async function generatePartnerInvoices(formData: FormData) {
       {
         billing_period_end: periodEnd,
         billing_period_start: periodStart,
-        client_id: clientId,
+        client_id: effectiveClientId,
         generated_by: admin.id,
         notes,
         status: "ready",
@@ -729,6 +741,14 @@ export async function generatePartnerInvoices(formData: FormData) {
   let totalUnits = 0;
   let totalAmount = 0;
   const skippedReasons = new Set<string>();
+
+  if (requestedPartnerId && !requestedPartner) {
+    skippedReasons.add("partner-not-found");
+  }
+
+  if (!partnerList.length) {
+    skippedReasons.add("no-active-partners-for-client");
+  }
 
   for (const [index, partner] of partnerList.entries()) {
     const billing = settingMap.get(partner.id);
@@ -816,7 +836,7 @@ export async function generatePartnerInvoices(formData: FormData) {
         .from("partner_invoices")
         .update({
           balance_remaining: Math.max(0, invoiceTotal - totalPaid),
-          client_id: clientId,
+          client_id: effectiveClientId,
           due_date: dueDate,
           generated_at: now,
           invoice_number: invoiceNumber,
@@ -843,7 +863,7 @@ export async function generatePartnerInvoices(formData: FormData) {
           balance_remaining: invoiceTotal,
           billing_period_end: periodEnd,
           billing_period_start: periodStart,
-          client_id: clientId,
+          client_id: effectiveClientId,
           due_date: dueDate,
           generated_at: now,
           invoice_number: invoiceNumber,
@@ -968,7 +988,7 @@ export async function generatePartnerInvoices(formData: FormData) {
   revalidatePath("/invoices");
   revalidatePath("/dashboard");
   redirect(
-    `/invoices?client=${clientId}&generated=${invoiceCount}&units=${totalUnits}&reason=${Array.from(skippedReasons).join(",")}`,
+    `/invoices?client=${effectiveClientId}&partner=${requestedPartnerId}&generated=${invoiceCount}&units=${totalUnits}&reason=${Array.from(skippedReasons).join(",")}`,
   );
 }
 

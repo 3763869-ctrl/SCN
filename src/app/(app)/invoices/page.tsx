@@ -82,6 +82,7 @@ type InvoicesPageProps = {
   searchParams?: Promise<{
     client?: string;
     generated?: string;
+    partner?: string;
     reason?: string;
     units?: string;
   }>;
@@ -96,8 +97,12 @@ const invoiceGenerationReasons: Record<string, string> = {
     "At least one active Partner has no assigned worker and no matching Partner worker login.",
   "no-approved-or-completed-units":
     "No approved units or completed unit periods were found in the selected date range.",
+  "no-active-partners-for-client":
+    "No active Partners were found for the selected client. Choose the Partner directly or check the Partner's linked client.",
   "no-matching-units":
     "Units were found in the date range, but none matched the Partner's assigned worker or matching Partner login.",
+  "partner-not-found":
+    "The selected Partner was not found as an active Partner.",
 };
 
 export default async function InvoicesPage({ searchParams }: InvoicesPageProps) {
@@ -128,6 +133,9 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
   const clientId = data.clients.some((client) => client.id === params?.client)
     ? String(params?.client)
     : preferredClientId;
+  const selectedPartnerId = data.partners.some((partner) => partner.id === params?.partner)
+    ? String(params?.partner)
+    : "";
   const clientName = data.clients.find((client) => client.id === clientId)?.name ?? "Client";
   const currentPeriod = getCurrentBillingPeriod();
   const generatedCount =
@@ -197,7 +205,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
             Set Partner rates
           </Link>
         </div>
-        <form action={generatePartnerInvoices} className="mt-4 grid gap-3 md:grid-cols-6">
+        <form action={generatePartnerInvoices} className="mt-4 grid gap-3 md:grid-cols-7">
           <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
             Client
             <select
@@ -211,6 +219,23 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                   {client.name}
                 </option>
               ))}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
+            Partner
+            <select
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+              defaultValue={selectedPartnerId}
+              name="partner_id"
+            >
+              <option value="">All active Partners</option>
+              {data.partners
+                .filter((partner) => partner.status === "active")
+                .map((partner) => (
+                  <option key={partner.id} value={partner.id}>
+                    {getPartnerLabel(partner)}
+                  </option>
+                ))}
             </select>
           </label>
           <label className="grid gap-1 text-xs font-semibold text-muted-foreground">
