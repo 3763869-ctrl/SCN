@@ -1072,16 +1072,16 @@ export async function updatePartnerInvoiceLine(formData: FormData) {
   const workDate = optionalDate(formData, "work_date");
   const units = integerValue(formData, "units");
   const ratePerUnit = moneyValue(formData, "rate_per_unit");
-  const lineTotal = moneyValue(formData, "line_total") || units * ratePerUnit;
+  const submittedLineTotal = moneyValue(formData, "line_total");
 
-  if (!lineId || !description || lineTotal < 0) {
+  if (!lineId || !description || submittedLineTotal < 0) {
     return;
   }
 
   const supabase = await createSupabaseServerClient();
   const { data: line } = await supabase
     .from("partner_invoice_lines")
-    .select("invoice_id, partner_invoices(status)")
+    .select("invoice_id, units, rate_per_unit, line_total, partner_invoices(status)")
     .eq("id", lineId)
     .single();
 
@@ -1096,6 +1096,15 @@ export async function updatePartnerInvoiceLine(formData: FormData) {
   if (!["draft", "ready"].includes(String(invoiceStatus))) {
     return;
   }
+
+  const oldUnits = Number(line.units);
+  const oldRate = Number(line.rate_per_unit);
+  const oldLineTotal = Number(line.line_total);
+  const calculatedLineTotal = Math.round(units * ratePerUnit * 100) / 100;
+  const lineTotal =
+    submittedLineTotal === oldLineTotal && (units !== oldUnits || ratePerUnit !== oldRate)
+      ? calculatedLineTotal
+      : submittedLineTotal || calculatedLineTotal;
 
   await supabase
     .from("partner_invoice_lines")
