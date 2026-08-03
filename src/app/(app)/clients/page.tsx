@@ -16,7 +16,9 @@ export default async function ClientsPage() {
   const supabase = await createSupabaseServerClient();
   const { data: clients } = await supabase
     .from("clients")
-    .select("id, name, status, notes, created_at, updated_at")
+    .select(
+      "id, name, email, phone, address_line1, address_line2, city, state, country, zip_code, status, notes, created_at, updated_at",
+    )
     .order("name", { ascending: true });
 
   const clientList = clients ?? [];
@@ -86,6 +88,74 @@ export default async function ClientsPage() {
                 </select>
               </label>
               <label className="block text-sm font-medium">
+                Email
+                <input
+                  className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  name="email"
+                  placeholder="billing@example.com"
+                  type="email"
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                Phone
+                <input
+                  className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  name="phone"
+                  placeholder="Phone number"
+                  type="tel"
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                Address
+                <input
+                  className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  name="address_line1"
+                  placeholder="Street address"
+                />
+              </label>
+              <label className="block text-sm font-medium">
+                Address Line 2
+                <input
+                  className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                  name="address_line2"
+                  placeholder="Suite, unit, floor"
+                />
+              </label>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-medium">
+                  City
+                  <input
+                    className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    name="city"
+                    placeholder="City"
+                  />
+                </label>
+                <label className="block text-sm font-medium">
+                  State
+                  <input
+                    className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    name="state"
+                    placeholder="State"
+                  />
+                </label>
+                <label className="block text-sm font-medium">
+                  ZIP
+                  <input
+                    className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    name="zip_code"
+                    placeholder="ZIP"
+                  />
+                </label>
+                <label className="block text-sm font-medium">
+                  Country
+                  <input
+                    className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    name="country"
+                    placeholder="Country"
+                  />
+                </label>
+              </div>
+              <label className="block text-sm font-medium">
                 Notes
                 <textarea
                   className="mt-2 min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
@@ -126,7 +196,9 @@ export default async function ClientsPage() {
                       </span>
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {client.notes || "No notes saved"}
+                      {[client.email, client.phone].filter(Boolean).join(" - ") ||
+                        client.notes ||
+                        "No contact saved"}
                     </p>
                   </div>
                   <span className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-surface px-3 text-sm font-semibold">
@@ -135,12 +207,9 @@ export default async function ClientsPage() {
                   </span>
                 </summary>
 
-                <form
-                  action={updateClient}
-                  className="grid gap-4 border-t border-border bg-background px-5 py-5 lg:grid-cols-[1fr_160px] xl:grid-cols-[1fr_160px_180px]"
-                >
+                <form action={updateClient} className="border-t border-border bg-background px-5 py-5">
                   <input name="client_id" type="hidden" value={client.id} />
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     <label className="block text-sm font-medium">
                       Client Name
                       <input
@@ -151,33 +220,107 @@ export default async function ClientsPage() {
                       />
                     </label>
                     <label className="block text-sm font-medium">
-                      Notes
+                      Email
                       <input
                         className="mt-2 h-11 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-                        defaultValue={client.notes ?? ""}
-                        name="notes"
-                        placeholder="No notes"
+                        defaultValue={client.email ?? ""}
+                        name="email"
+                        placeholder="billing@example.com"
+                        type="email"
                       />
                     </label>
-                  </div>
-                  <label className="block text-sm font-medium">
-                    Status
-                    <select
-                      className="mt-2 h-11 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
-                      defaultValue={client.status}
-                      name="status"
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive</option>
-                    </select>
-                  </label>
-                  <div className="space-y-2">
-                    <SaveSubmitButton className="h-11 w-full" successMessage="Client saved.">
-                      Save Changes
-                    </SaveSubmitButton>
-                    <p className="text-xs text-muted-foreground">
-                      Updated {dateFormatter.format(new Date(client.updated_at))}
-                    </p>
+                    <label className="block text-sm font-medium">
+                      Phone
+                      <input
+                        className="mt-2 h-11 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        defaultValue={client.phone ?? ""}
+                        name="phone"
+                        placeholder="Phone number"
+                        type="tel"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium md:col-span-2">
+                      Address
+                      <input
+                        className="mt-2 h-11 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        defaultValue={client.address_line1 ?? ""}
+                        name="address_line1"
+                        placeholder="Street address"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium">
+                      Address Line 2
+                      <input
+                        className="mt-2 h-11 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        defaultValue={client.address_line2 ?? ""}
+                        name="address_line2"
+                        placeholder="Suite, unit, floor"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium">
+                      City
+                      <input
+                        className="mt-2 h-11 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        defaultValue={client.city ?? ""}
+                        name="city"
+                        placeholder="City"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium">
+                      State
+                      <input
+                        className="mt-2 h-11 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        defaultValue={client.state ?? ""}
+                        name="state"
+                        placeholder="State"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium">
+                      ZIP
+                      <input
+                        className="mt-2 h-11 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        defaultValue={client.zip_code ?? ""}
+                        name="zip_code"
+                        placeholder="ZIP"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium">
+                      Country
+                      <input
+                        className="mt-2 h-11 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        defaultValue={client.country ?? ""}
+                        name="country"
+                        placeholder="Country"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium">
+                      Status
+                      <select
+                        className="mt-2 h-11 w-full rounded-md border border-border bg-surface px-3 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        defaultValue={client.status}
+                        name="status"
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </label>
+                    <label className="block text-sm font-medium md:col-span-2 xl:col-span-3">
+                      Notes
+                      <textarea
+                        className="mt-2 min-h-24 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+                        defaultValue={client.notes ?? ""}
+                        name="notes"
+                        placeholder="Billing notes, contact details, or reminders"
+                      />
+                    </label>
+                    <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                      <SaveSubmitButton className="h-11 w-full" successMessage="Client saved.">
+                        Save Changes
+                      </SaveSubmitButton>
+                      <p className="text-xs text-muted-foreground">
+                        Updated {dateFormatter.format(new Date(client.updated_at))}
+                      </p>
+                    </div>
                   </div>
                 </form>
               </details>
