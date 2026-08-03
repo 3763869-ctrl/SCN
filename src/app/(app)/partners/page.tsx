@@ -25,6 +25,7 @@ import {
   getStatusLabel,
 } from "@/features/admin/partner-data";
 import { formatHoursShort } from "@/lib/format/duration";
+import { formatInvoiceNumber } from "@/lib/format/invoice";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
   currency: "USD",
@@ -797,7 +798,7 @@ function InvoicesTab({
           empty="No invoices yet."
           items={invoices.map((invoice) => ({
             id: invoice.id,
-            label: `${invoice.invoice_number} - ${moneyFormatter.format(Number(invoice.invoice_total))}`,
+            label: `${formatInvoiceNumber(invoice.invoice_number)} - ${moneyFormatter.format(Number(invoice.invoice_total))}`,
             meta: `${getDateLabel(invoice.billing_period_start)} - ${getDateLabel(invoice.billing_period_end)} - ${getStatusLabel(invoice.status)} - Balance ${moneyFormatter.format(Number(invoice.balance_remaining ?? invoice.invoice_total))}`,
           }))}
         />
@@ -825,7 +826,7 @@ function PaymentsTab({
           <option value="">Select invoice</option>
           {invoices.map((invoice) => (
             <option key={invoice.id} value={invoice.id}>
-              {invoice.invoice_number} - {moneyFormatter.format(Number(invoice.invoice_total))}
+              {formatInvoiceNumber(invoice.invoice_number)} - {moneyFormatter.format(Number(invoice.invoice_total))}
             </option>
           ))}
         </select>

@@ -22,6 +22,7 @@ import {
   getStatusLabel,
 } from "@/features/admin/partner-data";
 import { getEasternDateKey } from "@/lib/dates/eastern-time";
+import { formatInvoiceNumber } from "@/lib/format/invoice";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
   currency: "USD",
@@ -328,7 +329,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                       href={`/invoices/${invoice.id}/print`}
                       target="_blank"
                     >
-                      {invoice.invoice_number}
+                      {formatInvoiceNumber(invoice.invoice_number)}
                     </Link>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {getPartnerLabel(partnerMap.get(invoice.partner_id))}

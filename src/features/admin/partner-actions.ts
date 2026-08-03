@@ -828,7 +828,7 @@ export async function generatePartnerInvoices(formData: FormData) {
 
   const ratePerUnit = Number(billing.rate_per_unit ?? 0);
   const invoiceTotal = Math.round(unitsTotal * ratePerUnit * 100) / 100;
-  const invoiceNumber = `${invoicePrefix}-${periodStart.replaceAll("-", "")}-${periodEnd.replaceAll("-", "")}-001`;
+  const invoiceNumber = `${invoicePrefix}-${periodStart.replaceAll("-", "")}-${periodEnd.replaceAll("-", "")}-0001`;
   const dueDate = addDaysToDateKey(periodEnd, Number(billing.payment_terms_days ?? 15));
   const totalPaid = Number(existingInvoice?.total_paid ?? 0);
   let invoice: { id: string } | null = existingInvoice ? { id: existingInvoice.id } : null;

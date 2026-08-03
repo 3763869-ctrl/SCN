@@ -23,6 +23,7 @@ import {
   getUtcDateFromEasternDateTime,
 } from "@/lib/dates/eastern-time";
 import { formatHoursShort } from "@/lib/format/duration";
+import { formatInvoiceNumber } from "@/lib/format/invoice";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const displayDateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -108,7 +109,7 @@ function getLinkedInvoiceNumber(
     ? link?.partner_invoices[0]
     : link?.partner_invoices;
 
-  return invoice?.invoice_number ?? "Invoice";
+  return invoice?.invoice_number ? formatInvoiceNumber(invoice.invoice_number) : "Invoice";
 }
 
 type TimeTrackingPageProps = {

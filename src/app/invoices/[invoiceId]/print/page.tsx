@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 
 import { Button } from "@/components/ui/button";
 import { recordPartnerInvoicePayment } from "@/features/admin/partner-actions";
+import { formatInvoiceNumber } from "@/lib/format/invoice";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 import { PrintButton } from "./print-button";
@@ -35,7 +36,9 @@ export async function generateMetadata({
     .maybeSingle();
 
   return {
-    title: invoice?.invoice_number ? `Invoice ${invoice.invoice_number}` : "Invoice",
+    title: invoice?.invoice_number
+      ? `Invoice ${formatInvoiceNumber(invoice.invoice_number)}`
+      : "Invoice",
   };
 }
 
@@ -205,7 +208,7 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Invoice Number
               </p>
-              <p className="text-lg font-bold">{invoice.invoice_number}</p>
+              <p className="text-lg font-bold">{formatInvoiceNumber(invoice.invoice_number)}</p>
               <dl className="mt-4 space-y-2">
                 <div>
                   <dt className="font-semibold">Period</dt>
