@@ -636,6 +636,7 @@ export async function generatePartnerInvoices(formData: FormData) {
     { data: settings },
     { data: assignments },
     { data: workers },
+    { data: completedUnitPeriods },
     { data: units },
   ] =
     await Promise.all([
@@ -659,19 +660,34 @@ export async function generatePartnerInvoices(formData: FormData) {
         .in("role", ["admin", "worker"])
         .is("deleted_at", null),
       supabase
+        .from("production_unit_periods")
+        .select("worker_id, period_start, period_end, status")
+        .eq("status", "completed")
+        .lte("period_start", periodEnd)
+        .gte("period_end", periodStart),
+      supabase
         .from("production_units")
         .select("id, worker_id, quantity, work_date, status")
         .gte("work_date", periodStart)
-        .lte("work_date", periodEnd)
-        .eq("status", "approved"),
+        .lte("work_date", periodEnd),
     ]);
   const invoicePrefix = getInvoicePrefix(client?.name);
 
   const partnerList = partners ?? [];
   const settingMap = new Map((settings ?? []).map((setting) => [setting.partner_id, setting]));
   const assignmentList = assignments ?? [];
+  const completedUnitPeriodList = completedUnitPeriods ?? [];
   const workerList = workers ?? [];
-  const unitList = units ?? [];
+  const unitList = (units ?? []).filter(
+    (unit) =>
+      unit.status === "approved" ||
+      completedUnitPeriodList.some(
+        (period) =>
+          period.worker_id === unit.worker_id &&
+          period.period_start <= unit.work_date &&
+          period.period_end >= unit.work_date,
+      ),
+  );
   const { data: activeUnitLinks } = unitList.length
     ? await supabase
         .from("production_unit_invoice_links")
@@ -712,11 +728,13 @@ export async function generatePartnerInvoices(formData: FormData) {
   let invoiceCount = 0;
   let totalUnits = 0;
   let totalAmount = 0;
+  const skippedReasons = new Set<string>();
 
   for (const [index, partner] of partnerList.entries()) {
     const billing = settingMap.get(partner.id);
 
     if (!billing) {
+      skippedReasons.add("missing-billing");
       continue;
     }
 
@@ -748,6 +766,9 @@ export async function generatePartnerInvoices(formData: FormData) {
         })
         .map((worker) => worker.id),
     );
+    if (!partnerAssignments.length && !partnerOwnWorkerIds.size) {
+      skippedReasons.add("missing-worker-match");
+    }
     const billableUnits = unitList.filter(
       (unit) => {
         const activeLink = activeLinkByUnitId.get(unit.id);
@@ -778,6 +799,7 @@ export async function generatePartnerInvoices(formData: FormData) {
     );
 
     if (unitsTotal <= 0) {
+      skippedReasons.add(unitList.length ? "no-matching-units" : "no-approved-or-completed-units");
       continue;
     }
 
@@ -812,6 +834,7 @@ export async function generatePartnerInvoices(formData: FormData) {
 
       invoice = updatedInvoice;
     } else if (existingInvoice) {
+      skippedReasons.add("existing-locked-invoice");
       continue;
     } else {
       const { data: createdInvoice } = await supabase
@@ -945,7 +968,7 @@ export async function generatePartnerInvoices(formData: FormData) {
   revalidatePath("/invoices");
   revalidatePath("/dashboard");
   redirect(
-    `/invoices?client=${clientId}&generated=${invoiceCount}&units=${totalUnits}`,
+    `/invoices?client=${clientId}&generated=${invoiceCount}&units=${totalUnits}&reason=${Array.from(skippedReasons).join(",")}`,
   );
 }
 

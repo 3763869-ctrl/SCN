@@ -82,8 +82,22 @@ type InvoicesPageProps = {
   searchParams?: Promise<{
     client?: string;
     generated?: string;
+    reason?: string;
     units?: string;
   }>;
+};
+
+const invoiceGenerationReasons: Record<string, string> = {
+  "existing-locked-invoice":
+    "There is already a sent, paid, or otherwise locked invoice for that Partner and date range. Void or reopen it before regenerating.",
+  "missing-billing":
+    "At least one active Partner has no active billing rule for this client.",
+  "missing-worker-match":
+    "At least one active Partner has no assigned worker and no matching Partner worker login.",
+  "no-approved-or-completed-units":
+    "No approved units or completed unit periods were found in the selected date range.",
+  "no-matching-units":
+    "Units were found in the date range, but none matched the Partner's assigned worker or matching Partner login.",
 };
 
 export default async function InvoicesPage({ searchParams }: InvoicesPageProps) {
@@ -119,6 +133,10 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
   const generatedCount =
     params?.generated === undefined ? null : Number(params.generated);
   const generatedUnits = params?.units === undefined ? null : Number(params.units);
+  const generationReasons = String(params?.reason ?? "")
+    .split(",")
+    .filter(Boolean)
+    .map((reason) => invoiceGenerationReasons[reason] ?? reason);
   const totalOutstanding = data.invoices
     .filter((invoice) => !["paid", "cancelled"].includes(invoice.status))
     .reduce(
@@ -162,7 +180,9 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
           >
             {generatedCount > 0
               ? `Generated ${generatedCount} invoice preview${generatedCount === 1 ? "" : "s"} with ${generatedUnits ?? 0} approved unit${generatedUnits === 1 ? "" : "s"}.`
-              : "No invoice preview was generated. Check that this client has active Partners, active billing settings, assigned workers, and approved units in this date range that were not already invoiced."}
+              : generationReasons.length
+                ? generationReasons.join(" ")
+                : "No invoice preview was generated. Check that this client has active Partners, active billing settings, assigned workers, and approved or completed units in this date range that were not already invoiced."}
           </div>
         ) : null}
         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
