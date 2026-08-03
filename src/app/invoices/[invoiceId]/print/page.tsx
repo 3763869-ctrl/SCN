@@ -265,8 +265,13 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
               </tr>
             </thead>
             <tbody>
-              {(lines ?? []).map((line) => (
-                <tr className="border-b border-slate-100" key={line.id}>
+              {(lines ?? []).map((line, index) => (
+                <tr
+                  className={`border-b border-slate-100 ${
+                    index % 2 === 1 ? "bg-slate-50" : "bg-white"
+                  }`}
+                  key={line.id}
+                >
                   <td className="px-3 py-3">{line.description}</td>
                   <td className="px-3 py-3 text-right">{line.units}</td>
                   <td className="px-3 py-3 text-right">
