@@ -22,7 +22,7 @@ import {
   getStatusLabel,
 } from "@/features/admin/partner-data";
 import { getEasternDateKey } from "@/lib/dates/eastern-time";
-import { formatInvoiceNumber } from "@/lib/format/invoice";
+import { formatInvoiceLineDescription, formatInvoiceNumber } from "@/lib/format/invoice";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", {
   currency: "USD",
@@ -374,7 +374,7 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                                 </span>
                                 <input
                                   className="mt-1 h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
-                                  defaultValue={line.description}
+                                  defaultValue={formatInvoiceLineDescription(line.description)}
                                   name="description"
                                 />
                                 <p className="mt-1 text-xs text-muted-foreground">
@@ -434,7 +434,9 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                             ) : (
                               <div className="grid gap-2 lg:grid-cols-[1.4fr_110px_110px_120px_auto]">
                                 <div>
-                                  <p className="font-semibold">{line.description}</p>
+                                  <p className="font-semibold">
+                                    {formatInvoiceLineDescription(line.description)}
+                                  </p>
                                   <p className="mt-1 text-xs text-muted-foreground">
                                     {line.source === "manual" ? "Manual line" : "Generated line"}
                                   </p>

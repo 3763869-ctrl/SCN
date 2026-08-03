@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { writeAdminAuditEvent } from "@/features/admin/audit";
 import { requireAdminProfile } from "@/features/auth/session";
+import { formatInvoiceDateKey } from "@/lib/format/invoice";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type {
   PartnerInvoiceStatus,
@@ -911,7 +912,7 @@ export async function generatePartnerInvoices(formData: FormData) {
   const { data: line } = await supabase
     .from("partner_invoice_lines")
     .insert({
-      description: `Units completed ${periodStart} to ${periodEnd}`,
+      description: `Units completed ${formatInvoiceDateKey(periodStart)} to ${formatInvoiceDateKey(periodEnd)}`,
       invoice_id: invoice.id,
       line_total: invoiceTotal,
       partner_id: partner.id,

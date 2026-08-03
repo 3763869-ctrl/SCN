@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 import { Button } from "@/components/ui/button";
 import { recordPartnerInvoicePayment } from "@/features/admin/partner-actions";
-import { formatInvoiceNumber } from "@/lib/format/invoice";
+import { formatInvoiceLineDescription, formatInvoiceNumber } from "@/lib/format/invoice";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 import { PrintButton } from "./print-button";
@@ -281,7 +281,9 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
                   }`}
                   key={line.id}
                 >
-                  <td className="px-3 py-3">{line.description}</td>
+                  <td className="px-3 py-3">
+                    {formatInvoiceLineDescription(line.description)}
+                  </td>
                   <td className="px-3 py-3 text-right">{line.units}</td>
                   <td className="px-3 py-3 text-right">
                     {moneyFormatter.format(Number(line.rate_per_unit))}
