@@ -413,12 +413,6 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                     />
                     <textarea
                       className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm sm:col-span-2"
-                      defaultValue={selectedPartnerInvoiceProfile?.invoice_notes ?? ""}
-                      name="invoice_notes"
-                      placeholder="Invoice notes shown on invoice"
-                    />
-                    <textarea
-                      className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm sm:col-span-2"
                       defaultValue={selectedPartner.notes ?? ""}
                       name="notes"
                       placeholder="Notes"

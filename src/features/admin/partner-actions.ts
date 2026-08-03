@@ -848,7 +848,7 @@ export async function generatePartnerInvoices(formData: FormData) {
         invoice_number: invoiceNumber,
         invoice_run_id: invoiceRun.id,
         invoice_total: invoiceTotal,
-        notes: "Generated from Partner unit entries.",
+        notes: null,
         rate_per_unit: ratePerUnit,
         restored_at: existingInvoice.voided_at ? now : null,
         restored_by: existingInvoice.voided_at ? admin.id : null,
@@ -877,7 +877,7 @@ export async function generatePartnerInvoices(formData: FormData) {
         invoice_number: invoiceNumber,
         invoice_run_id: invoiceRun.id,
         invoice_total: invoiceTotal,
-        notes: "Generated from Partner unit entries.",
+        notes: null,
         partner_id: partner.id,
         rate_per_unit: ratePerUnit,
         status: "draft",
@@ -1163,6 +1163,28 @@ export async function deletePartnerInvoiceLine(formData: FormData) {
 
   await supabase.from("partner_invoice_lines").delete().eq("id", lineId);
   await recalculatePartnerInvoice(line.invoice_id);
+
+  revalidatePath("/invoices");
+  revalidatePath("/partners");
+}
+
+export async function updatePartnerInvoiceNote(formData: FormData) {
+  await requireAdminProfile();
+
+  const invoiceId = String(formData.get("invoice_id") ?? "");
+
+  if (!invoiceId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+
+  await supabase
+    .from("partner_invoices")
+    .update({
+      notes: optionalText(formData, "notes"),
+    })
+    .eq("id", invoiceId);
 
   revalidatePath("/invoices");
   revalidatePath("/partners");

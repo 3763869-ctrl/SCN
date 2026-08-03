@@ -14,6 +14,7 @@ import {
   markPartnerInvoiceSent,
   recordPartnerInvoicePayment,
   updatePartnerInvoiceLine,
+  updatePartnerInvoiceNote,
   voidPartnerInvoicePayment,
 } from "@/features/admin/partner-actions";
 import {
@@ -525,6 +526,39 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                             Add Line
                           </Button>
                         </div>
+                        {!canEdit ? (
+                          <p className="mt-3 text-xs font-semibold text-muted-foreground">
+                            Sent and paid invoices are locked.
+                          </p>
+                        ) : null}
+                      </form>
+                      <form
+                        action={updatePartnerInvoiceNote}
+                        className="rounded-md border border-border bg-surface p-4"
+                      >
+                        <h3 className="font-semibold">Invoice Note</h3>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          This note prints only on this invoice.
+                        </p>
+                        <input name="invoice_id" type="hidden" value={invoice.id} />
+                        <textarea
+                          className="mt-3 min-h-24 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                          defaultValue={
+                            invoice.notes === "Generated from Partner unit entries."
+                              ? ""
+                              : (invoice.notes ?? "")
+                          }
+                          disabled={!canEdit}
+                          name="notes"
+                          placeholder="Optional note for this invoice"
+                        />
+                        <SaveSubmitButton
+                          className="mt-3 h-10"
+                          disabled={!canEdit}
+                          successMessage="Invoice note saved."
+                        >
+                          Save Note
+                        </SaveSubmitButton>
                         {!canEdit ? (
                           <p className="mt-3 text-xs font-semibold text-muted-foreground">
                             Sent and paid invoices are locked.

@@ -77,7 +77,7 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
   const { data: invoice } = await supabase
     .from("partner_invoices")
     .select(
-      "id, invoice_number, billing_period_start, billing_period_end, units, rate_per_unit, invoice_total, total_paid, balance_remaining, due_date, partner_id, client_id",
+      "id, invoice_number, billing_period_start, billing_period_end, units, rate_per_unit, invoice_total, total_paid, balance_remaining, due_date, notes, partner_id, client_id",
     )
     .eq("id", invoiceId)
     .single();
@@ -89,7 +89,7 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
   const extendedPartner = await supabase
     .from("partners")
     .select(
-      "full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_name, bank_account_holder_name, bank_account_number, bank_routing_number, zelle_payment_info, invoice_notes, notes",
+      "full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_name, bank_account_holder_name, bank_account_number, bank_routing_number, zelle_payment_info",
     )
     .eq("id", invoice.partner_id)
     .single();
@@ -123,7 +123,6 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
         bank_routing_number?: string | null;
         city?: string | null;
         country?: string | null;
-        invoice_notes?: string | null;
         state?: string | null;
         zip_code?: string | null;
         zelle_payment_info?: string | null;
@@ -149,6 +148,10 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
   const invoiceTotal = (lines ?? []).length ? lineInvoiceTotal : Number(invoice.invoice_total);
   const totalPaid = Number(invoice.total_paid);
   const displayBalance = Math.max(0, invoiceTotal - totalPaid);
+  const invoiceNote =
+    invoice.notes && invoice.notes !== "Generated from Partner unit entries."
+      ? invoice.notes
+      : null;
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 print:bg-white print:p-0">
@@ -320,11 +323,11 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
             </div>
           </div>
 
-          {partner?.invoice_notes || partner?.notes ? (
+          {invoiceNote ? (
             <div className="mt-8 rounded-md border border-slate-200 p-4 text-sm">
               <p className="font-bold">Notes</p>
               <p className="mt-2 whitespace-pre-wrap text-slate-700">
-                {partner.invoice_notes || partner.notes}
+                {invoiceNote}
               </p>
             </div>
           ) : null}
