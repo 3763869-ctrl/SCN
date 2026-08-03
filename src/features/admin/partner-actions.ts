@@ -750,12 +750,12 @@ export async function generatePartnerInvoices(formData: FormData) {
 
   const { data: existingInvoice } = await supabase
     .from("partner_invoices")
-    .select("id, status, total_paid")
+    .select("id, status, total_paid, voided_at")
     .eq("partner_id", partner.id)
     .eq("billing_period_start", periodStart)
     .eq("billing_period_end", periodEnd)
-    .is("voided_at", null)
-    .neq("status", "cancelled")
+    .order("updated_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   const partnerEmail = normalizeIdentity(partner.email);
@@ -796,7 +796,11 @@ export async function generatePartnerInvoices(formData: FormData) {
     skippedReasons.add(unitList.length ? "no-matching-units" : "no-approved-or-completed-units");
   }
 
-  if (existingInvoice && !["draft", "ready"].includes(existingInvoice.status)) {
+  if (
+    existingInvoice &&
+    !existingInvoice.voided_at &&
+    !["draft", "ready", "cancelled"].includes(existingInvoice.status)
+  ) {
     skippedReasons.add("existing-locked-invoice");
   }
 
@@ -836,9 +840,14 @@ export async function generatePartnerInvoices(formData: FormData) {
         invoice_total: invoiceTotal,
         notes: "Generated from Partner unit entries.",
         rate_per_unit: ratePerUnit,
+        restored_at: existingInvoice.voided_at ? now : null,
+        restored_by: existingInvoice.voided_at ? admin.id : null,
         status: "draft",
         total_paid: totalPaid,
         units: unitsTotal,
+        void_reason: null,
+        voided_at: null,
+        voided_by: null,
       })
       .eq("id", existingInvoice.id)
       .select("id")
