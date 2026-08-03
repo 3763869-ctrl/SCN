@@ -51,6 +51,19 @@ function normalizeIdentity(value: string | null | undefined) {
   return (value ?? "").trim().toLowerCase();
 }
 
+function isMissingInvoiceProfileColumn(error: { message?: string } | null) {
+  const message = error?.message ?? "";
+
+  return [
+    "address_line1",
+    "address_line2",
+    "bank_account_number",
+    "bank_routing_number",
+    "invoice_notes",
+    "zip_code",
+  ].some((column) => message.includes(column));
+}
+
 function getInvoicePrefix(clientName: string | null | undefined) {
   const firstWord = (clientName ?? "")
     .trim()
@@ -338,19 +351,53 @@ export async function createPartner(formData: FormData) {
     return;
   }
 
-  const { data: partner } = await supabase
+  const partnerPayload = {
+    address_line1: optionalText(formData, "address_line1"),
+    address_line2: optionalText(formData, "address_line2"),
+    bank_account_number: optionalText(formData, "bank_account_number"),
+    bank_routing_number: optionalText(formData, "bank_routing_number"),
+    city: optionalText(formData, "city"),
+    client_id: clientId,
+    country: optionalText(formData, "country"),
+    email: optionalText(formData, "email"),
+    full_name: fullName,
+    invoice_notes: optionalText(formData, "invoice_notes"),
+    notes: optionalText(formData, "notes"),
+    phone: optionalText(formData, "phone"),
+    start_date: optionalDate(formData, "start_date"),
+    state: optionalText(formData, "state"),
+    status: (String(formData.get("status") ?? "active") as PartnerStatus) || "active",
+    zip_code: optionalText(formData, "zip_code"),
+  };
+  const basePartnerPayload = {
+    client_id: clientId,
+    email: partnerPayload.email,
+    full_name: fullName,
+    notes: partnerPayload.notes,
+    phone: partnerPayload.phone,
+    start_date: partnerPayload.start_date,
+    status: partnerPayload.status,
+  };
+  let { data: partner, error } = await supabase
     .from("partners")
-    .insert({
-      client_id: clientId,
-      email: optionalText(formData, "email"),
-      full_name: fullName,
-      notes: optionalText(formData, "notes"),
-      phone: optionalText(formData, "phone"),
-      start_date: optionalDate(formData, "start_date"),
-      status: (String(formData.get("status") ?? "active") as PartnerStatus) || "active",
-    })
+    .insert(partnerPayload)
     .select("id")
     .single();
+
+  if (error && isMissingInvoiceProfileColumn(error)) {
+    const fallback = await supabase
+      .from("partners")
+      .insert(basePartnerPayload)
+      .select("id")
+      .single();
+
+    partner = fallback.data;
+    error = fallback.error;
+  }
+
+  if (error) {
+    throw new Error(`Could not create Partner: ${error.message}`);
+  }
 
   if (partner) {
     await writeAdminAuditEvent({
@@ -378,17 +425,48 @@ export async function updatePartner(formData: FormData) {
 
   const supabase = await createSupabaseServerClient();
 
-  await supabase
+  const partnerPayload = {
+    address_line1: optionalText(formData, "address_line1"),
+    address_line2: optionalText(formData, "address_line2"),
+    bank_account_number: optionalText(formData, "bank_account_number"),
+    bank_routing_number: optionalText(formData, "bank_routing_number"),
+    city: optionalText(formData, "city"),
+    country: optionalText(formData, "country"),
+    email: optionalText(formData, "email"),
+    full_name: fullName,
+    invoice_notes: optionalText(formData, "invoice_notes"),
+    notes: optionalText(formData, "notes"),
+    phone: optionalText(formData, "phone"),
+    start_date: optionalDate(formData, "start_date"),
+    state: optionalText(formData, "state"),
+    status: String(formData.get("status") ?? "active") as PartnerStatus,
+    zip_code: optionalText(formData, "zip_code"),
+  };
+  const basePartnerPayload = {
+    email: partnerPayload.email,
+    full_name: fullName,
+    notes: partnerPayload.notes,
+    phone: partnerPayload.phone,
+    start_date: partnerPayload.start_date,
+    status: partnerPayload.status,
+  };
+  let { error } = await supabase
     .from("partners")
-    .update({
-      email: optionalText(formData, "email"),
-      full_name: fullName,
-      notes: optionalText(formData, "notes"),
-      phone: optionalText(formData, "phone"),
-      start_date: optionalDate(formData, "start_date"),
-      status: String(formData.get("status") ?? "active") as PartnerStatus,
-    })
+    .update(partnerPayload)
     .eq("id", id);
+
+  if (error && isMissingInvoiceProfileColumn(error)) {
+    const fallback = await supabase
+      .from("partners")
+      .update(basePartnerPayload)
+      .eq("id", id);
+
+    error = fallback.error;
+  }
+
+  if (error) {
+    throw new Error(`Could not update Partner: ${error.message}`);
+  }
   await writeAdminAuditEvent({
     actorId: admin.id,
     entityId: id,

@@ -25,9 +25,22 @@ export function getPartnerLabel(
 
 export async function getPartnerOperationsData() {
   const supabase = await createSupabaseServerClient();
+  const partnerSelect =
+    "id, client_id, full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_account_number, bank_routing_number, invoice_notes, status, start_date, notes, list_order";
+  const basePartnerSelect =
+    "id, client_id, full_name, email, phone, status, start_date, notes, list_order";
+  const extendedPartners = await supabase
+    .from("partners")
+    .select(partnerSelect)
+    .order("full_name", { ascending: true });
+  const partnerResult = extendedPartners.error
+    ? await supabase
+        .from("partners")
+        .select(basePartnerSelect)
+        .order("full_name", { ascending: true })
+    : extendedPartners;
   const [
     { data: clients },
-    { data: partners },
     { data: assignments },
     { data: workers },
     { data: units },
@@ -48,10 +61,6 @@ export async function getPartnerOperationsData() {
     { data: documents },
   ] = await Promise.all([
     supabase.from("clients").select("id, name, status, notes"),
-    supabase
-      .from("partners")
-      .select("id, client_id, full_name, email, phone, status, start_date, notes, list_order")
-      .order("full_name", { ascending: true }),
     supabase
       .from("partner_worker_assignments")
       .select("id, partner_id, worker_id, status, assigned_at, ended_at, notes")
@@ -139,7 +148,7 @@ export async function getPartnerOperationsData() {
       .select("id, partner_id, document_type, file_name, storage_path, notes, created_at"),
   ]);
 
-  const partnerList = [...(partners ?? [])].sort((left, right) => {
+  const partnerList = [...(partnerResult.data ?? [])].sort((left, right) => {
     const leftOrder = left.list_order ?? Number.MAX_SAFE_INTEGER;
     const rightOrder = right.list_order ?? Number.MAX_SAFE_INTEGER;
 

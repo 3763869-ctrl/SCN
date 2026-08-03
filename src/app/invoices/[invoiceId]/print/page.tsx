@@ -26,6 +26,31 @@ function getDateLabel(value: string | null | undefined) {
   return value ? dateFormatter.format(new Date(`${value}T00:00:00Z`)) : "";
 }
 
+function getAddressLines(
+  entity:
+    | {
+        address_line1?: string | null;
+        address_line2?: string | null;
+        city?: string | null;
+        state?: string | null;
+        country?: string | null;
+        zip_code?: string | null;
+      }
+    | null
+    | undefined,
+) {
+  const cityStateZip = [entity?.city, entity?.state, entity?.zip_code]
+    .filter(Boolean)
+    .join(", ");
+
+  return [
+    entity?.address_line1,
+    entity?.address_line2,
+    cityStateZip,
+    entity?.country,
+  ].filter(Boolean);
+}
+
 export default async function PrintInvoicePage({ params }: PrintInvoicePageProps) {
   const { invoiceId } = await params;
   const supabase = await createSupabaseServerClient();
@@ -41,12 +66,21 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
     notFound();
   }
 
-  const [{ data: partner }, { data: client }, { data: lines }] = await Promise.all([
-    supabase
-      .from("partners")
-      .select("full_name, email, phone, notes")
-      .eq("id", invoice.partner_id)
-      .single(),
+  const extendedPartner = await supabase
+    .from("partners")
+    .select(
+      "full_name, email, phone, address_line1, address_line2, city, state, country, zip_code, bank_account_number, bank_routing_number, invoice_notes, notes",
+    )
+    .eq("id", invoice.partner_id)
+    .single();
+  const partnerResult = extendedPartner.error
+    ? await supabase
+        .from("partners")
+        .select("full_name, email, phone, notes")
+        .eq("id", invoice.partner_id)
+        .single()
+    : extendedPartner;
+  const [{ data: client }, { data: lines }] = await Promise.all([
     supabase.from("clients").select("name, notes").eq("id", invoice.client_id).single(),
     supabase
       .from("partner_invoice_lines")
@@ -54,7 +88,21 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
       .eq("invoice_id", invoice.id)
       .order("work_date", { ascending: true }),
   ]);
+  const partner = partnerResult.data as
+    | (NonNullable<typeof partnerResult.data> & {
+        address_line1?: string | null;
+        address_line2?: string | null;
+        bank_account_number?: string | null;
+        bank_routing_number?: string | null;
+        city?: string | null;
+        country?: string | null;
+        invoice_notes?: string | null;
+        state?: string | null;
+        zip_code?: string | null;
+      })
+    | null;
   const balanceRemaining = Number(invoice.balance_remaining ?? invoice.invoice_total);
+  const partnerAddress = getAddressLines(partner);
 
   return (
     <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 print:bg-white print:p-0">
@@ -101,6 +149,9 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
               <div className="mt-2 space-y-1 text-sm text-slate-700">
                 <p>{partner?.email}</p>
                 <p>{partner?.phone}</p>
+                {partnerAddress.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
               </div>
             </div>
             <div className="min-w-56 text-sm sm:text-right">
@@ -145,11 +196,11 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
               <div className="mt-2 space-y-1 text-sm text-slate-700">
                 <p>
                   <span className="font-semibold">Account:</span>{" "}
-                  {"Not provided"}
+                  {partner?.bank_account_number || "Not provided"}
                 </p>
                 <p>
                   <span className="font-semibold">Routing:</span>{" "}
-                  {"Not provided"}
+                  {partner?.bank_routing_number || "Not provided"}
                 </p>
                 <p>
                   <span className="font-semibold">Phone:</span>{" "}
@@ -203,11 +254,11 @@ export default async function PrintInvoicePage({ params }: PrintInvoicePageProps
             </div>
           </div>
 
-          {partner?.notes ? (
+          {partner?.invoice_notes || partner?.notes ? (
             <div className="mt-8 rounded-md border border-slate-200 p-4 text-sm">
               <p className="font-bold">Notes</p>
               <p className="mt-2 whitespace-pre-wrap text-slate-700">
-                {partner.notes}
+                {partner.invoice_notes || partner.notes}
               </p>
             </div>
           ) : null}

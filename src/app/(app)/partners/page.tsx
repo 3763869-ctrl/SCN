@@ -114,6 +114,19 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
     data.partnerSummaries[0] ??
     null;
   const selectedPartner = selectedSummary?.partner ?? null;
+  const selectedPartnerInvoiceProfile = selectedPartner as
+    | (typeof selectedPartner & {
+        address_line1?: string | null;
+        address_line2?: string | null;
+        bank_account_number?: string | null;
+        bank_routing_number?: string | null;
+        city?: string | null;
+        country?: string | null;
+        invoice_notes?: string | null;
+        state?: string | null;
+        zip_code?: string | null;
+      })
+    | null;
   const selectedInvoices = selectedPartner
     ? data.invoices.filter((invoice) => invoice.partner_id === selectedPartner.id)
     : [];
@@ -182,6 +195,11 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                 name="phone"
                 placeholder="Phone"
                 type="tel"
+              />
+              <input
+                className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
+                name="address_line1"
+                placeholder="Invoice address"
               />
               <input
                 className="h-10 w-full rounded-md border border-border bg-surface px-3 text-sm"
@@ -307,6 +325,60 @@ export default async function PartnersPage({ searchParams }: PartnersPageProps) 
                       defaultValue={selectedPartner.start_date ?? ""}
                       name="start_date"
                       type="date"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm sm:col-span-2"
+                      defaultValue={selectedPartnerInvoiceProfile?.address_line1 ?? ""}
+                      name="address_line1"
+                      placeholder="Invoice address"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm sm:col-span-2"
+                      defaultValue={selectedPartnerInvoiceProfile?.address_line2 ?? ""}
+                      name="address_line2"
+                      placeholder="Address line 2"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartnerInvoiceProfile?.city ?? ""}
+                      name="city"
+                      placeholder="City"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartnerInvoiceProfile?.state ?? ""}
+                      name="state"
+                      placeholder="State"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartnerInvoiceProfile?.country ?? ""}
+                      name="country"
+                      placeholder="Country"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartnerInvoiceProfile?.zip_code ?? ""}
+                      name="zip_code"
+                      placeholder="ZIP"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartnerInvoiceProfile?.bank_account_number ?? ""}
+                      name="bank_account_number"
+                      placeholder="Account number"
+                    />
+                    <input
+                      className="h-10 rounded-md border border-border bg-surface px-3 text-sm"
+                      defaultValue={selectedPartnerInvoiceProfile?.bank_routing_number ?? ""}
+                      name="bank_routing_number"
+                      placeholder="Routing number"
+                    />
+                    <textarea
+                      className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm sm:col-span-2"
+                      defaultValue={selectedPartnerInvoiceProfile?.invoice_notes ?? ""}
+                      name="invoice_notes"
+                      placeholder="Invoice notes shown on invoice"
                     />
                     <textarea
                       className="min-h-16 rounded-md border border-border bg-surface px-3 py-2 text-sm sm:col-span-2"
