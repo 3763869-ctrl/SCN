@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ReceiptText,
   Settings,
+  UserCheck,
   WalletCards,
   Users,
 } from "lucide-react";
@@ -18,6 +19,7 @@ export const navigationItems = [
   { label: "Partners", href: "/partners", icon: Handshake },
   { label: "Workers", href: "/workers", icon: Users },
   { label: "Time Tracking", href: "/time-tracking", icon: Clock3 },
+  { label: "My Worker Page", href: "/worker", icon: UserCheck },
   { label: "Payroll", href: "/payroll", icon: HandCoins },
   { label: "Partner Payroll", href: "/settlements", icon: HandCoins },
   { label: "Invoices", href: "/invoices", icon: FileText },

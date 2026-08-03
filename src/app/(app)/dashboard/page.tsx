@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   BadgeDollarSign,
   Handshake,
@@ -72,6 +73,23 @@ export default async function DashboardPage() {
         title="Operations Dashboard"
         description="A simple daily view of production, income, and expenses. Full financial analysis lives in Reports."
       />
+
+      <section className="rounded-lg border border-border bg-surface p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold">Your Worker Workspace</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Clock in, clock out, add units, and use worker tools with your own account.
+            </p>
+          </div>
+          <Link
+            className="inline-flex h-10 items-center justify-center rounded-md bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm transition hover:-translate-y-px hover:bg-teal-800"
+            href="/worker"
+          >
+            Open My Worker Page
+          </Link>
+        </div>
+      </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {stats.map((stat) => (
