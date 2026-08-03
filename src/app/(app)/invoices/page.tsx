@@ -149,13 +149,46 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
     .split(",")
     .filter(Boolean)
     .map((reason) => invoiceGenerationReasons[reason] ?? reason);
-  const totalOutstanding = data.invoices
-    .filter((invoice) => !["paid", "cancelled"].includes(invoice.status))
-    .reduce(
-      (total, invoice) =>
-        total + Number(invoice.balance_remaining ?? invoice.invoice_total),
+  const invoiceLinesByInvoiceId = new Map<string, typeof data.invoiceLines>();
+  const paymentsByInvoiceId = new Map<string, typeof data.payments>();
+
+  for (const line of data.invoiceLines) {
+    invoiceLinesByInvoiceId.set(line.invoice_id, [
+      ...(invoiceLinesByInvoiceId.get(line.invoice_id) ?? []),
+      line,
+    ]);
+  }
+
+  for (const payment of data.payments) {
+    paymentsByInvoiceId.set(payment.invoice_id, [
+      ...(paymentsByInvoiceId.get(payment.invoice_id) ?? []),
+      payment,
+    ]);
+  }
+
+  const getInvoiceDisplayTotals = (invoice: (typeof data.invoices)[number]) => {
+    const lines = invoiceLinesByInvoiceId.get(invoice.id) ?? [];
+    const payments = paymentsByInvoiceId.get(invoice.id) ?? [];
+    const lineUnits = lines.reduce((total, line) => total + Number(line.units), 0);
+    const lineTotal = Math.round(
+      lines.reduce((total, line) => total + Number(line.line_total), 0) * 100,
+    ) / 100;
+    const totalPaid = payments.reduce(
+      (total, payment) => total + Number(payment.amount_received),
       0,
     );
+    const invoiceTotal = lines.length ? lineTotal : Number(invoice.invoice_total);
+
+    return {
+      balanceRemaining: Math.max(0, invoiceTotal - totalPaid),
+      invoiceTotal,
+      totalPaid,
+      units: lines.length ? lineUnits : Number(invoice.units),
+    };
+  };
+  const totalOutstanding = data.invoices
+    .filter((invoice) => !["paid", "cancelled"].includes(invoice.status))
+    .reduce((total, invoice) => total + getInvoiceDisplayTotals(invoice).balanceRemaining, 0);
   const totalReady = data.invoices.filter((invoice) => invoice.status === "ready").length;
   const totalDraft = data.invoices.filter((invoice) => invoice.status === "draft").length;
   const totalSent = data.invoices.filter((invoice) => invoice.status === "sent").length;
@@ -280,12 +313,11 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
         </div>
         <div className="divide-y divide-border">
           {data.invoices.map((invoice) => {
-            const lines = data.invoiceLines.filter((line) => line.invoice_id === invoice.id);
-            const payments = data.payments.filter(
-              (payment) => payment.invoice_id === invoice.id,
-            );
+            const lines = invoiceLinesByInvoiceId.get(invoice.id) ?? [];
+            const payments = paymentsByInvoiceId.get(invoice.id) ?? [];
+            const displayTotals = getInvoiceDisplayTotals(invoice);
             const canEdit = ["draft", "ready"].includes(invoice.status);
-            const canPay = Number(invoice.balance_remaining ?? invoice.invoice_total) > 0;
+            const canPay = displayTotals.balanceRemaining > 0;
 
             return (
               <details className="group" key={invoice.id}>
@@ -306,16 +338,13 @@ export default async function InvoicesPage({ searchParams }: InvoicesPageProps) 
                     {getDateLabel(invoice.billing_period_start)} -{" "}
                     {getDateLabel(invoice.billing_period_end)}
                   </p>
-                  <p>{invoice.units} units</p>
+                  <p>{displayTotals.units} units</p>
                   <div>
                     <p className="font-semibold">
-                      {moneyFormatter.format(Number(invoice.invoice_total))}
+                      {moneyFormatter.format(displayTotals.invoiceTotal)}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Balance{" "}
-                      {moneyFormatter.format(
-                        Number(invoice.balance_remaining ?? invoice.invoice_total),
-                      )}
+                      Balance {moneyFormatter.format(displayTotals.balanceRemaining)}
                     </p>
                   </div>
                   <span className={`h-fit w-fit rounded-full border px-3 py-1 text-xs font-semibold ${statusClass(invoice.status)}`}>
