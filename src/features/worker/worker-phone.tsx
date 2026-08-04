@@ -1,12 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Bell, MessageSquare, Mic, Phone, PhoneOff, Send } from "lucide-react";
+import {
+  Bell,
+  MessageSquare,
+  Mic,
+  MicOff,
+  Pause,
+  Phone,
+  PhoneOff,
+  Play,
+  Send,
+  UserPlus,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Call, Device } from "@twilio/voice-sdk";
 
 import { Button } from "@/components/ui/button";
-import { updateVoicemailWorkflow } from "@/features/worker/phone-actions";
+import { savePhoneContact, updateVoicemailWorkflow } from "@/features/worker/phone-actions";
 
 type WorkerPhoneData = {
   settings: {
@@ -46,6 +57,13 @@ type WorkerPhoneData = {
     status: string;
     created_at: string;
   }>;
+  contacts: Array<{
+    id: string;
+    display_name: string | null;
+    phone_number: string;
+    notes: string | null;
+    created_at: string;
+  }>;
   voicemails: Array<{
     id: string;
     assigned_worker_id: string | null;
@@ -77,6 +95,10 @@ function getDateTimeLabel(value: string) {
   }).format(new Date(value));
 }
 
+function normalizePhoneNumber(value: string | null | undefined) {
+  return String(value ?? "").replace(/\D/g, "");
+}
+
 async function ensureServiceWorker() {
   if (!("serviceWorker" in navigator)) {
     return null;
@@ -104,6 +126,8 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isOnHold, setIsOnHold] = useState(false);
   const [deviceReady, setDeviceReady] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<
     NotificationPermission | "unsupported"
@@ -118,11 +142,26 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
   const ringAudioContextRef = useRef<AudioContext | null>(null);
   const ringIntervalRef = useRef<number | null>(null);
   const browserNotificationRef = useRef<Notification | null>(null);
+  const activeCallNumber =
+    activeCall?.parameters.To || activeCall?.parameters.From || phoneNumber.trim();
   const selectedThread = data.threads.find((thread) => thread.id === selectedThreadId);
   const selectedMessages = useMemo(
     () => data.messages.filter((message) => message.thread_id === selectedThreadId),
     [data.messages, selectedThreadId],
   );
+  const contactsByPhone = useMemo(() => {
+    const contacts = new Map<string, { display_name: string | null; phone_number: string }>();
+
+    data.contacts.forEach((contact) => {
+      const normalized = normalizePhoneNumber(contact.phone_number);
+
+      if (normalized) {
+        contacts.set(normalized, contact);
+      }
+    });
+
+    return contacts;
+  }, [data.contacts]);
   const phoneEnabled = Boolean(data.settings?.phone_enabled);
   const canCall = Boolean(phoneEnabled && data.settings?.calling_enabled && data.config.voiceReady);
   const canText = Boolean(phoneEnabled && data.settings?.texting_enabled && data.config.messagingReady);
@@ -148,18 +187,72 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
     }
   }, []);
 
+  const resetActiveCallState = useCallback(() => {
+    setActiveCall(null);
+    setIsMuted(false);
+    setIsOnHold(false);
+  }, []);
+
   const answerIncomingCall = useCallback((call: Call) => {
     call.accept();
     stopRinging();
+    setIsMuted(false);
+    setIsOnHold(false);
     setActiveCall(call);
     setIncomingCall(null);
-  }, [stopRinging]);
+    call.on("disconnect", resetActiveCallState);
+    call.on("cancel", resetActiveCallState);
+    call.on("reject", resetActiveCallState);
+  }, [resetActiveCallState, stopRinging]);
 
   const denyIncomingCall = useCallback((call: Call) => {
     call.reject();
     stopRinging();
     setIncomingCall(null);
   }, [stopRinging]);
+
+  const fetchVoiceToken = useCallback(async () => {
+    const tokenResponse = await fetch("/api/phone/token", { cache: "no-store" });
+
+    if (!tokenResponse.ok) {
+      const error = (await tokenResponse.json().catch(() => null)) as { error?: string } | null;
+
+      throw new Error(error?.error ?? "Phone calling is not ready.");
+    }
+
+    return ((await tokenResponse.json()) as { token: string }).token;
+  }, []);
+
+  const refreshDeviceToken = useCallback(async () => {
+    if (!deviceRef.current) {
+      return false;
+    }
+
+    const token = await fetchVoiceToken();
+    deviceRef.current.updateToken(token);
+
+    return true;
+  }, [fetchVoiceToken]);
+
+  const reconnectPhone = useCallback(async () => {
+    if (!deviceRef.current) {
+      setStatusMessage("Phone is still starting. Try again in a moment.");
+      return false;
+    }
+
+    try {
+      setStatusMessage("Reconnecting phone...");
+      await refreshDeviceToken();
+      await deviceRef.current.register();
+      setDeviceReady(true);
+      setStatusMessage("Phone is ready for calls.");
+      return true;
+    } catch (error) {
+      setDeviceReady(false);
+      setStatusMessage(error instanceof Error ? error.message : "Phone could not reconnect.");
+      return false;
+    }
+  }, [refreshDeviceToken]);
 
   function playRingTone() {
     const AudioContextConstructor =
@@ -298,17 +391,10 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
         setStatusMessage("Connecting phone...");
         const [{ Device: VoiceDevice }, tokenResponse] = await Promise.all([
           import("@twilio/voice-sdk"),
-          fetch("/api/phone/token"),
+          fetchVoiceToken(),
         ]);
 
-        if (!tokenResponse.ok) {
-          const error = (await tokenResponse.json().catch(() => null)) as { error?: string } | null;
-          setStatusMessage(error?.error ?? "Phone calling is not ready.");
-          return;
-        }
-
-        const tokenData = (await tokenResponse.json()) as { token: string };
-        const device = new VoiceDevice(tokenData.token, {
+        const device = new VoiceDevice(tokenResponse, {
           closeProtection: true,
         });
 
@@ -321,8 +407,18 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
         device.on("unregistered", () => {
           if (mounted) {
             setDeviceReady(false);
-            setStatusMessage("Phone disconnected. Refresh this page before calling.");
+            setStatusMessage("Phone disconnected. Reconnecting...");
+            window.setTimeout(() => {
+              void reconnectPhone();
+            }, 800);
           }
+        });
+        device.on("tokenWillExpire", () => {
+          void refreshDeviceToken().catch((error) => {
+            setStatusMessage(
+              error instanceof Error ? error.message : "Phone token could not refresh.",
+            );
+          });
         });
         device.on("incoming", (call) => {
           setIncomingCall(call);
@@ -333,6 +429,10 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
           call.on("reject", () => setIncomingCall(null));
         });
         device.on("error", (error) => {
+          if (error.code === 20104 || error.code === 20101 || error.code === 31205) {
+            void reconnectPhone();
+          }
+
           setStatusMessage(getPhoneErrorMessage(error));
         });
         await device.register();
@@ -352,7 +452,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
       deviceRef.current = null;
       stopRinging();
     };
-  }, [canCall, showChromeCallNotification, stopRinging]);
+  }, [canCall, fetchVoiceToken, reconnectPhone, refreshDeviceToken, showChromeCallNotification, stopRinging]);
 
   useEffect(() => {
     if (!incomingCall) {
@@ -377,8 +477,11 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
       }
 
       if (!deviceRef.current || !deviceReady) {
-        setStatusMessage("Phone is still connecting. Try again in a moment.");
-        return;
+        const reconnected = await reconnectPhone();
+
+        if (!reconnected || !deviceRef.current) {
+          return;
+        }
       }
 
       const logResponse = await fetch("/api/phone/calls/outbound", {
@@ -409,10 +512,56 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
       }
 
       setActiveCall(call);
-      call.on("disconnect", () => setActiveCall(null));
-      call.on("cancel", () => setActiveCall(null));
+      setIsMuted(false);
+      setIsOnHold(false);
+      call.on("disconnect", resetActiveCallState);
+      call.on("cancel", resetActiveCallState);
       call.on("error", (error) => setStatusMessage(getPhoneErrorMessage(error)));
-      call.on("reject", () => setActiveCall(null));
+      call.on("reject", resetActiveCallState);
+    });
+  }
+
+  function toggleMute() {
+    if (!activeCall) {
+      return;
+    }
+
+    const nextMuted = !isMuted;
+
+    activeCall.mute(nextMuted);
+    setIsMuted(nextMuted);
+
+    if (!nextMuted) {
+      setIsOnHold(false);
+    }
+  }
+
+  function toggleHold() {
+    if (!activeCall) {
+      return;
+    }
+
+    const nextOnHold = !isOnHold;
+
+    activeCall.mute(nextOnHold);
+    setIsOnHold(nextOnHold);
+    setIsMuted(nextOnHold);
+    setStatusMessage(
+      nextOnHold
+        ? "Call is on hold. Your microphone is muted."
+        : "Call resumed. Your microphone is live.",
+    );
+  }
+
+  function saveContactFromForm(formData: FormData) {
+    startTransition(async () => {
+      const result = await savePhoneContact(formData);
+
+      setStatusMessage(result.message);
+
+      if (result.success) {
+        router.refresh();
+      }
     });
   }
 
@@ -560,6 +709,37 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                 Hang Up
               </Button>
             </div>
+            {activeCall ? (
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button onClick={toggleMute} type="button" variant="secondary">
+                  {isMuted ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+                  {isMuted ? "Unmute" : "Mute"}
+                </Button>
+                <Button onClick={toggleHold} type="button" variant="secondary">
+                  {isOnHold ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
+                  {isOnHold ? "Resume" : "Hold"}
+                </Button>
+              </div>
+            ) : null}
+            {activeCall ? (
+              <p className="mt-2 rounded-md border border-border bg-background px-3 py-2 text-xs font-semibold text-muted-foreground">
+                Active call: {activeCallNumber || "Unknown number"}
+                {isOnHold ? " - On hold" : isMuted ? " - Muted" : ""}
+              </p>
+            ) : null}
+            {!deviceReady && canCall ? (
+              <Button
+                className="mt-3 w-full"
+                disabled={isPending}
+                onClick={() => {
+                  void reconnectPhone();
+                }}
+                type="button"
+                variant="secondary"
+              >
+                Reconnect Phone
+              </Button>
+            ) : null}
             <p className="mt-2 text-xs text-muted-foreground">
               Browser calls require microphone permission in Chrome.
             </p>
@@ -584,6 +764,57 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                   </Button>
                 ) : null}
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+            <h3 className="text-base font-semibold">Contacts</h3>
+            <form action={saveContactFromForm} className="mt-3 grid gap-2">
+              <input
+                className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                name="display_name"
+                placeholder="Contact name"
+              />
+              <input
+                className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                defaultValue={activeCallNumber || phoneNumber}
+                name="phone_number"
+                placeholder="+1 555 555 5555"
+                required
+                type="tel"
+              />
+              <input
+                className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                name="notes"
+                placeholder="Notes"
+              />
+              <Button disabled={isPending} type="submit" variant="secondary">
+                <UserPlus className="h-4 w-4" />
+                Add Contact
+              </Button>
+            </form>
+            <div className="mt-4 space-y-2">
+              {data.contacts.map((contact) => (
+                <button
+                  className="w-full rounded-md border border-border bg-background p-3 text-left text-sm transition hover:bg-surface-muted"
+                  key={contact.id}
+                  onClick={() => setPhoneNumber(contact.phone_number)}
+                  type="button"
+                >
+                  <span className="block font-semibold">
+                    {contact.display_name || contact.phone_number}
+                  </span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    {contact.phone_number}
+                    {contact.notes ? ` - ${contact.notes}` : ""}
+                  </span>
+                </button>
+              ))}
+              {!data.contacts.length ? (
+                <p className="text-sm text-muted-foreground">
+                  No saved contacts yet.
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -693,12 +924,18 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                     const assignedWorkerId =
                       override?.assignedWorkerId ?? voicemail.assigned_worker_id ?? "";
                     const completed = override?.completed ?? Boolean(voicemail.completed_at);
+                    const callerContact = contactsByPhone.get(
+                      normalizePhoneNumber(voicemail.from_number),
+                    );
 
                     return (
                       <>
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                      <p className="font-semibold">{voicemail.from_number || "Unknown caller"}</p>
+                      <p className="font-semibold">{callerContact?.display_name || "Unknown caller"}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        From: {voicemail.from_number || "Unknown phone number"}
+                      </p>
                       {completed ? (
                         <p className="mt-1 text-xs font-semibold text-accent">
                           Done

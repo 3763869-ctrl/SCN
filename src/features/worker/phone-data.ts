@@ -10,6 +10,7 @@ export async function getWorkerPhoneData(workerId: string) {
     { data: messages },
     { data: voicemails },
     { data: workers },
+    { data: contacts },
   ] = await Promise.all([
     supabase
       .from("worker_phone_settings")
@@ -55,10 +56,16 @@ export async function getWorkerPhoneData(workerId: string) {
       .eq("active", true)
       .is("deleted_at", null)
       .order("full_name", { ascending: true }),
+    supabase
+      .from("phone_contacts")
+      .select("id, display_name, phone_number, notes, created_at")
+      .eq("worker_id", workerId)
+      .order("display_name", { ascending: true }),
   ]);
 
   return {
     callLogs: callLogs ?? [],
+    contacts: contacts ?? [],
     config: twilioConfigStatus(),
     messages: messages ?? [],
     settings,

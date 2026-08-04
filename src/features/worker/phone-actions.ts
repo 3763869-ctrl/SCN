@@ -10,6 +10,11 @@ export type VoicemailWorkflowState = {
   success: boolean;
 };
 
+export type PhoneContactState = {
+  message: string;
+  success: boolean;
+};
+
 function optionalUuid(value: FormDataEntryValue | null) {
   const text = String(value ?? "").trim();
 
@@ -91,4 +96,40 @@ export async function updateVoicemailWorkflow(
 
   revalidatePath("/worker");
   return { message: "Voicemail saved.", success: true };
+}
+
+export async function savePhoneContact(formData: FormData): Promise<PhoneContactState> {
+  const profile = await requireProfile();
+  const displayName = String(formData.get("display_name") ?? "").trim();
+  const phoneNumber = String(formData.get("phone_number") ?? "").trim();
+  const notes = String(formData.get("notes") ?? "").trim();
+
+  if (!phoneNumber) {
+    return { message: "Enter a phone number before saving a contact.", success: false };
+  }
+
+  const supabase = createSupabaseAdminClient();
+  const { data: existingContact } = await supabase
+    .from("phone_contacts")
+    .select("id")
+    .eq("worker_id", profile.id)
+    .eq("phone_number", phoneNumber)
+    .maybeSingle();
+
+  const payload = {
+    display_name: displayName || null,
+    notes: notes || null,
+    phone_number: phoneNumber,
+    worker_id: profile.id,
+  };
+  const { error } = existingContact
+    ? await supabase.from("phone_contacts").update(payload).eq("id", existingContact.id)
+    : await supabase.from("phone_contacts").insert(payload);
+
+  if (error) {
+    return { message: "Contact could not be saved.", success: false };
+  }
+
+  revalidatePath("/worker");
+  return { message: "Contact saved.", success: true };
 }
