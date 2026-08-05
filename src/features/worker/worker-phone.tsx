@@ -121,11 +121,13 @@ function getInitialNotificationPermission(): NotificationPermission | "unsupport
 export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
   const router = useRouter();
   const [phoneNumber, setPhoneNumber] = useState("");
+  const [mergePhoneNumber, setMergePhoneNumber] = useState("");
   const [messageBody, setMessageBody] = useState("");
   const [selectedThreadId, setSelectedThreadId] = useState(data.threads[0]?.id ?? "");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
+  const [activeConferenceName, setActiveConferenceName] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isOnHold, setIsOnHold] = useState(false);
   const [deviceReady, setDeviceReady] = useState(false);
@@ -189,6 +191,8 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
 
   const resetActiveCallState = useCallback(() => {
     setActiveCall(null);
+    setActiveConferenceName(null);
+    setMergePhoneNumber("");
     setIsMuted(false);
     setIsOnHold(false);
   }, []);
@@ -496,11 +500,17 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
         return;
       }
 
+      const callSetup = (await logResponse.json().catch(() => null)) as {
+        conferenceName?: string;
+        to?: string;
+      } | null;
+
       let call: Call;
 
       try {
         call = await deviceRef.current.connect({
           params: {
+            ConferenceName: callSetup?.conferenceName ?? "",
             To: numberToCall,
           },
         });
@@ -512,6 +522,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
       }
 
       setActiveCall(call);
+      setActiveConferenceName(callSetup?.conferenceName ?? null);
       setIsMuted(false);
       setIsOnHold(false);
       call.on("disconnect", resetActiveCallState);
@@ -551,6 +562,40 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
         ? "Call is on hold. Your microphone is muted."
         : "Call resumed. Your microphone is live.",
     );
+  }
+
+  function addCallToConference() {
+    startTransition(async () => {
+      const numberToAdd = mergePhoneNumber.trim();
+
+      if (!activeCall || !activeConferenceName) {
+        setStatusMessage("Start a call before adding another person.");
+        return;
+      }
+
+      if (!numberToAdd) {
+        setStatusMessage("Enter a number to add.");
+        return;
+      }
+
+      const response = await fetch("/api/phone/calls/add-participant", {
+        body: JSON.stringify({
+          conferenceName: activeConferenceName,
+          to: numberToAdd,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { error?: string } | null;
+        setStatusMessage(error?.error ?? "Could not add this call.");
+        return;
+      }
+
+      setStatusMessage("Call added.");
+      setMergePhoneNumber("");
+    });
   }
 
   function saveContactFromForm(formData: FormData) {
@@ -701,7 +746,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                 disabled={!activeCall}
                 onClick={() => {
                   activeCall?.disconnect();
-                  setActiveCall(null);
+                  resetActiveCallState();
                 }}
                 variant="danger"
               >
@@ -718,6 +763,29 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                 <Button onClick={toggleHold} type="button" variant="secondary">
                   {isOnHold ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
                   {isOnHold ? "Resume" : "Hold"}
+                </Button>
+              </div>
+            ) : null}
+            {activeCall ? (
+              <div className="mt-3 rounded-md border border-border bg-background p-3">
+                <label className="text-xs font-semibold text-muted-foreground">
+                  Add Call
+                  <input
+                    className="mt-1 h-10 w-full rounded-md border border-border bg-surface px-3 text-sm text-foreground"
+                    onChange={(event) => setMergePhoneNumber(event.target.value)}
+                    placeholder="+1 555 555 5555"
+                    type="tel"
+                    value={mergePhoneNumber}
+                  />
+                </label>
+                <Button
+                  className="mt-2 w-full"
+                  disabled={!activeConferenceName || isPending}
+                  onClick={addCallToConference}
+                  type="button"
+                  variant="secondary"
+                >
+                  Add & Merge
                 </Button>
               </div>
             ) : null}

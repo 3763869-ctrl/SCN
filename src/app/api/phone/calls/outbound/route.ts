@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 
 import { requireProfile } from "@/features/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -49,5 +50,9 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ ok: true, to });
+  return NextResponse.json({
+    conferenceName: `rm-support-${profile.id}-${randomUUID()}`,
+    ok: true,
+    to,
+  });
 }
