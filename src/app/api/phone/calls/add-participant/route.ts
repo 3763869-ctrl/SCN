@@ -83,5 +83,5 @@ export async function POST(request: Request) {
     worker_id: profile.id,
   });
 
-  return NextResponse.json({ ok: true, to });
+  return NextResponse.json({ callSid: call.sid, ok: true, to });
 }

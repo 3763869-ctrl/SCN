@@ -12,6 +12,8 @@ import {
   Play,
   Send,
   UserPlus,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Call, Device } from "@twilio/voice-sdk";
@@ -88,6 +90,12 @@ type WorkerPhoneProps = {
   visible?: boolean;
 };
 
+type MergedParticipant = {
+  callSid: string;
+  muted: boolean;
+  phoneNumber: string;
+};
+
 function getDateTimeLabel(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "short",
@@ -128,6 +136,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [activeConferenceName, setActiveConferenceName] = useState<string | null>(null);
+  const [mergedParticipants, setMergedParticipants] = useState<MergedParticipant[]>([]);
   const [isMuted, setIsMuted] = useState(false);
   const [isOnHold, setIsOnHold] = useState(false);
   const [deviceReady, setDeviceReady] = useState(false);
@@ -193,6 +202,7 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
     setActiveCall(null);
     setActiveConferenceName(null);
     setMergePhoneNumber("");
+    setMergedParticipants([]);
     setIsMuted(false);
     setIsOnHold(false);
   }, []);
@@ -593,8 +603,54 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
         return;
       }
 
+      const result = (await response.json().catch(() => null)) as {
+        callSid?: string;
+        to?: string;
+      } | null;
+
+      if (result?.callSid && result.to) {
+        setMergedParticipants((current) => [
+          ...current,
+          { callSid: result.callSid ?? "", muted: false, phoneNumber: result.to ?? numberToAdd },
+        ]);
+      }
+
       setStatusMessage("Call added.");
       setMergePhoneNumber("");
+    });
+  }
+
+  function setParticipantMuted(participant: MergedParticipant, muted: boolean) {
+    startTransition(async () => {
+      if (!activeConferenceName) {
+        setStatusMessage("The merged call is not active.");
+        return;
+      }
+
+      const response = await fetch("/api/phone/calls/mute-participant", {
+        body: JSON.stringify({
+          callSid: participant.callSid,
+          conferenceName: activeConferenceName,
+          muted,
+        }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { error?: string } | null;
+        setStatusMessage(error?.error ?? "Could not update caller mute.");
+        return;
+      }
+
+      setMergedParticipants((current) =>
+        current.map((currentParticipant) =>
+          currentParticipant.callSid === participant.callSid
+            ? { ...currentParticipant, muted }
+            : currentParticipant,
+        ),
+      );
+      setStatusMessage(muted ? "Caller was force muted." : "Caller was unmuted.");
     });
   }
 
@@ -787,6 +843,39 @@ export function WorkerPhone({ data, visible = true }: WorkerPhoneProps) {
                 >
                   Add & Merge
                 </Button>
+                {mergedParticipants.length ? (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground">
+                      Merged Callers
+                    </p>
+                    {mergedParticipants.map((participant) => (
+                      <div
+                        className="flex items-center justify-between gap-2 rounded-md border border-border bg-surface px-3 py-2"
+                        key={participant.callSid}
+                      >
+                        <div>
+                          <p className="text-sm font-semibold">{participant.phoneNumber}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {participant.muted ? "Force muted" : "Can speak"}
+                          </p>
+                        </div>
+                        <Button
+                          disabled={isPending}
+                          onClick={() => setParticipantMuted(participant, !participant.muted)}
+                          type="button"
+                          variant={participant.muted ? "secondary" : "danger"}
+                        >
+                          {participant.muted ? (
+                            <Volume2 className="h-4 w-4" />
+                          ) : (
+                            <VolumeX className="h-4 w-4" />
+                          )}
+                          {participant.muted ? "Unmute" : "Force Mute"}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {activeCall ? (
